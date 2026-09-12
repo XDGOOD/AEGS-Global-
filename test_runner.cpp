@@ -406,7 +406,7 @@ int main() {
     uint8_t pkt_buf2[256] = {0};
     uint8_t seed[2] = {0xAA, 0xBB};
     size_t w1 = pm.wrap(pkt_buf1, 32, sizeof(pkt_buf1), seed);
-    size_t w2 = ProtocolMimicry::wrap_quic_initial(pkt_buf2, 32, sizeof(pkt_buf2));
+    size_t w2 = ProtocolMimicry::wrap_quic_initial(pkt_buf2, 32, sizeof(pkt_buf2), nullptr, 0);
     assert(w1 == 32 + 24);
     assert(w2 == 32 + 24);
     assert(pm.header_size() == 24);
