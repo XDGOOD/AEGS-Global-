@@ -41,6 +41,8 @@
 #include "session_resumption.h"
 #include "session.h"
 #include "packet_scratch.h"
+#include "aegs_metrics.h"
+#include "aegs_log.h"
 #include "session_table.h"
 #include "aegs_config.h"
 #include "network_security.h"
@@ -369,6 +371,9 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
 
     auto process_udp_packet = [&](int fd, const struct sockaddr_in& caddr, uint8_t* pkt_data, ssize_t len, double now) {
         if (len < 0) return;
+        auto& metrics = AegsMetrics::instance();
+        metrics.rx_packets.fetch_add(1, std::memory_order_relaxed);
+        metrics.rx_bytes.fetch_add(static_cast<uint64_t>(len), std::memory_order_relaxed);
 
         uint32_t ip_num = caddr.sin_addr.s_addr;
         {
@@ -442,7 +447,8 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                     memcpy(rpkt + 1, &new_tok, 96);
                     sendto(fd, rpkt, 97, 0, (struct sockaddr*)&caddr, sizeof(caddr));
                 }
-                std::cout << "[RESUME] Session resumed with restored crypto state for " << inet_ntoa(caddr.sin_addr) << " (" << IpPool::to_string(s->assigned_ip) << ")\n";
+                metrics.resume_fast_ok.fetch_add(1, std::memory_order_relaxed);
+                AegsLog::info("[RESUME] Session resumed with restored crypto state for ", inet_ntoa(caddr.sin_addr), " (", IpPool::to_string(s->assigned_ip), ")");
             }
             return;
         }
@@ -494,8 +500,9 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 }
                 // Register in O(1) fast-path cache
                 update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s);
+                metrics.handshake_ok.fetch_add(1, std::memory_order_relaxed);
                 sendto(fd, resp.data(), resp.size(), 0, (struct sockaddr*)&caddr, sizeof(caddr));
-                std::cout << "[HS] Client " << inet_ntoa(caddr.sin_addr) << " assigned " << IpPool::to_string(s->assigned_ip) << "\n";
+                AegsLog::info("[HS] Client ", inet_ntoa(caddr.sin_addr), " assigned ", IpPool::to_string(s->assigned_ip));
                 
                 ResumptionToken rtok;
                 if (g_resumption.issue(s->session_id, s->assigned_ip, s->master_key, rtok, (const uint8_t*)&s->key_id_raw)) {
@@ -565,7 +572,10 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
         if ((size_t)len < aead_offset + 12 + TAG_LEN) { record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 0.5); return; }
 
         const uint8_t* aead_nonce = pkt_data + aead_offset;
-        if (s->check_replay(aead_nonce)) return;
+        if (s->check_replay(aead_nonce)) {
+            metrics.replay_drop.fetch_add(1, std::memory_order_relaxed);
+            return;
+        }
 
         const uint8_t* ct = pkt_data + aead_offset + 12;
         size_t ct_len = len - (aead_offset + 12);
@@ -582,8 +592,10 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
         }
         // FIX Blocker 3: Authenticate outer header (IV + masked header + junk) as AAD to prevent bit-flipping
         if (!chacha20_poly1305_decrypt(ct, ct_len, dec_key, aead_nonce, dec_buf, dec_len, pkt_data, aead_offset)) {
+            metrics.decrypt_fail.fetch_add(1, std::memory_order_relaxed);
             record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 0.5); return;
         }
+        metrics.decrypt_ok.fetch_add(1, std::memory_order_relaxed);
 
         // Authentication passed! Securely update roaming endpoint & cache.
         {
@@ -599,7 +611,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
         }
 
         if (unmasked_hdr[10] & 0x80) {
-            std::cout << "[DEBUG] Received CHAFF packet from " << inet_ntoa(caddr.sin_addr) << "\n";
+            AegsLog::debug("[CHAFF] Received silent chaff packet");
             return;
         }
 
@@ -710,6 +722,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                                         | (uint32_t(buffer[14]) << 8)  |  uint32_t(buffer[15]);
                         if (src_ip != dst_ip) {
                             if (g_sessions.find_by_assigned_ip(src_ip) != nullptr) {
+                                AegsMetrics::instance().acl_drop.fetch_add(1, std::memory_order_relaxed);
                                 continue; // Drop: client-to-client traffic blocked
                             }
                         }
@@ -781,7 +794,10 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 // FIX Phase 3: Flush outbound batch in 1 syscall via sendmmsg()
                 size_t sent_count = scratch.flush_tx();
                 if (sent_count > 0) {
+                    AegsMetrics::instance().tx_packets.fetch_add(sent_count, std::memory_order_relaxed);
                     backpressure.record_egress_success();
+                } else if (scratch.tx_count > 0) {
+                    AegsMetrics::instance().egress_failures.fetch_add(1, std::memory_order_relaxed);
                 }
             }
         }
