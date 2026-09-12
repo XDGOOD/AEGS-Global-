@@ -61,3 +61,6 @@ target_link_libraries(aegs_test PRIVATE OpenSSL::Crypto Threads::Threads)
 # 4. Stage 26 Benchmark Suite
 add_executable(bench_hotpath benchmarks/bench_hotpath.cpp ${CORE_SOURCES})
 target_link_libraries(bench_hotpath PRIVATE OpenSSL::Crypto Threads::Threads)
+# 5. Stage 23 Protocol Fuzz Target
+add_executable(aegs_fuzz fuzzing/fuzz_parsers.cpp ${CORE_SOURCES})
+target_link_libraries(aegs_fuzz PRIVATE OpenSSL::Crypto Threads::Threads)

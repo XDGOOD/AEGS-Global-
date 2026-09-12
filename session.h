@@ -15,9 +15,10 @@
 // 1. SessionIdentity: Immutable identity parameters
 // ---------------------------------------------------------------------------
 struct SessionIdentity {
-    std::string key_id_hex;
-    uint64_t    key_id_raw = 0;
-    uint64_t    session_id = 0;
+    std::string           key_id_hex;
+    uint64_t              key_id_raw = 0;
+    uint64_t              session_id = 0;
+    std::atomic<uint64_t> generation{1}; // Lifecycle generation counter (Phase 18)
 };
 
 // ---------------------------------------------------------------------------
@@ -103,4 +104,30 @@ struct Session {
         std::memcpy(&seq, n_bytes, sizeof(uint64_t));
         return replay_filter.check_and_update(seq);
     }
+
+    void recycle() noexcept {
+        identity.generation.fetch_add(1, std::memory_order_release);
+        routing.has_client = false;
+        routing.assigned_ip = 0;
+        crypto.v3_handshake_done = false;
+        counters.tx_seq.store(0, std::memory_order_relaxed);
+        replay_filter.reset();
+    }
+};
+
+// Safe generation-validated session handle (Phase 18)
+struct SessionHandle {
+    Session* ptr{nullptr};
+    uint64_t gen{0};
+
+    bool is_valid() const noexcept {
+        return ptr != nullptr && ptr->identity.generation.load(std::memory_order_acquire) == gen;
+    }
+
+    Session* get() const noexcept {
+        return is_valid() ? ptr : nullptr;
+    }
+
+    Session* operator->() const noexcept { return ptr; }
+    explicit operator bool() const noexcept { return is_valid(); }
 };
