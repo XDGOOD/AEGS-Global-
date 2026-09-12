@@ -39,7 +39,7 @@ std::vector<uint8_t> IllusionPreBypass::generate_stun_binding() {
     pkt[6] = 0xA4;
     pkt[7] = 0x42;
     // Transaction ID: 12 random bytes
-    RAND_bytes(&pkt[8], 12);
+    if (RAND_bytes(&pkt[8], 12) != 1) return {};
 
     // Attribute 1: USERNAME (0x0006), Length: 8 bytes (simulating WebRTC ICE ufrag)
     pkt[20] = 0x00;
@@ -48,7 +48,7 @@ std::vector<uint8_t> IllusionPreBypass::generate_stun_binding() {
     pkt[23] = 0x08;
     static const char charset[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     uint8_t rand_bytes[8];
-    RAND_bytes(rand_bytes, 8);
+    if (RAND_bytes(rand_bytes, 8) != 1) return {};
     for (int i = 0; i < 8; ++i) {
         pkt[24 + i] = charset[rand_bytes[i] % (sizeof(charset) - 1)];
     }
@@ -82,10 +82,10 @@ std::vector<uint8_t> IllusionPreBypass::generate_quic_initial() {
     
     // DCID length 8
     pkt[5] = 8;
-    RAND_bytes(&pkt[6], 8);
+    if (RAND_bytes(&pkt[6], 8) != 1) return {};
     // SCID length 8
     pkt[14] = 8;
-    RAND_bytes(&pkt[15], 8);
+    if (RAND_bytes(&pkt[15], 8) != 1) return {};
     
     // Token length = 0 (varint 0x00)
     pkt[23] = 0;
@@ -97,10 +97,10 @@ std::vector<uint8_t> IllusionPreBypass::generate_quic_initial() {
     pkt[25] = static_cast<uint8_t>(rem & 0xFF);                  // 0x96
     
     // Packet Number 4 bytes
-    RAND_bytes(&pkt[26], 4);
+    if (RAND_bytes(&pkt[26], 4) != 1) return {};
     
     // Payload & AEAD auth tag simulation (1170 bytes)
-    RAND_bytes(&pkt[30], rem - 4);
+    if (RAND_bytes(&pkt[30], rem - 4) != 1) return {};
     return pkt;
 }
 

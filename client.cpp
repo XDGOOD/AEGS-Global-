@@ -32,12 +32,14 @@
 
 
 size_t secure_pad_len() {
-    uint8_t b; RAND_bytes(&b, 1);
+    uint8_t b = 0;
+    if (RAND_bytes(&b, 1) != 1) return PAD_MIN;
     return PAD_MIN + (b % (PAD_MAX - PAD_MIN + 1));
 }
 
 uint16_t generate_junk_len() {
-    uint8_t b; RAND_bytes(&b, 1);
+    uint8_t b = 0;
+    if (RAND_bytes(&b, 1) != 1) return 0;
     if (b < 50) return 16 + (b % 49);
     return 0;
 }

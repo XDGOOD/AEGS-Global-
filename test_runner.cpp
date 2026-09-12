@@ -73,10 +73,10 @@ int main() {
     // -------------------------------------------------------------
     std::cout << "\n[PILLAR 2] DPI SIGNATURE SCAN & SHANNON ENTROPY..." << std::endl;
     std::string simulated_wg_pkt(148, 0);
-    RAND_bytes((uint8_t*)simulated_wg_pkt.data(), 148);
+    assert(RAND_bytes((uint8_t*)simulated_wg_pkt.data(), 148) == 1);
     
     uint8_t hdr_iv[12];
-    RAND_bytes(hdr_iv, 12);
+    assert(RAND_bytes(hdr_iv, 12) == 1);
     uint8_t clear_hdr[16];
     std::memcpy(clear_hdr, "KID1", 4);
     uint16_t junk_len = 48;
@@ -89,17 +89,17 @@ int main() {
     assert(mask_unmask_header(clear_hdr, 16, mask_key, hdr_iv, masked_hdr));
 
     std::vector<uint8_t> junk(junk_len);
-    RAND_bytes(junk.data(), junk_len);
+    assert(RAND_bytes(junk.data(), junk_len) == 1);
 
     size_t pad_len = 64;
     std::vector<uint8_t> plain(FRAME_HDR + simulated_wg_pkt.size() + pad_len);
     uint16_t orig_len = htons((uint16_t)simulated_wg_pkt.size());
     std::memcpy(plain.data(), &orig_len, FRAME_HDR);
     std::memcpy(plain.data() + FRAME_HDR, simulated_wg_pkt.data(), simulated_wg_pkt.size());
-    RAND_bytes(plain.data() + FRAME_HDR + simulated_wg_pkt.size(), (int)pad_len);
+    assert(RAND_bytes(plain.data() + FRAME_HDR + simulated_wg_pkt.size(), (int)pad_len) == 1);
 
     uint8_t payload_nonce[12];
-    RAND_bytes(payload_nonce, 12);
+    assert(RAND_bytes(payload_nonce, 12) == 1);
     std::vector<uint8_t> encrypted_payload(plain.size() + TAG_LEN);
     size_t enc_len = 0;
     bool enc_ok = chacha20_poly1305_encrypt(plain.data(), plain.size(), payload_key, payload_nonce, encrypted_payload.data(), enc_len);
@@ -195,7 +195,7 @@ int main() {
     int fallback_counter = 0;
     for (int i = 0; i < 5000; ++i) {
         uint8_t probe_bytes[128];
-        RAND_bytes(probe_bytes, 128);
+        assert(RAND_bytes(probe_bytes, 128) == 1);
         uint8_t unmask_test[16];
         mask_unmask_header(probe_bytes + 12, 16, mask_key, probe_bytes, unmask_test);
         if (std::memcmp(unmask_test + 8, VER_MAGIC.data(), 4) != 0) {
@@ -456,7 +456,7 @@ int main() {
     ResumptionManager rm;
     ResumptionToken rtok;
     uint8_t dummy_master[32];
-    RAND_bytes(dummy_master, 32);
+    assert(RAND_bytes(dummy_master, 32) == 1);
     uint8_t dummy_kid[8] = {'U', 'S', 'E', 'R', '1', '2', '3', '4'};
     uint64_t test_sid = 0xAABBCCDDEEFF0011ULL;
     uint32_t test_ip = 0x0A080005;

@@ -88,8 +88,8 @@ int main() {
     uint8_t plain_hdr[16] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x00, 0x00, 0x00, 0x00, 'A', 'G', '2', 0x01};
     uint8_t masked_hdr[16];
     uint8_t unmasked_hdr[16];
-    RAND_bytes(mask_key, 32);
-    RAND_bytes(hdr_iv, 12);
+    assert(RAND_bytes(mask_key, 32) == 1);
+    assert(RAND_bytes(hdr_iv, 12) == 1);
 
     const size_t NUM_MASKS = 500000;
     t0 = std::chrono::high_resolution_clock::now();

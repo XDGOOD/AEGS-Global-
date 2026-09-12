@@ -1,3 +1,4 @@
+#include "safe_exec.h"
 #include "tun_interface.h"
 
 #include <iostream>
@@ -96,7 +97,7 @@ bool TunInterface::add_route(const std::string& cidr) {
         return false;
     }
     std::string cmd = "ip route add " + cidr + " dev " + iface_name_;
-    int ret = system(cmd.c_str());
+    int ret = safe_exec(cmd);
     if (ret != 0) {
         std::cerr << "Command failed: " << cmd << "\n";
         return false;
@@ -111,8 +112,8 @@ bool TunInterface::set_default_route() {
     }
     std::string cmd1 = "ip route add 0.0.0.0/1 dev " + iface_name_;
     std::string cmd2 = "ip route add 128.0.0.0/1 dev " + iface_name_;
-    int ret1 = system(cmd1.c_str());
-    int ret2 = system(cmd2.c_str());
+    int ret1 = safe_exec(cmd1);
+    int ret2 = safe_exec(cmd2);
     if (ret1 != 0 || ret2 != 0) {
         std::cerr << "Failed to set default routes\n";
         return false;

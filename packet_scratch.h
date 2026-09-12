@@ -27,6 +27,7 @@ struct PacketScratch {
         size_t len = 0;
         struct sockaddr_in addr{};
         int fd = -1;
+        uint8_t retries = 0; // Prevents head-of-line starvation under sustained congestion
         struct iovec iov;
         struct mmsghdr msg;
     };
@@ -44,6 +45,7 @@ struct PacketScratch {
         slot.fd = fd;
         slot.addr = addr;
         slot.len = len;
+        slot.retries = 0;
         std::memcpy(slot.data, payload, len);
         slot.iov.iov_base = slot.data;
         slot.iov.iov_len = len;
@@ -85,7 +87,10 @@ struct PacketScratch {
                     break;
                 }
             } else if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS) {
-                // Socket buffer congested; stop and retain unsent packets
+                // Socket buffer congested; drop stale slot if it exceeds retry ceiling (prevents HOL starvation)
+                if (++tx_slots[cur].retries >= 5) {
+                    cur++; // Drop stale stuck packet so healthy traffic is never starved
+                }
                 break;
             } else {
                 // Hard socket error on cur_fd; drop packet to avoid infinite stall
@@ -100,6 +105,9 @@ struct PacketScratch {
                 sent_total++;
                 cur++;
             } else if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS) {
+                if (++tx_slots[cur].retries >= 5) {
+                    cur++;
+                }
                 break;
             } else {
                 cur++;

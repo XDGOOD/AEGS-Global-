@@ -1,3 +1,4 @@
+#include "safe_exec.h"
 #include "nat_manager.h"
 #include <fstream>
 #include <sstream>
@@ -22,7 +23,7 @@ static bool is_safe_shell_param(const std::string& str) {
 
 int NatManager::run_cmd(const std::string& cmd) {
     std::cout << "Executing: " << cmd << std::endl;
-    return std::system(cmd.c_str());
+    return safe_exec(cmd);
 }
 
 bool NatManager::setup() {

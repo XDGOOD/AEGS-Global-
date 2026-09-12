@@ -278,13 +278,14 @@ void record_fail(int fd, const struct sockaddr_in& caddr,
 }
 
 size_t secure_pad_len() {
-    uint8_t b;
-    RAND_bytes(&b, 1);
+    uint8_t b = 0;
+    if (RAND_bytes(&b, 1) != 1) return PAD_MIN;
     return PAD_MIN + (b % (PAD_MAX - PAD_MIN + 1));
 }
 
 uint16_t generate_junk_len() {
-    uint8_t b; RAND_bytes(&b, 1);
+    uint8_t b = 0;
+    if (RAND_bytes(&b, 1) != 1) return 0;
     if (b < 50) {
         return 16 + (b % 49);
     }
@@ -837,6 +838,14 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
 #endif
             } else if (fd == tun_fd) {
                 if (backpressure.should_pause_tun()) {
+                    // Drain any pending outbound packets to allow socket buffers to clear
+                    if (scratch.tx_count > 0) {
+                        size_t sent = scratch.flush_tx();
+                        if (sent > 0) {
+                            AegsMetrics::instance().tx_packets.fetch_add(sent, std::memory_order_relaxed);
+                            backpressure.record_egress_success();
+                        }
+                    }
                     continue; // Egress congested: defer reading from TUN to trigger upstream TCP flow control
                 }
                 size_t max_batch = backpressure.max_tun_batch();
@@ -926,6 +935,14 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                         // FIX Blocker 3: Authenticate outer header as AAD in AEAD Poly1305
                         if (chacha20_poly1305_encrypt(dec_buf, frame_len, enc_key, aead_nonce, enc_buf, enc_len, out_buf, aead_offset)) {
                             std::memcpy(out_buf + out_len, enc_buf, enc_len); out_len += enc_len;
+                            // Proactively flush if batch is full to prevent dropping packets
+                            if (scratch.tx_count >= PacketScratch::MAX_BATCH) {
+                                size_t sent = scratch.flush_tx();
+                                if (sent > 0) {
+                                    AegsMetrics::instance().tx_packets.fetch_add(sent, std::memory_order_relaxed);
+                                    backpressure.record_egress_success();
+                                }
+                            }
                             // FIX Phase 3: Queue to symmetric sendmmsg batch pipeline
                             scratch.queue_tx(send_fd, client_addr, out_buf, out_len);
                         }

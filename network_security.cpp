@@ -1,3 +1,4 @@
+#include "safe_exec.h"
 // ==============================================================================
 // AEGS v4 "Pantheon" -- Network Security & Reliability Suite Implementation
 // ==============================================================================
@@ -64,7 +65,7 @@ int KillSwitch::execute_command(const std::string& cmd) const noexcept {
         return 0; // safe no-op on Windows
     }
 #endif
-    return std::system(cmd.c_str());
+    return safe_exec(cmd);
 }
 
 bool KillSwitch::is_ipv6_available() const noexcept {
@@ -304,7 +305,7 @@ int DnsLeakProtector::execute_command(const std::string& cmd) const noexcept {
         return 0; // safe no-op on Windows
     }
 #endif
-    return std::system(cmd.c_str());
+    return safe_exec(cmd);
 }
 
 bool DnsLeakProtector::is_ipv6_available() const noexcept {

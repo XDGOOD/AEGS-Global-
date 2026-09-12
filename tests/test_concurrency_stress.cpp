@@ -156,8 +156,8 @@ void handshake_thread_func(SessionTable& session_table, ResumptionManager& resum
             if (s) {
                 auto cur_c = s->get_crypto();
                 SessionCrypto sc = cur_c ? *cur_c : SessionCrypto{};
-                RAND_bytes(sc.session_keys.recv_key, 32);
-                RAND_bytes(sc.session_keys.send_key, 32);
+                assert(RAND_bytes(sc.session_keys.recv_key, 32) == 1);
+                assert(RAND_bytes(sc.session_keys.send_key, 32) == 1);
                 sc.v3_handshake_done = true;
                 s->set_crypto(sc);
 
@@ -188,10 +188,10 @@ void handshake_thread_func(SessionTable& session_table, ResumptionManager& resum
                 dyn_s->counters.last_activity.store(100.0, std::memory_order_relaxed);
 
                 SessionCrypto sc;
-                RAND_bytes(sc.master_key, 32);
+                assert(RAND_bytes(sc.master_key, 32) == 1);
                 hkdf_expand(sc.master_key, 32, "aegis-v2-header-mask", sc.mask_key, 32);
-                RAND_bytes(sc.session_keys.recv_key, 32);
-                RAND_bytes(sc.session_keys.send_key, 32);
+                assert(RAND_bytes(sc.session_keys.recv_key, 32) == 1);
+                assert(RAND_bytes(sc.session_keys.send_key, 32) == 1);
                 sc.v3_handshake_done = true;
                 dyn_s->set_crypto(sc);
 
@@ -229,7 +229,7 @@ void resumption_thread_func(ResumptionManager& resumption_mgr) {
     }
 
     uint8_t master_key[32];
-    RAND_bytes(master_key, 32);
+    assert(RAND_bytes(master_key, 32) == 1);
 
     while (!g_stop_signal.load(std::memory_order_relaxed)) {
         // Fast Resumption Token Issue & Atomic Consume
@@ -374,10 +374,10 @@ void gc_cleanup_thread_func(SessionTable& session_table) {
             session_table.map_ip(nr.assigned_ip, target_s);
 
             SessionCrypto nc;
-            RAND_bytes(nc.master_key, 32);
+            assert(RAND_bytes(nc.master_key, 32) == 1);
             hkdf_expand(nc.master_key, 32, "aegis-v2-header-mask", nc.mask_key, 32);
-            RAND_bytes(nc.session_keys.recv_key, 32);
-            RAND_bytes(nc.session_keys.send_key, 32);
+            assert(RAND_bytes(nc.session_keys.recv_key, 32) == 1);
+            assert(RAND_bytes(nc.session_keys.send_key, 32) == 1);
             nc.v3_handshake_done = true;
             target_s->set_crypto(nc);
 
@@ -450,7 +450,7 @@ void blackhole_thread_func(BlackholeResponder& blackhole) {
         const std::string& ip = scanner_ips[rng() % scanner_ips.size()];
         size_t probe_len = 10 + (rng() % 120);
         uint8_t probe_data[130];
-        RAND_bytes(probe_data, probe_len);
+        assert(RAND_bytes(probe_data, probe_len) == 1);
 
         double now = 100.0 + (static_cast<double>(g_blackhole_checks.load(std::memory_order_relaxed)) * 0.001);
         bool should_resp = blackhole.should_respond(ip, now, 0.05, 80);
@@ -610,10 +610,10 @@ int main(int argc, char* argv[]) {
         s->counters.last_activity.store(100.0, std::memory_order_relaxed);
 
         SessionCrypto sc;
-        RAND_bytes(sc.master_key, 32);
+        assert(RAND_bytes(sc.master_key, 32) == 1);
         hkdf_expand(sc.master_key, 32, "aegis-v2-header-mask", sc.mask_key, 32);
-        RAND_bytes(sc.session_keys.recv_key, 32);
-        RAND_bytes(sc.session_keys.send_key, 32);
+        assert(RAND_bytes(sc.session_keys.recv_key, 32) == 1);
+        assert(RAND_bytes(sc.session_keys.send_key, 32) == 1);
         sc.session_keys.session_id = s->identity.session_id.load();
         sc.v3_handshake_done = true;
         s->set_crypto(sc);
