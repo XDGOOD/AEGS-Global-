@@ -39,6 +39,7 @@
 #include "traffic_shaper.h"
 #include "port_hopper.h"
 #include "session_resumption.h"
+#include "session.h"
 #include "session_table.h"
 #include "aegs_config.h"
 #include "network_security.h"
@@ -55,54 +56,16 @@ const int WG_PORT = 51820;
 const int MAX_EVENTS = 1024;
 
 
-struct Session {
-    std::string key_id_hex;
-    uint64_t key_id_raw = 0;
-    uint8_t master_key[32];
-    uint8_t mask_key[32];
-    struct sockaddr_in client_addr {};
-    bool has_client = false;
-    double last_activity = 0;
-    std::atomic<uint64_t> tx_seq{0};
-    AntiReplayFilter replay_filter;
-    uint64_t session_id = 0;     // NEW: AEGS v3 session ID from handshake
-    uint32_t assigned_ip = 0;    // NEW: assigned TUN IP (host byte order)
-    SessionKeys session_keys;    // NEW: ECDH-derived per-session keys
-    bool v3_handshake_done = false; // NEW: true after ECDH handshake complete
-    int last_server_fd = -1;
-    mutable std::mutex mu;
-
-    Session() = default;
-    Session(const Session&) = delete;
-    Session& operator=(const Session&) = delete;
-
-    bool check_replay(const uint8_t* n_bytes) {
-        std::lock_guard<std::mutex> lk(mu);
-        uint64_t seq = 0;
-        std::memcpy(&seq, n_bytes, sizeof(uint64_t));
-        return replay_filter.check_and_update(seq);
-    }
-};
-
-std::unordered_map<std::string, Session*> sessions;
-std::unordered_map<uint32_t, Session*> ip_to_session;
-std::mutex sessions_mu;
-
-// Fast-path O(1) cache: maps 64-bit client endpoint (ip:port) to Session*
-std::unordered_map<uint64_t, Session*> g_endpoint_cache;
-std::mutex g_endpoint_mu;
+// FIX Phase 2: Sharded Session Table (64 independent shards)
+// Completely eliminates global sessions_mu contention across worker threads
+SessionTable g_sessions;
 
 static inline uint64_t make_endpoint_key(uint32_t ip, uint16_t port) {
     return (static_cast<uint64_t>(ip) << 16) | static_cast<uint64_t>(port);
 }
 
-const size_t MAX_ENDPOINT_CACHE = 4096;
-
 static inline void update_endpoint_cache(uint64_t ep_key, Session* s) {
-    std::lock_guard<std::mutex> ep_lock(g_endpoint_mu);
-    if (g_endpoint_cache.size() < MAX_ENDPOINT_CACHE || g_endpoint_cache.find(ep_key) != g_endpoint_cache.end()) {
-        g_endpoint_cache[ep_key] = s;
-    }
+    g_sessions.update_endpoint(ep_key, s);
 }
 
 struct FailRecord { 
@@ -196,20 +159,10 @@ const double SESSION_IDLE_TIMEOUT = 180.0; // 3 minutes idle -> close inactive s
 void cleanup_maps(double now, IpPool& ip_pool) {
     if (now - last_cleanup < CLEANUP_INTERVAL) return;
     std::lock_guard<std::mutex> sec_lock(security_mu);
-    std::lock_guard<std::mutex> sess_lock(sessions_mu);
     if (now - last_cleanup < CLEANUP_INTERVAL) return;
     last_cleanup = now;
 
-    {
-        std::lock_guard<std::mutex> ep_lock(g_endpoint_mu);
-        for (auto it = g_endpoint_cache.begin(); it != g_endpoint_cache.end(); ) {
-            if (!it->second->has_client || (now - it->second->last_activity > SESSION_IDLE_TIMEOUT)) {
-                it = g_endpoint_cache.erase(it);
-            } else {
-                ++it;
-            }
-        }
-    }
+    g_sessions.cleanup_idle_endpoints(now, SESSION_IDLE_TIMEOUT);
 
     for (auto it = banned_ips.begin(); it != banned_ips.end(); ) {
         if (now > it->second) it = banned_ips.erase(it); else ++it;
@@ -229,21 +182,20 @@ void cleanup_maps(double now, IpPool& ip_pool) {
             if (now - it->second.window_start > 10.0) it = g_roam_rate_limit.erase(it); else ++it;
         }
     }
-    for (auto it = sessions.begin(); it != sessions.end(); ) {
-        Session* s = it->second;
+    g_sessions.for_each_session([&](Session* s) {
         std::lock_guard<std::mutex> slk(s->mu);
-        if (s->has_client && (now - s->last_activity > SESSION_IDLE_TIMEOUT)) {
-            std::cerr << "[GC] Session " << s->key_id_hex << " idle timeout\n";
+        if (s->has_client && (now - s->last_activity.load() > SESSION_IDLE_TIMEOUT)) {
+            std::cerr << "[GC] Session " << s->key_id_hex << " idle timeout
+";
             if (s->assigned_ip) {
-                ip_to_session.erase(s->assigned_ip);
+                g_sessions.unmap_ip(s->assigned_ip);
                 ip_pool.release(s->assigned_ip);
             }
             s->has_client = false;
             s->v3_handshake_done = false;
             s->assigned_ip = 0;
         }
-        ++it;
-    }
+    });
 }
 
 bool set_nonblocking(int fd) {
@@ -437,17 +389,8 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
             for (int j = 0; j < 8; j++) sprintf(&kid_hex[j*2], "%02x", rtok.key_id[j]);
             kid_hex[16] = 0;
 
-            {
-                std::lock_guard<std::mutex> lk(sessions_mu);
-                // FIX O(1) Resumption Scaling: Look up session directly by KeyID in token
-                auto sit = sessions.find(kid_hex);
-                if (sit != sessions.end()) {
-                    resumed_sess = sit->second;
-                }
-                // NOTE: Legacy O(N) fallback loop removed.
-                // All tokens now include key_id for O(1) lookup. If key_id is missing
-                // or doesn't match, resumption simply fails (client must re-handshake).
-            }
+            // FIX Phase 2: Sharded O(1) Session Lookup (zero global lock contention)
+            resumed_sess = g_sessions.find_by_key_id_hex(kid_hex);
             // FIX Concurrency: Verify token OUTSIDE sessions_mu to avoid holding global lock during crypto
             if (resumed_sess) {
                 if (!g_resumption.verify(rtok, resumed_sess->master_key, resumed_sid, resumed_ip)) {
@@ -525,24 +468,16 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
             char kid_hex[17];
             for (int j = 0; j < 8; j++) sprintf(&kid_hex[j*2], "%02x", ((uint8_t*)&key_id_out)[j]);
             kid_hex[16] = 0;
-            Session* s = nullptr;
-            {
-                std::lock_guard<std::mutex> lk(sessions_mu);
-                auto sit = sessions.find(kid_hex);
-                if (sit != sessions.end()) s = sit->second;
-            }
+            Session* s = g_sessions.find_by_key_id(key_id_out);
             if (s) {
                 auto maybe_ip = ip_pool.allocate();
                 if (!maybe_ip) { std::cerr << "IP pool exhausted\n"; return; }
-                {
-                    std::lock_guard<std::mutex> lk(sessions_mu);
-                    if (s->assigned_ip) {
-                        ip_pool.release(s->assigned_ip);
-                        ip_to_session.erase(s->assigned_ip);
-                    }
-                    s->assigned_ip = *maybe_ip;
-                    ip_to_session[s->assigned_ip] = s;
+                if (s->assigned_ip) {
+                    ip_pool.release(s->assigned_ip);
+                    g_sessions.unmap_ip(s->assigned_ip);
                 }
+                s->assigned_ip = *maybe_ip;
+                g_sessions.map_ip(s->assigned_ip, s);
                 
                 SessionKeys sk;
                 auto resp = hs_server.build_resp(key_id_out, s->assigned_ip, 1400, sk);
@@ -584,14 +519,9 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
         Session* matched_sess = nullptr;
         uint8_t unmasked_hdr[16];
 
-        // FIX Blocker 5: Fast-path O(1) lookup using client endpoint cache
+        // FIX Phase 2: Sharded O(1) lookup on client endpoint (zero global lock)
         uint64_t ep_key = make_endpoint_key(ip_num, caddr.sin_port);
-        Session* fast_sess = nullptr;
-        {
-            std::lock_guard<std::mutex> ep_lock(g_endpoint_mu);
-            auto it = g_endpoint_cache.find(ep_key);
-            if (it != g_endpoint_cache.end()) fast_sess = it->second;
-        }
+        Session* fast_sess = g_sessions.find_by_endpoint(ep_key);
 
         if (fast_sess && mask_unmask_header(pkt_data + 12, 16, fast_sess->mask_key, hdr_iv, unmasked_hdr)) {
             if (std::memcmp(unmasked_hdr, &fast_sess->key_id_raw, 8) == 0 && std::memcmp(unmasked_hdr + 12, VER_MAGIC.data(), 4) == 0) {
@@ -606,17 +536,15 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 0.5);
                 return;
             }
-            std::lock_guard<std::mutex> lk(sessions_mu);
-            for (auto& kv : sessions) {
-                Session* s = kv.second;
+            g_sessions.for_each_session([&](Session* s) {
+                if (matched_sess) return;
                 if (mask_unmask_header(pkt_data + 12, 16, s->mask_key, hdr_iv, unmasked_hdr)) {
                     if (std::memcmp(unmasked_hdr, &s->key_id_raw, 8) == 0 && std::memcmp(unmasked_hdr + 12, VER_MAGIC.data(), 4) == 0) {
                         matched_sess = s;
                         update_endpoint_cache(ep_key, s);
-                        break;
                     }
                 }
-            }
+            });
         }
 
         if (!matched_sess) { record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 1.0); return; }
@@ -773,23 +701,16 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                     uint32_t dst_ip = (uint32_t(buffer[16]) << 24) | (uint32_t(buffer[17]) << 16)
                                     | (uint32_t(buffer[18]) << 8)  |  uint32_t(buffer[19]);
 
-                    Session* s = nullptr;
-                    {
-                        std::lock_guard<std::mutex> lk(sessions_mu);
-                        auto ip_it = ip_to_session.find(dst_ip);
-                        if (ip_it != ip_to_session.end()) s = ip_it->second;
-                    }
+                    // FIX Phase 2: Sharded O(1) IP route lookup without global mutex
+                    Session* s = g_sessions.find_by_assigned_ip(dst_ip);
                     if (!s) continue;
 
                     // FIX Client Isolation: Drop inter-client traffic when isolation enabled
-                    // Source IP in TUN packet (bytes 12-15 in big-endian) — if it belongs to
-                    // another VPN client, drop to prevent lateral movement between tenants
                     if (g_client_isolation && n >= 20) {
                         uint32_t src_ip = (uint32_t(buffer[12]) << 24) | (uint32_t(buffer[13]) << 16)
                                         | (uint32_t(buffer[14]) << 8)  |  uint32_t(buffer[15]);
                         if (src_ip != dst_ip) {
-                            std::lock_guard<std::mutex> lk(sessions_mu);
-                            if (ip_to_session.find(src_ip) != ip_to_session.end()) {
+                            if (g_sessions.find_by_assigned_ip(src_ip) != nullptr) {
                                 continue; // Drop: client-to-client traffic blocked
                             }
                         }
@@ -903,7 +824,7 @@ int main() {
                     delete s;
                     continue;
                 }
-                sessions[s->key_id_hex] = s;
+                g_sessions.insert_session(s);
             }
             sqlite3_finalize(stmt);
         } else {
@@ -915,21 +836,20 @@ int main() {
         return 1;
     }
 
-    if (sessions.empty()) {
-        std::cerr << "no sessions loaded from db, nothing to serve\n";
+    if (g_sessions.total_sessions() == 0) {
+        std::cerr << "no sessions loaded from db, nothing to serve
+";
         return 1;
     }
     
     std::unordered_map<uint64_t, std::string> user_map;
-    // FIX CRIT-1: Build master_key_map so HandshakeServer can verify MAC
-    // using user's MasterKey (secret), not the server's public key.
     std::unordered_map<uint64_t, std::vector<uint8_t>> master_key_map;
-    for (auto& kv : sessions) {
-        uint64_t kid = kv.second->key_id_raw;
-        user_map[kid] = kv.first; 
+    g_sessions.for_each_session([&](Session* s) {
+        uint64_t kid = s->key_id_raw;
+        user_map[kid] = s->key_id_hex;
         master_key_map[kid] = std::vector<uint8_t>(
-            kv.second->master_key, kv.second->master_key + 32);
-    }
+            s->master_key, s->master_key + 32);
+    });
     
     TunInterface tun(cfg.tun_name, cfg.tun_addr(), cfg.mtu);
     if (!tun.open()) {
@@ -992,14 +912,7 @@ int main() {
     nat.teardown();
     tun.close();
 
-    {
-        std::lock_guard<std::mutex> lk(sessions_mu);
-        for (auto& kv : sessions) {
-            delete kv.second;
-        }
-        sessions.clear();
-        ip_to_session.clear();
-    }
+    g_sessions.clear();
 
     std::cout << "[AEGS v4 Server] Clean shutdown complete.\n";
     return 0;
