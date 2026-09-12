@@ -55,6 +55,9 @@ struct HandshakeSeenKey {
     bool operator==(const HandshakeSeenKey& other) const noexcept {
         return key_id == other.key_id && timestamp == other.timestamp;
     }
+    bool operator!=(const HandshakeSeenKey& other) const noexcept {
+        return !(*this == other);
+    }
 };
 
 struct HandshakeSeenKeyHash {

@@ -366,7 +366,7 @@ void gc_cleanup_thread_func(SessionTable& session_table) {
             nr.has_client = true;
             nr.last_server_fd = 42;
             s->set_routing(nr);
-            session_table.map_ip(nr.assigned_ip, s);
+            session_table.map_ip(nr.assigned_ip, s.get());
 
             SessionCrypto nc;
             RAND_bytes(nc.master_key, 32);

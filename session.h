@@ -275,5 +275,6 @@ struct SessionHandle {
 
     Session* operator->() const noexcept { return ptr; }
     Session& operator*() const noexcept { return *ptr; }
+    operator Session*() const noexcept { return ptr; }
     explicit operator bool() const noexcept { return is_valid(); }
 };

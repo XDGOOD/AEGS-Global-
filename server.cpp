@@ -623,7 +623,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 s->set_routing(nr);
 
                 // Register in O(1) fast-path cache
-                update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s);
+                update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s.get());
                 metrics.handshake_ok.fetch_add(1, std::memory_order_relaxed);
                 sendto(fd, resp.data(), resp.size(), 0, (struct sockaddr*)&caddr, sizeof(caddr));
                 AegsLog::info("[HS] Client ", inet_ntoa(caddr.sin_addr), " assigned ", IpPool::to_string(new_ip));
