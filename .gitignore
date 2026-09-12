@@ -1,0 +1,27 @@
+﻿# Build artifacts
+aegis_server
+aegis_server_wsl
+aegis_client
+aegis_client_wsl
+aegis_test
+*.o
+*.a
+build/
+
+# Runtime generated
+server_key.bin
+*.db
+
+# Environment
+.env
+
+# OS & Python junk
+.DS_Store
+Thumbs.db
+__pycache__/
+*.pyc
+
+# Test run logs and temp files
+test_run_*/
+*.txt
+!CMakeLists.txt

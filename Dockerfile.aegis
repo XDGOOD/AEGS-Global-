@@ -1,0 +1,70 @@
+# syntax=docker/dockerfile:1
+# =============================================================================
+# AEGS Protocol v2 Server - Ultra-Minimal Multi-Stage Production Dockerfile
+# Base: Alpine Linux 3.20 (musl libc, hardened security, unprivileged execution)
+# Image size: ~15 MB
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: Build & Compile
+# -----------------------------------------------------------------------------
+FROM alpine:3.20 AS builder
+
+RUN apk add --no-cache \
+    build-base \
+    cmake \
+    pkgconf \
+    openssl-dev \
+    sqlite-dev
+
+WORKDIR /build
+
+COPY CMakeLists.txt *.cpp *.h ./
+
+RUN cmake -B build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_FLAGS="-O3 -Wall -Wextra -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
+    && cmake --build build -j"$(nproc)" --target aegis_server \
+    && strip build/aegis_server
+
+# -----------------------------------------------------------------------------
+# Stage 2: Minimal Hardened Runtime
+# -----------------------------------------------------------------------------
+FROM alpine:3.20
+
+LABEL org.opencontainers.image.title="AEGS Protocol v2 Server" \
+      org.opencontainers.image.description="High-performance, zero-allocation obfuscated UDP tunnel for WireGuard" \
+      org.opencontainers.image.version="2.0.0" \
+      org.opencontainers.image.authors="AEGS Protocol Team" \
+      org.opencontainers.image.licenses="MIT"
+
+# Install minimal dynamic libraries and utilities for production runtime
+RUN apk add --no-cache \
+    libcrypto3 \
+    libssl3 \
+    sqlite-libs \
+    libstdc++ \
+    libgcc \
+    ca-certificates \
+    tzdata \
+    && addgroup -g 10001 -S aegis \
+    && adduser -u 10001 -S -G aegis -s /sbin/nologin -D -H aegis \
+    && mkdir -p /app/data \
+    && chown -R aegis:aegis /app \
+    && chmod 755 /app /app/data
+
+WORKDIR /app
+
+# Copy compiled, stripped server binary from builder
+COPY --from=builder --chown=aegis:aegis /build/build/aegis_server /app/aegis_server
+
+# Run as unprivileged non-root user
+USER aegis:aegis
+
+# UDP port 50001 is the AEGS v2 obfuscated entrypoint
+EXPOSE 50001/udp
+
+# Persistent SQLite database storage (/app/data/aegis.db)
+VOLUME ["/app/data"]
+
+ENTRYPOINT ["/app/aegis_server"]

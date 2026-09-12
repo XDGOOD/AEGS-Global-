@@ -1,0 +1,96 @@
+services:
+  # ===========================================================================
+  # 1. WireGuard Core VPN Service (wg-core)
+  # ===========================================================================
+  # WireGuard runs internally inside the isolated Docker network 'aegis-net'.
+  # Port 51820/udp is intentionally NOT published to the host/WAN to prevent
+  # active DPI scanning and fingerprinting. All incoming traffic is routed
+  # through the AEGS v2 obfuscation layer.
+  # ===========================================================================
+  wg-core:
+    image: linuxserver/wireguard:latest
+    container_name: wg-core
+    hostname: wg-core
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - SERVERURL=auto
+      - SERVERPORT=51820
+      - PEERS=1
+      - PEERDNS=auto
+      - INTERNAL_SUBNET=10.13.13.0
+      - ALLOWEDIPS=0.0.0.0/0
+    volumes:
+      - ./wireguard/config:/config
+      - /lib/modules:/lib/modules:ro
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.src_valid_mark=1
+    networks:
+      - aegis-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # 2. AEGS Protocol v2 Obfuscation & DPI Shield Server (aegis-server)
+  # ===========================================================================
+  # Listens on public UDP port 50001. Handles AWG v3 dynamic header unmasking,
+  # ChaCha20-Poly1305 decryption, sliding window anti-replay, and active DPI
+  # probe mitigation (DNS FORMERR fallback). Decrypted packets are forwarded
+  # directly to wg-core:51820 via the Docker internal bridge network.
+  # ===========================================================================
+  aegis-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.aegis
+    image: aegis-server:latest
+    container_name: aegis-server
+    hostname: aegis-server
+    restart: unless-stopped
+    depends_on:
+      - wg-core
+    ports:
+      # Obfuscated entrypoint exposed to the public internet / WAN
+      - "50001:50001/udp"
+    volumes:
+      # Persistent SQLite database storing registered user credentials (aegis.db)
+      - ./data:/app/data
+    security_opt:
+      - no-new-privileges:true
+    # FIX MED-2: AEGS v3 creates TUN interface (aegs0) and manages iptables
+    # NAT rules — both require NET_ADMIN. Without it, the server crashes on startup.
+    cap_add:
+      - NET_ADMIN
+    cap_drop:
+      - ALL
+    sysctls:
+      # 4MB socket buffer limits for high-throughput zero-drop packet processing
+      - net.core.rmem_max=4194304
+      - net.core.wmem_max=4194304
+    networks:
+      - aegis-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# =============================================================================
+# Isolated Bridge Network
+# =============================================================================
+networks:
+  aegis-net:
+    name: aegis-net
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
