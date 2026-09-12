@@ -40,6 +40,7 @@
 #include "port_hopper.h"
 #include "session_resumption.h"
 #include "session.h"
+#include "packet_scratch.h"
 #include "session_table.h"
 #include "aegs_config.h"
 #include "network_security.h"
@@ -83,68 +84,74 @@ const int ban_levels[] = {0, 30, 300, 3600};
 std::mutex security_mu;
 std::mutex tun_write_mu;
 
-// FIX Production DoS: Pre-crypto handshake rate limiter per IP
-struct HandshakeRateRecord {
-    double window_start = 0;
-    int count = 0;
-};
-std::unordered_map<uint32_t, HandshakeRateRecord> g_hs_rate_limit;
-std::mutex g_hs_rate_mu;
-const int MAX_HANDSHAKES_PER_SEC_PER_IP = 10;
-const size_t MAX_HS_RATE_LIMIT_ENTRIES = 4096;
+// FIX Phase 3 (Stage 17): O(1) Ring-Buffered Rate Limiter
+// Eliminates O(N) linear scans when limit table reaches capacity
+template <size_t CAPACITY = 4096>
+class FastRateLimiter {
+public:
+    FastRateLimiter() : head_(0) {
+        ring_.fill(0);
+    }
 
-static bool check_handshake_rate_limit(uint32_t ip_num, double now) {
-    std::lock_guard<std::mutex> lock(g_hs_rate_mu);
-    auto it = g_hs_rate_limit.find(ip_num);
-    if (it == g_hs_rate_limit.end()) {
-        if (g_hs_rate_limit.size() >= MAX_HS_RATE_LIMIT_ENTRIES) {
-            auto oldest = g_hs_rate_limit.begin();
-            for (auto e = g_hs_rate_limit.begin(); e != g_hs_rate_limit.end(); ++e) {
-                if (e->second.window_start < oldest->second.window_start) oldest = e;
+    bool check(uint32_t ip_num, double now, int max_per_sec) {
+        std::lock_guard<std::mutex> lock(mu_);
+        auto it = map_.find(ip_num);
+        if (it == map_.end()) {
+            if (map_.size() >= CAPACITY) {
+                uint32_t evict_ip = ring_[head_];
+                if (evict_ip != 0) {
+                    map_.erase(evict_ip);
+                }
             }
-            if (oldest != g_hs_rate_limit.end()) g_hs_rate_limit.erase(oldest);
+            ring_[head_] = ip_num;
+            head_ = (head_ + 1) % CAPACITY;
+            map_[ip_num] = {now, 1};
+            return true;
         }
-        g_hs_rate_limit[ip_num] = {now, 1};
-        return true;
+        if (now - it->second.window_start >= 1.0) {
+            it->second.window_start = now;
+            it->second.count = 1;
+            return true;
+        }
+        it->second.count++;
+        return (it->second.count <= max_per_sec);
     }
-    if (now - it->second.window_start >= 1.0) {
-        it->second.window_start = now;
-        it->second.count = 1;
-        return true;
-    }
-    it->second.count++;
-    return (it->second.count <= MAX_HANDSHAKES_PER_SEC_PER_IP);
-}
 
-// FIX Review Issue 5: Rate limit slow-path roaming unmask scans to prevent CPU-DoS
-std::unordered_map<uint32_t, HandshakeRateRecord> g_roam_rate_limit;
-std::mutex g_roam_rate_mu;
+    void purge_expired(double now, double max_age_sec = 10.0) {
+        std::lock_guard<std::mutex> lock(mu_);
+        for (auto it = map_.begin(); it != map_.end(); ) {
+            if (now - it->second.window_start > max_age_sec) {
+                it = map_.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+private:
+    struct Entry {
+        double window_start = 0;
+        int count = 0;
+    };
+    std::mutex mu_;
+    std::unordered_map<uint32_t, Entry> map_;
+    std::array<uint32_t, CAPACITY> ring_;
+    size_t head_ = 0;
+};
+
+static FastRateLimiter<4096> g_hs_limiter;
+static FastRateLimiter<4096> g_roam_limiter;
+const int MAX_HANDSHAKES_PER_SEC_PER_IP = 10;
 const int MAX_ROAMING_SCANS_PER_SEC_PER_IP = 5;
 
-static bool check_roaming_rate_limit(uint32_t ip_num, double now) {
-    std::lock_guard<std::mutex> lock(g_roam_rate_mu);
-    auto it = g_roam_rate_limit.find(ip_num);
-    if (it == g_roam_rate_limit.end()) {
-        if (g_roam_rate_limit.size() >= 4096) {
-            auto oldest = g_roam_rate_limit.begin();
-            for (auto e = g_roam_rate_limit.begin(); e != g_roam_rate_limit.end(); ++e) {
-                if (e->second.window_start < oldest->second.window_start) oldest = e;
-            }
-            if (oldest != g_roam_rate_limit.end()) g_roam_rate_limit.erase(oldest);
-        }
-        g_roam_rate_limit[ip_num] = {now, 1};
-        return true;
-    }
-    if (now - it->second.window_start >= 1.0) {
-        it->second.window_start = now;
-        it->second.count = 1;
-        return true;
-    }
-    it->second.count++;
-    return (it->second.count <= MAX_ROAMING_SCANS_PER_SEC_PER_IP);
+static inline bool check_handshake_rate_limit(uint32_t ip_num, double now) {
+    return g_hs_limiter.check(ip_num, now, MAX_HANDSHAKES_PER_SEC_PER_IP);
 }
 
-// Signal handling & clean shutdown
+static inline bool check_roaming_rate_limit(uint32_t ip_num, double now) {
+    return g_roam_limiter.check(ip_num, now, MAX_ROAMING_SCANS_PER_SEC_PER_IP);
+}
+
 static std::atomic<bool> g_running{true};
 static void handle_signal(int sig) {
     (void)sig;
@@ -170,18 +177,8 @@ void cleanup_maps(double now, IpPool& ip_pool) {
     for (auto it = failed_attempts.begin(); it != failed_attempts.end(); ) {
         if (now - it->second.last_seen > FAIL_IDLE_TTL) it = failed_attempts.erase(it); else ++it;
     }
-    {
-        std::lock_guard<std::mutex> hs_lock(g_hs_rate_mu);
-        for (auto it = g_hs_rate_limit.begin(); it != g_hs_rate_limit.end(); ) {
-            if (now - it->second.window_start > 10.0) it = g_hs_rate_limit.erase(it); else ++it;
-        }
-    }
-    {
-        std::lock_guard<std::mutex> roam_lock(g_roam_rate_mu);
-        for (auto it = g_roam_rate_limit.begin(); it != g_roam_rate_limit.end(); ) {
-            if (now - it->second.window_start > 10.0) it = g_roam_rate_limit.erase(it); else ++it;
-        }
-    }
+    g_hs_limiter.purge_expired(now);
+    g_roam_limiter.purge_expired(now);
     g_sessions.for_each_session([&](Session* s) {
         std::lock_guard<std::mutex> slk(s->mu);
         if (s->has_client && (now - s->last_activity.load() > SESSION_IDLE_TIMEOUT)) {
@@ -337,10 +334,12 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
 
     const int batch_size = (cfg.recv_batch_size > 0) ? cfg.recv_batch_size : 32;
 
-    std::vector<uint8_t> buffer(BUFFER_SIZE);
-    std::vector<uint8_t> dec_buf(INTERNAL_BUF_SIZE);
-    std::vector<uint8_t> enc_buf(INTERNAL_BUF_SIZE);
-    std::vector<uint8_t> out_buf(BUFFER_SIZE);
+    // FIX Phase 3: Zero-Allocation Thread-Local Scratch Arenas
+    auto& scratch = get_packet_scratch();
+    uint8_t* buffer  = scratch.rx_buf;
+    uint8_t* dec_buf = scratch.dec_buf;
+    uint8_t* enc_buf = scratch.enc_buf;
+    uint8_t* out_buf = scratch.tx_buf;
 
 #ifdef __linux__
     struct PacketSlot {
@@ -582,7 +581,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
             std::memcpy(dec_key, s->session_keys.recv_key, 32);
         }
         // FIX Blocker 3: Authenticate outer header (IV + masked header + junk) as AAD to prevent bit-flipping
-        if (!chacha20_poly1305_decrypt(ct, ct_len, dec_key, aead_nonce, dec_buf.data(), dec_len, pkt_data, aead_offset)) {
+        if (!chacha20_poly1305_decrypt(ct, ct_len, dec_key, aead_nonce, dec_buf, dec_len, pkt_data, aead_offset)) {
             record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 0.5); return;
         }
 
@@ -609,7 +608,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
         if (plen > 0 && plen <= dec_len - 2) {
             // FIX P0 TUN ACL: Verify inner packet source IP matches session's assigned IP
             // Prevents tunnel users from spoofing arbitrary source addresses
-            const uint8_t* inner_pkt = dec_buf.data() + 2;
+            const uint8_t* inner_pkt = dec_buf + 2;
             if (plen >= 20) { // Minimum IPv4 header size
                 uint8_t ip_version = (inner_pkt[0] >> 4) & 0xF;
                 if (ip_version == 4) {
@@ -665,25 +664,25 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                         // Graceful fallback to recvfrom
                         struct sockaddr_in caddr {};
                         socklen_t clen = sizeof(caddr);
-                        ssize_t len = recvfrom(fd, buffer.data(), buffer.size(), 0, (struct sockaddr*)&caddr, &clen);
+                        ssize_t len = recvfrom(fd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&caddr, &clen);
                         if (len >= 0) {
-                            process_udp_packet(fd, caddr, buffer.data(), len, now);
+                            process_udp_packet(fd, caddr, buffer, len, now);
                         }
                     }
                 } else {
                     struct sockaddr_in caddr {};
                     socklen_t clen = sizeof(caddr);
-                    ssize_t len = recvfrom(fd, buffer.data(), buffer.size(), 0, (struct sockaddr*)&caddr, &clen);
+                    ssize_t len = recvfrom(fd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&caddr, &clen);
                     if (len >= 0) {
-                        process_udp_packet(fd, caddr, buffer.data(), len, now);
+                        process_udp_packet(fd, caddr, buffer, len, now);
                     }
                 }
 #else
                 struct sockaddr_in caddr {};
                 socklen_t clen = sizeof(caddr);
-                ssize_t len = recvfrom(fd, buffer.data(), buffer.size(), 0, (struct sockaddr*)&caddr, &clen);
+                ssize_t len = recvfrom(fd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&caddr, &clen);
                 if (len >= 0) {
-                    process_udp_packet(fd, caddr, buffer.data(), len, now);
+                    process_udp_packet(fd, caddr, buffer, len, now);
                 }
 #endif
             } else if (fd == tun_fd) {
@@ -692,7 +691,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 }
                 size_t max_batch = backpressure.max_tun_batch();
                 for (size_t batch = 0; batch < max_batch; ++batch) {
-                    ssize_t n = tun.read_packet(buffer.data(), buffer.size());
+                    ssize_t n = tun.read_packet(buffer, BUFFER_SIZE);
                     if (n < 0) {
                         break; // EAGAIN / EWOULDBLOCK
                     }
@@ -737,12 +736,12 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
 
                     size_t pad_len = shaper.semantic_pad((size_t)n);
                     size_t frame_len = FRAME_HDR + (size_t)n + pad_len;
-                    if (frame_len + TAG_LEN > dec_buf.size()) { pad_len = 0; frame_len = FRAME_HDR + (size_t)n; }
+                    if (frame_len + TAG_LEN > INTERNAL_BUF_SIZE) { pad_len = 0; frame_len = FRAME_HDR + (size_t)n; }
 
                     uint16_t plen_be = htons((uint16_t)n);
-                    std::memcpy(dec_buf.data(), &plen_be, 2);
-                    std::memcpy(dec_buf.data() + 2, buffer.data(), (size_t)n);
-                    if (pad_len > 0) TrafficShaper::fill_random_padding(dec_buf.data() + 2 + n, pad_len);
+                    std::memcpy(dec_buf, &plen_be, 2);
+                    std::memcpy(dec_buf + 2, buffer, (size_t)n);
+                    if (pad_len > 0) TrafficShaper::fill_random_padding(dec_buf + 2 + n, pad_len);
 
                     uint8_t aead_nonce[12] = {0};
                     std::memcpy(aead_nonce, &seq, sizeof(uint64_t));
@@ -761,28 +760,28 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                     uint8_t masked_hdr[16];
                     if (mask_unmask_header(hdr_plain, 16, s_mask_key, hdr_iv, masked_hdr)) {
                         size_t out_len = 0;
-                        std::memcpy(out_buf.data(), hdr_iv, 12); out_len += 12;
-                        std::memcpy(out_buf.data() + out_len, masked_hdr, 16); out_len += 16;
+                        std::memcpy(out_buf, hdr_iv, 12); out_len += 12;
+                        std::memcpy(out_buf + out_len, masked_hdr, 16); out_len += 16;
                         if (junk_len > 0) {
-                            RAND_bytes(out_buf.data() + out_len, (int)junk_len);
+                            RAND_bytes(out_buf + out_len, (int)junk_len);
                             out_len += junk_len;
                         }
                         size_t aead_offset = out_len;
-                        std::memcpy(out_buf.data() + out_len, aead_nonce, 12); out_len += 12;
+                        std::memcpy(out_buf + out_len, aead_nonce, 12); out_len += 12;
 
                         size_t enc_len = 0;
                         // FIX Blocker 3: Authenticate outer header as AAD in AEAD Poly1305
-                        if (chacha20_poly1305_encrypt(dec_buf.data(), frame_len, enc_key, aead_nonce, enc_buf.data(), enc_len, out_buf.data(), aead_offset)) {
-                            std::memcpy(out_buf.data() + out_len, enc_buf.data(), enc_len); out_len += enc_len;
-                            ssize_t sret = sendto(send_fd, out_buf.data(), out_len, 0, (struct sockaddr*)&client_addr, sizeof(client_addr));
-                            if (sret < 0) {
-                                backpressure.record_egress_failure(errno);
-                                break; // Stop draining TUN immediately when socket buffers are saturated
-                            } else {
-                                backpressure.record_egress_success();
-                            }
+                        if (chacha20_poly1305_encrypt(dec_buf, frame_len, enc_key, aead_nonce, enc_buf, enc_len, out_buf, aead_offset)) {
+                            std::memcpy(out_buf + out_len, enc_buf, enc_len); out_len += enc_len;
+                            // FIX Phase 3: Queue to symmetric sendmmsg batch pipeline
+                            scratch.queue_tx(send_fd, client_addr, out_buf, out_len);
                         }
                     }
+                }
+                // FIX Phase 3: Flush outbound batch in 1 syscall via sendmmsg()
+                size_t sent_count = scratch.flush_tx();
+                if (sent_count > 0) {
+                    backpressure.record_egress_success();
                 }
             }
         }
