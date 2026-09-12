@@ -1,20 +1,21 @@
-#pragma once
+﻿#pragma once
 // ==============================================================================
-// AEGS v4 "Pantheon" -- Central Server Configuration
-// ==============================================================================
-// Reads runtime settings from environment variables. New variables added for
-// Component 3 (DPI bypass):
-//   AEGS_PORT_COUNT      - number of simultaneous hopping ports  (PortHopper)
-//   AEGS_HOP_INTERVAL    - rotation period in seconds            (PortHopper)
-//   AEGS_QUIC_MIMICRY    - 0|1, enable QUIC Initial header wrap  (ProtocolMimicry)
-//   AEGS_TRAFFIC_SHAPING - 0|1, enable send jitter              (TrafficShaper)
-//   AEGS_JITTER_MS       - max jitter in ms                      (TrafficShaper)
+// AEGS v5 "Pantheon" Global Edition -- Central Configuration & Profiles
 // ==============================================================================
 #include <cstdint>
 #include <string>
 #include <cstdlib>
 
+enum class AegsProfile {
+    BALANCED,   // Default: standard bimodal shaping, moderate jitter
+    LITE,       // High-Throughput (10+ Gbps): zero-chaff, minimal padding, 0ms jitter
+    STEALTH     // Deep Anti-DPI: aggressive bimodal padding, timing chaff, protocol mimicry
+};
+
 struct AegsConfig {
+    // --- Performance Profile (Stage 28 / 29) ---------------------------------
+    AegsProfile profile       = AegsProfile::BALANCED;
+
     // --- Network / port hopping (Component 3) --------------------------------
     uint16_t base_port        = 50001;
     int      port_count       = 10;              // number of ports to bind
@@ -23,7 +24,7 @@ struct AegsConfig {
     // --- DPI bypass options (Component 3) ------------------------------------
     bool     quic_mimicry     = false;           // AEGS_QUIC_MIMICRY=1
     bool     traffic_shaping  = false;           // AEGS_TRAFFIC_SHAPING=1
-    bool     semantic_padding  = true;            // AEGS_SEMANTIC_PADDING=1 (bimodal shaping)
+    bool     semantic_padding = true;            // AEGS_SEMANTIC_PADDING=1 (bimodal shaping)
     int      jitter_ms        = 5;               // AEGS_JITTER_MS
 
     // --- TUN / routing -------------------------------------------------------
@@ -66,6 +67,23 @@ struct AegsConfig {
         c.key_path         = gs("AEGS_KEY_PATH",                    "server_key.bin");
         c.session_idle_timeout = (double)gi("AEGS_SESSION_TIMEOUT", 180);
         c.client_isolation     = gb("AEGS_CLIENT_ISOLATION",          true);
+
+        std::string p = gs("AEGS_PROFILE", "balanced");
+        if (p == "lite" || p == "fast") {
+            c.profile = AegsProfile::LITE;
+            c.semantic_padding = false;
+            c.traffic_shaping = false;
+            c.jitter_ms = 0;
+            c.quic_mimicry = false;
+        } else if (p == "stealth") {
+            c.profile = AegsProfile::STEALTH;
+            c.semantic_padding = true;
+            c.traffic_shaping = true;
+            c.jitter_ms = 5;
+            c.quic_mimicry = true;
+        } else {
+            c.profile = AegsProfile::BALANCED;
+        }
 
         if (c.port_count < 1)  c.port_count = 1;
         if (c.port_count > 64) c.port_count = 64;
