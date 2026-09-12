@@ -30,7 +30,7 @@ inline int safe_exec(const std::string& cmd_str) noexcept {
 
     for (size_t i = 0; i < cmd_str.size(); ++i) {
         char c = cmd_str[i];
-        if (c == '"' || c == ''') {
+        if (c == '"' || c == 0x27) {
             in_quotes = !in_quotes;
         } else if (std::isspace(static_cast<unsigned char>(c)) && !in_quotes) {
             if (!cur.empty()) {
