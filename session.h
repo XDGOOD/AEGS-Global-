@@ -3,6 +3,7 @@
 // AEGS v5 "Pantheon" Global Edition -- Decomposed Session Model
 // ==============================================================================
 #include <cstdint>
+#include <memory>
 #include <cstring>
 #include <string>
 #include <atomic>
@@ -127,6 +128,7 @@ struct Session {
     }
 
     void recycle() noexcept {
+        std::lock_guard<std::mutex> lk(mu);
         identity.generation.fetch_add(1, std::memory_order_release);
         routing.has_client = false;
         routing.assigned_ip = 0;
@@ -150,6 +152,14 @@ struct SessionHandle {
         return is_valid() ? ptr : nullptr;
     }
 
-    Session* operator->() const noexcept { return ptr; }
+    // Checked access preventing use-after-recycle
+    Session* operator->() const noexcept {
+        return get();
+    }
+
+    Session& operator*() const noexcept {
+        return *get();
+    }
+
     explicit operator bool() const noexcept { return is_valid(); }
 };

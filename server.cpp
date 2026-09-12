@@ -671,9 +671,9 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
         Session* s = matched_sess;
 
         // Verify incoming port hopping compliance if multi-port listening is active
-        if (ports.size() > 1 && s->v3_handshake_done) {
+        if (ports.size() > 1 && matched_crypto->v3_handshake_done) {
             auto pit = fd_to_port.find(fd);
-            if (pit != fd_to_port.end() && !hopper.is_valid_port(s->session_keys.recv_key, pit->second)) {
+            if (pit != fd_to_port.end() && !hopper.is_valid_port(matched_crypto->session_keys.recv_key, pit->second)) {
                 // Packet arrived on an invalid port for this session's hopping epoch
                 record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 0.5);
                 return;
@@ -843,15 +843,18 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                     uint64_t s_key_id_raw = 0;
                     uint8_t s_mask_key[32];
 
+                    auto sc = s->get_crypto();
+                    if (!sc || !sc->v3_handshake_done) continue;
+                    std::memcpy(s_mask_key, sc->mask_key, 32);
+                    std::memcpy(enc_key, sc->session_keys.send_key, 32);
+
                     {
                         std::lock_guard<std::mutex> slk(s->mu);
-                        if (!s->has_client || s->last_server_fd < 0 || !s->v3_handshake_done) continue;
+                        if (!s->has_client || s->last_server_fd < 0) continue;
                         s->last_activity = now;
                         client_addr = s->client_addr;
                         send_fd = s->last_server_fd;
                         s_key_id_raw = s->key_id_raw;
-                        std::memcpy(s_mask_key, s->mask_key, 32);
-                        std::memcpy(enc_key, s->session_keys.send_key, 32);
                         seq = ++(s->tx_seq);
                     }
 
@@ -947,6 +950,11 @@ int main() {
                     delete s;
                     continue;
                 }
+                SessionCrypto init_sc;
+                std::memcpy(init_sc.master_key, s->master_key, 32);
+                std::memcpy(init_sc.mask_key, s->mask_key, 32);
+                init_sc.v3_handshake_done = false;
+                s->set_crypto(init_sc);
                 g_sessions.insert_session(s);
             }
             sqlite3_finalize(stmt);

@@ -18,6 +18,7 @@
 #include <arpa/inet.h>
 #endif
 
+#include "port_hopper.h"
 #include "traffic_shaper.h"
 #include "illusion_prebypass.h"
 #include "chaff_engine.h"
