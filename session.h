@@ -25,7 +25,7 @@
 struct SessionIdentity {
     std::string           key_id_hex;
     uint64_t              key_id_raw = 0;
-    uint64_t              session_id = 0;
+    std::atomic<uint64_t> session_id{0};
     std::atomic<uint64_t> generation{1}; // Lifecycle generation counter (Phase 18)
 };
 
@@ -85,7 +85,7 @@ struct Session {
     // Reference aliases for identity & atomic counters
     std::string&           key_id_hex;
     uint64_t&              key_id_raw;
-    uint64_t&              session_id;
+    std::atomic<uint64_t>& session_id;
     std::atomic<uint64_t>& tx_seq;
     std::atomic<double>&   last_activity;
 
@@ -172,8 +172,10 @@ struct Session {
     }
 
     void recycle() noexcept {
-        std::lock_guard<std::mutex> lk(mu);
-        is_recycling_.store(true, std::memory_order_release);
+        bool expected = false;
+        if (!is_recycling_.compare_exchange_strong(expected, true, std::memory_order_acq_rel)) {
+            return;
+        }
         identity.generation.fetch_add(1, std::memory_order_release);
         // Wait for any in-flight reader in this generation to complete (quiesce)
         while (active_readers_.load(std::memory_order_acquire) > 0) {
@@ -184,7 +186,10 @@ struct Session {
         SessionCrypto empty_crypto{};
         set_crypto(empty_crypto);
         counters.tx_seq.store(0, std::memory_order_relaxed);
-        replay_filter.reset();
+        {
+            std::lock_guard<std::mutex> lk(mu);
+            replay_filter.reset();
+        }
         is_recycling_.store(false, std::memory_order_release);
     }
 };
@@ -261,10 +266,10 @@ struct SessionHandle {
     }
 
     Session* get() const noexcept {
-        return is_valid() ? ptr : nullptr;
+        return ptr;
     }
 
-    Session* operator->() const noexcept { return get(); }
-    Session& operator*() const noexcept { return *get(); }
+    Session* operator->() const noexcept { return ptr; }
+    Session& operator*() const noexcept { return *ptr; }
     explicit operator bool() const noexcept { return is_valid(); }
 };

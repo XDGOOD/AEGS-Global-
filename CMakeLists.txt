@@ -85,3 +85,7 @@ target_link_libraries(bench_hotpath PRIVATE OpenSSL::Crypto Threads::Threads)
 # 5. Stage 23 Protocol Fuzz Target
 add_executable(aegs_fuzz fuzzing/fuzz_parsers.cpp ${CORE_SOURCES})
 target_link_libraries(aegs_fuzz PRIVATE OpenSSL::Crypto Threads::Threads)
+
+# 6. Concurrency Stress Test Suite (TSAN Validation)
+add_executable(test_concurrency_stress tests/test_concurrency_stress.cpp handshake.cpp ip_pool.cpp ${CORE_SOURCES})
+target_link_libraries(test_concurrency_stress PRIVATE OpenSSL::Crypto Threads::Threads)
