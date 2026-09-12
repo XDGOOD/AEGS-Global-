@@ -648,18 +648,22 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 0.5);
                 return;
             }
-            g_sessions.for_each_session([&](Session* s) {
-                if (matched_sess) return;
+            metrics.roaming_scans.fetch_add(1, std::memory_order_relaxed);
+            matched_sess = g_sessions.find_if([&](Session* s) -> bool {
                 auto sc = s->get_crypto();
-                if (!sc) return;
+                if (!sc) return false;
                 if (mask_unmask_header(pkt_data + 12, 16, sc->mask_key, hdr_iv, unmasked_hdr)) {
                     if (std::memcmp(unmasked_hdr, &s->key_id_raw, 8) == 0 && std::memcmp(unmasked_hdr + 12, VER_MAGIC.data(), 4) == 0) {
-                        matched_sess = s;
                         matched_crypto = sc;
-                        update_endpoint_cache(ep_key, s);
+                        return true;
                     }
                 }
+                return false;
             });
+            if (matched_sess) {
+                metrics.roaming_hits.fetch_add(1, std::memory_order_relaxed);
+                update_endpoint_cache(ep_key, matched_sess);
+            }
         }
 
         if (!matched_sess || !matched_crypto) { record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 1.0); return; }

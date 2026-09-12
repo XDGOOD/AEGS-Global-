@@ -30,6 +30,7 @@ struct alignas(64) AegsMetrics {
     std::atomic<uint64_t> acl_drop{0};
     std::atomic<uint64_t> blackhole_triggers{0};
     std::atomic<uint64_t> roaming_hits{0};
+    std::atomic<uint64_t> roaming_scans{0};
     std::atomic<uint64_t> egress_failures{0};
 
     static AegsMetrics& instance() noexcept {
@@ -80,6 +81,7 @@ struct alignas(64) AegsMetrics {
         PROM_LINE(acl_drop_total, acl_drop);
         PROM_LINE(blackhole_triggers_total, blackhole_triggers);
         PROM_LINE(roaming_hits_total, roaming_hits);
+        PROM_LINE(roaming_scans_total, roaming_scans);
         PROM_LINE(egress_failures_total, egress_failures);
         #undef PROM_LINE
         return ss.str();

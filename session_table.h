@@ -122,6 +122,18 @@ public:
         }
     }
 
+    Session* find_if(const std::function<bool(Session*)>& predicate) const {
+        for (size_t s = 0; s < NUM_SHARDS; ++s) {
+            std::shared_lock<std::shared_mutex> lk(shards_[s].mu);
+            for (const auto& kv : shards_[s].by_key_id) {
+                if (predicate(kv.second)) {
+                    return kv.second;
+                }
+            }
+        }
+        return nullptr;
+    }
+
     void for_each_session(std::function<void(Session*)> fn) {
         for (size_t s = 0; s < NUM_SHARDS; ++s) {
             std::shared_lock<std::shared_mutex> lk(shards_[s].mu);
