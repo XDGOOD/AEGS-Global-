@@ -117,11 +117,13 @@ inline bool chacha20_poly1305_encrypt(const uint8_t* pt, size_t pt_len, const ui
         return false;
     }
     int total_len = len;
-    if (EVP_EncryptFinal_ex(ctx, ct + len, &len) != 1) {
+    uint8_t final_buf[16] = {0};
+    int flen = 0;
+    if (EVP_EncryptFinal_ex(ctx, final_buf, &flen) != 1) {
         EVP_CIPHER_CTX_reset(ctx);
         return false;
     }
-    total_len += len;
+    total_len += flen;
     uint8_t tag[16];
     if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16, tag) != 1) {
         EVP_CIPHER_CTX_reset(ctx);
@@ -166,11 +168,13 @@ inline bool chacha20_poly1305_decrypt(const uint8_t* ct, size_t ct_len, const ui
         EVP_CIPHER_CTX_reset(ctx);
         return false;
     }
-    if (EVP_DecryptFinal_ex(ctx, pt + len, &len) <= 0) {
+    uint8_t final_buf[16] = {0};
+    int flen = 0;
+    if (EVP_DecryptFinal_ex(ctx, final_buf, &flen) <= 0) {
         EVP_CIPHER_CTX_reset(ctx);
         return false;
     }
-    total_len += len;
+    total_len += flen;
     pt_len = total_len;
     EVP_CIPHER_CTX_reset(ctx);
     return true;

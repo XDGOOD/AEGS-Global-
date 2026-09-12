@@ -491,11 +491,14 @@ bool DnsLeakProtector::disable() noexcept {
         std::cout << "[DNS-Shield] Reverted systemd-resolved configuration for " << tun_iface_ << "\n";
     } else if (is_symlink_ && !symlink_target_.empty()) {
         unlink("/etc/resolv.conf");
-        symlink(symlink_target_.c_str(), "/etc/resolv.conf");
+        if (symlink(symlink_target_.c_str(), "/etc/resolv.conf") != 0) {
+            std::cerr << "[DNS-Shield] Warning: failed to restore /etc/resolv.conf symlink to " << symlink_target_ << "\n";
+        } else {
+            std::cout << "[DNS-Shield] Restored /etc/resolv.conf symlink.\n";
+        }
         is_symlink_ = false;
         symlink_target_.clear();
         resolv_conf_backed_up_ = false;
-        std::cout << "[DNS-Shield] Restored /etc/resolv.conf symlink.\n";
     } else if (resolv_conf_backed_up_ && !original_resolv_conf_.empty()) {
         std::ofstream dst("/etc/resolv.conf", std::ios::trunc);
         if (dst.is_open()) {

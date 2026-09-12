@@ -1,3 +1,6 @@
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include <iostream>
 #include <vector>
 #include <string>
@@ -45,7 +48,7 @@ double calculate_entropy(const uint8_t* data, size_t len) {
 
 int main() {
     std::cout << "=================================================================" << std::endl;
-    std::cout << "      AEGS v2 ADVANCED 5-PILLAR SECURITY & RELIABILITY SUITE     " << std::endl;
+    std::cout << "  AEGS Global Protocol Test Suite (v5 Pantheon / 12-Pillar)      " << std::endl;
     std::cout << "=================================================================" << std::endl;
 
     std::string token = "prod_user_token_long_entropy_test_2026_safe";
@@ -99,7 +102,8 @@ int main() {
     RAND_bytes(payload_nonce, 12);
     std::vector<uint8_t> encrypted_payload(plain.size() + TAG_LEN);
     size_t enc_len = 0;
-    assert(chacha20_poly1305_encrypt(plain.data(), plain.size(), payload_key, payload_nonce, encrypted_payload.data(), enc_len));
+    bool enc_ok = chacha20_poly1305_encrypt(plain.data(), plain.size(), payload_key, payload_nonce, encrypted_payload.data(), enc_len);
+    assert(enc_ok && enc_len > 0);
 
     std::vector<uint8_t> wire_packet;
     wire_packet.insert(wire_packet.end(), hdr_iv, hdr_iv + 12);
@@ -154,18 +158,30 @@ int main() {
     int tamper_blocked = 0;
     for (int flip = 0; flip < 50; ++flip) {
         std::vector<uint8_t> tampered_packet = wire_packet;
-        // Corrupt single bit in ciphertext or tag
+        if (enc_len == 0) {
+            std::cerr << "  [CRITICAL] enc_len == 0 before tamper flip=" << flip << std::endl;
+            break;
+        }
         size_t corrupt_pos = 12 + 16 + junk_len + 12 + (flip % enc_len);
+        if (corrupt_pos >= tampered_packet.size()) {
+            std::cerr << "  [CRITICAL] corrupt_pos out of bounds: " << corrupt_pos << " >= " << tampered_packet.size() << std::endl;
+            break;
+        }
         tampered_packet[corrupt_pos] ^= 0x01; // flip 1 bit
 
         const uint8_t* s_nonce = tampered_packet.data() + 12 + 16 + junk_len;
         const uint8_t* s_ct = s_nonce + 12;
         size_t s_ct_len = tampered_packet.size() - (12 + 16 + junk_len + 12);
 
-        std::vector<uint8_t> dec_out(s_ct_len);
+        std::vector<uint8_t> dec_out(s_ct_len + 64, 0);
         size_t dec_out_len = 0;
         bool dec_success = chacha20_poly1305_decrypt(s_ct, s_ct_len, payload_key, s_nonce, dec_out.data(), dec_out_len);
-        if (!dec_success) {
+        if (dec_success) {
+            std::cerr << "  [FAIL] UNEXPECTED AUTH SUCCESS at flip=" << flip
+                      << " corrupt_pos=" << corrupt_pos
+                      << " ct_len=" << s_ct_len
+                      << " dec_out_len=" << dec_out_len << std::endl;
+        } else {
             tamper_blocked++;
         }
     }
