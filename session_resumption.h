@@ -1,9 +1,9 @@
 #pragma once
 // ==============================================================================
-// AEGS v4 "Pantheon" -- Session Resumption Token Manager
+// AEGS v5 "Pantheon" -- Session Resumption Token Manager (Fast & PFS Resume)
 // Allows reconnect in <5ms instead of ~1s PBKDF2 handshake
-// Token: 96 bytes = nonce(32) + ciphertext(32) + tag(16) + padding(16)
-// Encrypted with ChaCha20-Poly1305, keyed from HKDF(MasterKey,"aegs-v4-resumption-key")
+// Fast Resume (0x04): Token verification with nonce-derived keys (0-RTT)
+// PFS Resume (0x05): Token verification + fresh Ephemeral X25519 ECDH (Full PFS)
 // ==============================================================================
 #include <cstdint>
 #include <cstring>
@@ -14,8 +14,17 @@
 #include <openssl/rand.h>
 #include <openssl/evp.h>
 #include <openssl/kdf.h>
+#include <openssl/hmac.h>
+#include <openssl/crypto.h>
 
-// 96 bytes on wire (sent in HANDSHAKE_RESP extension)
+// Opcode constants
+static constexpr uint8_t OP_FAST_RESUME_RESP  = 0x03;
+static constexpr uint8_t OP_FAST_RESUME       = 0x04;
+static constexpr uint8_t OP_PFS_RESUME        = 0x05;
+static constexpr uint8_t OP_PFS_RESUME_RESP   = 0x06;
+
+// 96 bytes on wire (sent in HANDSHAKE_RESP extension or 0x03 / 0x06 response)
+#pragma pack(push, 1)
 struct ResumptionToken {
     uint8_t nonce[32];      // random nonce
     uint8_t ciphertext[32]; // encrypted payload: session_id(8)+ip(4)+expiry_ms(8)+zeros(12)
@@ -24,6 +33,24 @@ struct ResumptionToken {
     uint8_t reserved[8];    // zero-padded, future use
 }; // total: 96 bytes
 static_assert(sizeof(ResumptionToken) == 96, "ResumptionToken size mismatch");
+
+// Wire layout for Opcode 0x05: Full PFS Resumption Request
+struct PfsResumptionRequest {
+    uint8_t opcode;                   // 0x05 (OP_PFS_RESUME)
+    ResumptionToken token;            // 96 bytes
+    uint8_t client_ephemeral_pub[32]; // 32 bytes X25519 public key
+}; // total: 129 bytes
+static_assert(sizeof(PfsResumptionRequest) == 129, "PfsResumptionRequest size mismatch");
+
+// Wire layout for Opcode 0x06: Full PFS Resumption Response
+struct PfsResumptionResponse {
+    uint8_t opcode;                   // 0x06 (OP_PFS_RESUME_RESP)
+    uint8_t server_ephemeral_pub[32]; // 32 bytes X25519 public key
+    ResumptionToken new_token;        // 96 bytes fresh token for next resumption
+    uint8_t auth_tag[16];             // 16 bytes HMAC-SHA256(master_key, bytes 0..128)
+}; // total: 145 bytes
+static_assert(sizeof(PfsResumptionResponse) == 145, "PfsResumptionResponse size mismatch");
+#pragma pack(pop)
 
 class ResumptionManager {
 public:
@@ -38,11 +65,9 @@ public:
     bool issue(uint64_t session_id, uint32_t assigned_ip,
                const uint8_t master_key[32], ResumptionToken& tok_out,
                const uint8_t key_id[8] = nullptr) {
-        // Derive resumption key from master key
         uint8_t rkey[32];
         if (!derive_resumption_key(master_key, rkey)) return false;
 
-        // Generate random nonce
         if (RAND_bytes(tok_out.nonce, 32) != 1) return false;
 
         if (key_id) {
@@ -52,17 +77,12 @@ public:
         }
         memset(tok_out.reserved, 0, 8);
 
-        // Build plaintext: session_id(8) + ip(4) + expiry_ms(8) + zeros(12)
         uint8_t plain[32] = {0};
         memcpy(plain, &session_id, 8);
         memcpy(plain + 8, &assigned_ip, 4);
         uint64_t expiry = now_ms() + 180000ULL; // 3 minutes
         memcpy(plain + 12, &expiry, 8);
 
-        // Encrypt with ChaCha20-Poly1305
-        // nonce for AEAD = first 12 bytes of token nonce
-        // AAD authenticates all unencrypted fields: nonce(32), key_id(8), reserved(8) = 48 bytes
-        // This binds the entire token cryptographically, closing R-01 nonce malleability.
         uint8_t aad[48];
         memcpy(aad, tok_out.nonce, 32);
         memcpy(aad + 32, tok_out.key_id, 8);
@@ -105,13 +125,11 @@ public:
         uint8_t rkey[32];
         if (!derive_resumption_key(master_key, rkey)) return false;
 
-        // Build authenticated data (48 bytes: all unencrypted token fields)
         uint8_t aad[48];
         memcpy(aad, tok.nonce, 32);
         memcpy(aad + 32, tok.key_id, 8);
         memcpy(aad + 40, tok.reserved, 8);
 
-        // Decrypt
         EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
         if (!ctx) return false;
         uint8_t plain[32];
@@ -130,7 +148,6 @@ public:
         EVP_CIPHER_CTX_free(ctx);
         if (!ok) return false;
 
-        // Check expiry
         uint64_t expiry = 0;
         memcpy(&expiry, plain + 12, 8);
         if (cur_time > expiry) return false;
@@ -145,6 +162,103 @@ public:
         memcpy(&session_id_out, plain, 8);
         memcpy(&ip_out, plain + 8, 4);
         return true;
+    }
+
+    // =========================================================================
+    // Ephemeral X25519 & HKDF Helpers for Full PFS Resumption (Opcode 0x05/0x06)
+    // =========================================================================
+    static EVP_PKEY* generate_x25519_key() {
+        EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, NULL);
+        if (!ctx) return nullptr;
+        EVP_PKEY* pkey = NULL;
+        if (EVP_PKEY_keygen_init(ctx) <= 0 || EVP_PKEY_keygen(ctx, &pkey) <= 0) {
+            EVP_PKEY_CTX_free(ctx);
+            return nullptr;
+        }
+        EVP_PKEY_CTX_free(ctx);
+        return pkey;
+    }
+
+    static bool extract_x25519_pub(EVP_PKEY* pkey, uint8_t pub_out[32]) {
+        size_t len = 32;
+        return (EVP_PKEY_get_raw_public_key(pkey, pub_out, &len) == 1 && len == 32);
+    }
+
+    static bool compute_ecdh_shared(EVP_PKEY* priv, const uint8_t peer_pub[32], uint8_t shared_out[32]) {
+        EVP_PKEY* peer_pkey = EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, NULL, peer_pub, 32);
+        if (!peer_pkey) return false;
+
+        EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new(priv, NULL);
+        if (!ctx) {
+            EVP_PKEY_free(peer_pkey);
+            return false;
+        }
+
+        bool ok = false;
+        size_t secret_len = 32;
+        if (EVP_PKEY_derive_init(ctx) > 0 &&
+            EVP_PKEY_derive_set_peer(ctx, peer_pkey) > 0 &&
+            EVP_PKEY_derive(ctx, shared_out, &secret_len) > 0 &&
+            secret_len == 32) {
+            ok = true;
+        }
+        EVP_PKEY_CTX_free(ctx);
+        EVP_PKEY_free(peer_pkey);
+        return ok;
+    }
+
+    static bool derive_pfs_keys(const uint8_t shared_secret[32],
+                                const uint8_t master_key[32],
+                                const uint8_t token_nonce[32],
+                                uint8_t c2s_key_out[32],
+                                uint8_t s2c_key_out[32]) {
+        auto hex_encode = [](const uint8_t* data, size_t len) -> std::string {
+            static const char* hexdigits = "0123456789abcdef";
+            std::string out; out.reserve(len * 2);
+            for (size_t i = 0; i < len; ++i) {
+                out.push_back(hexdigits[data[i] >> 4]);
+                out.push_back(hexdigits[data[i] & 0xF]);
+            }
+            return out;
+        };
+        std::string nonce_hex = hex_encode(token_nonce, 32);
+        std::string c2s_info = "aegs-pfs-resume-" + nonce_hex + "-c2s";
+        std::string s2c_info = "aegs-pfs-resume-" + nonce_hex + "-s2c";
+
+        auto hkdf_derive = [&](const std::string& info, uint8_t out[32]) -> bool {
+            EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
+            if (!ctx) return false;
+            size_t olen = 32;
+            bool ok = (
+                EVP_PKEY_derive_init(ctx) > 0 &&
+                EVP_PKEY_CTX_set_hkdf_md(ctx, EVP_sha256()) > 0 &&
+                EVP_PKEY_CTX_set1_hkdf_salt(ctx, master_key, 32) > 0 &&
+                EVP_PKEY_CTX_set1_hkdf_key(ctx, shared_secret, 32) > 0 &&
+                EVP_PKEY_CTX_add1_hkdf_info(ctx, reinterpret_cast<const unsigned char*>(info.data()), info.size()) > 0 &&
+                EVP_PKEY_derive(ctx, out, &olen) > 0 &&
+                olen == 32
+            );
+            EVP_PKEY_CTX_free(ctx);
+            return ok;
+        };
+
+        return hkdf_derive(c2s_info, c2s_key_out) && hkdf_derive(s2c_info, s2c_key_out);
+    }
+
+    static bool compute_pfs_resp_tag(const uint8_t* data, size_t len, const uint8_t master_key[32], uint8_t tag_out[16]) {
+        unsigned int mac_len = 32;
+        uint8_t full_mac[32];
+        if (!HMAC(EVP_sha256(), master_key, 32, data, len, full_mac, &mac_len)) {
+            return false;
+        }
+        std::memcpy(tag_out, full_mac, 16);
+        return true;
+    }
+
+    static bool verify_pfs_resp_tag(const uint8_t* data, size_t len, const uint8_t master_key[32], const uint8_t tag[16]) {
+        uint8_t expected[16];
+        if (!compute_pfs_resp_tag(data, len, master_key, expected)) return false;
+        return (CRYPTO_memcmp(tag, expected, 16) == 0);
     }
 
 private:
@@ -174,8 +288,7 @@ private:
         EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
         if (!ctx) return false;
         static const unsigned char info[] = "aegs-v4-resumption-key";
-        // Combine static salt with per-boot secret for boot-specific invalidation
-        unsigned char salt[45]; // 13 ("aegis-v2-salt") + 32 (boot_secret_)
+        unsigned char salt[45];
         std::memcpy(salt, "aegis-v2-salt", 13);
         std::memcpy(salt + 13, boot_secret_, 32);
         size_t olen = 32;

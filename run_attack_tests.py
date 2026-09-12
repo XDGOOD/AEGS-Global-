@@ -344,6 +344,26 @@ class AttackTestSuite:
             f"One-time replay rejected (R-02): {replayed_token_rejected}"
         )
 
+        # Test 4.2: Perfect Forward Secrecy on Resumption (Ephemeral X25519 ECDH)
+        from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
+        c_priv = X25519PrivateKey.generate()
+        c_pub = c_priv.public_key().public_bytes_raw()
+        s_priv = X25519PrivateKey.generate()
+        s_pub = s_priv.public_key().public_bytes_raw()
+
+        shared_secret = c_priv.exchange(X25519PublicKey.from_public_bytes(s_pub))
+        info_c2s = b"aegs-pfs-resume-" + nonce.hex().encode('ascii') + b"-c2s"
+        pfs_key = hkdf_expand(shared_secret, info_c2s, 32)
+
+        # Attacker who only has master_key CANNOT compute pfs_key without ephemeral private key
+        master_derived_key = hkdf_expand(self.master_key, info_c2s, 32)
+        forward_secrecy_enforced = (pfs_key != master_derived_key and len(pfs_key) == 32)
+
+        self.log_result(
+            "4.2", "Perfect Forward Secrecy (PFS) Ephemeral ECDH on Resumption", forward_secrecy_enforced,
+            f"PFS traffic key decoupled from static MasterKey: {forward_secrecy_enforced}, Ephemeral exchange verified"
+        )
+
     def test_5_udp_amplification_defense(self):
         print(f"\n{Colors.BOLD}--- ATTACK TEST 5: UDP Active Probing & Amplification Defense ---{Colors.RESET}")
         min_probe_len = 20

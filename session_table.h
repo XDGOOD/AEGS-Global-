@@ -1,11 +1,16 @@
-﻿#pragma once
+#pragma once
 // ==============================================================================
-// AEGS v5 "Pantheon" Global Edition -- 64-Shard Lock-Free Partitioned Table
-// Eliminates global lock contention across worker threads on the packet path
+// AEGS v5 "Pantheon" Global Edition -- 64-Shard Partitioned Session Table
+// Features:
+// 1. 64 independent shards for KeyID and Endpoint lookups
+// 2. Lock-free Copy-On-Write (COW/RCU) Route Table for TUN /32 IP lookups
+//    (Eliminates all mutex contention on the TUN forwarding hot path)
 // ==============================================================================
 #include <cstdint>
 #include <unordered_map>
 #include <shared_mutex>
+#include <mutex>
+#include <atomic>
 #include <functional>
 #include <string>
 #include <array>
@@ -16,8 +21,12 @@
 class SessionTable {
 public:
     static constexpr size_t NUM_SHARDS = 64;
+    using RouteMap = std::unordered_map<uint32_t, Session*>;
 
-    SessionTable() = default;
+    SessionTable() {
+        routes_ = std::make_shared<const RouteMap>();
+    }
+
     ~SessionTable() {
         clear();
     }
@@ -39,11 +48,14 @@ public:
         return find_by_key_id(hex_to_u64(hex));
     }
 
-    Session* find_by_assigned_ip(uint32_t ip) const {
-        size_t s = ip_shard_idx(ip);
-        std::shared_lock<std::shared_mutex> lk(ip_shards_[s].mu);
-        auto it = ip_shards_[s].by_ip.find(ip);
-        return (it != ip_shards_[s].by_ip.end()) ? it->second : nullptr;
+    // -------------------------------------------------------------------------
+    // Lock-Free COW TUN Route Lookup (Phase 11): 0 locks on packet hot path
+    // -------------------------------------------------------------------------
+    Session* find_by_assigned_ip(uint32_t ip) const noexcept {
+        if (!ip) return nullptr;
+        std::shared_ptr<const RouteMap> snap = std::atomic_load(&routes_);
+        auto it = snap->find(ip);
+        return (it != snap->end()) ? it->second : nullptr;
     }
 
     Session* find_by_endpoint(uint64_t ep_key) const {
@@ -64,18 +76,23 @@ public:
         shards_[shard].by_key_id[kid] = s;
     }
 
+    // Control-plane updates: Copy-on-Write pointer swap
     void map_ip(uint32_t ip, Session* s) {
         if (!ip || !s) return;
-        size_t shard = ip_shard_idx(ip);
-        std::unique_lock<std::shared_mutex> lk(ip_shards_[shard].mu);
-        ip_shards_[shard].by_ip[ip] = s;
+        std::lock_guard<std::mutex> lk(route_write_mu_);
+        auto old_snap = std::atomic_load(&routes_);
+        auto new_snap = std::make_shared<RouteMap>(*old_snap);
+        (*new_snap)[ip] = s;
+        std::atomic_store(&routes_, std::shared_ptr<const RouteMap>(new_snap));
     }
 
     void unmap_ip(uint32_t ip) {
         if (!ip) return;
-        size_t shard = ip_shard_idx(ip);
-        std::unique_lock<std::shared_mutex> lk(ip_shards_[shard].mu);
-        ip_shards_[shard].by_ip.erase(ip);
+        std::lock_guard<std::mutex> lk(route_write_mu_);
+        auto old_snap = std::atomic_load(&routes_);
+        auto new_snap = std::make_shared<RouteMap>(*old_snap);
+        new_snap->erase(ip);
+        std::atomic_store(&routes_, std::shared_ptr<const RouteMap>(new_snap));
     }
 
     void update_endpoint(uint64_t ep_key, Session* s) {
@@ -131,9 +148,9 @@ public:
             }
             shards_[s].by_key_id.clear();
         }
-        for (size_t s = 0; s < NUM_SHARDS; ++s) {
-            std::unique_lock<std::shared_mutex> lk(ip_shards_[s].mu);
-            ip_shards_[s].by_ip.clear();
+        {
+            std::lock_guard<std::mutex> lk(route_write_mu_);
+            std::atomic_store(&routes_, std::make_shared<const RouteMap>());
         }
         for (size_t s = 0; s < NUM_SHARDS; ++s) {
             std::unique_lock<std::shared_mutex> lk(ep_shards_[s].mu);
@@ -169,18 +186,9 @@ private:
         return static_cast<size_t>(k % NUM_SHARDS);
     }
 
-    static size_t ip_shard_idx(uint32_t ip) noexcept {
-        return shard_idx(static_cast<uint64_t>(ip));
-    }
-
     struct KeyShard {
         mutable std::shared_mutex mu;
         std::unordered_map<uint64_t, Session*> by_key_id;
-    };
-
-    struct IpShard {
-        mutable std::shared_mutex mu;
-        std::unordered_map<uint32_t, Session*> by_ip;
     };
 
     struct EndpointShard {
@@ -189,6 +197,9 @@ private:
     };
 
     std::array<KeyShard, NUM_SHARDS>      shards_;
-    std::array<IpShard, NUM_SHARDS>       ip_shards_;
     std::array<EndpointShard, NUM_SHARDS> ep_shards_;
+
+    // Lock-free route table snapshot pointer & writer mutex
+    std::shared_ptr<const RouteMap>       routes_;
+    std::mutex                            route_write_mu_;
 };

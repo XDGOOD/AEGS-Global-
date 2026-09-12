@@ -382,74 +382,147 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
             if (ban_it != banned_ips.end() && now < ban_it->second) return;
         }
 
-        if (pkt_data[0] == 0x04 && (size_t)len >= 97) {
+        // =====================================================================
+        // Opcode 0x04: Fast Resumption (0-RTT with per-resume derived traffic keys)
+        // =====================================================================
+        if (pkt_data[0] == OP_FAST_RESUME && (size_t)len >= 97) {
             ResumptionToken rtok;
             memcpy(&rtok, pkt_data + 1, 96);
             uint64_t resumed_sid = 0;
             uint32_t resumed_ip = 0;
-            Session* resumed_sess = nullptr;
 
             char kid_hex[17];
             for (int j = 0; j < 8; j++) sprintf(&kid_hex[j*2], "%02x", rtok.key_id[j]);
             kid_hex[16] = 0;
 
-            // FIX Phase 2: Sharded O(1) Session Lookup (zero global lock contention)
-            resumed_sess = g_sessions.find_by_key_id_hex(kid_hex);
-            // FIX Concurrency: Verify token OUTSIDE sessions_mu to avoid holding global lock during crypto
-            if (resumed_sess) {
-                if (!g_resumption.verify(rtok, resumed_sess->master_key, resumed_sid, resumed_ip)) {
-                    resumed_sess = nullptr; // Verification failed
-                }
+            Session* s = g_sessions.find_by_key_id_hex(kid_hex);
+            if (!s || !g_resumption.verify(rtok, s->master_key, resumed_sid, resumed_ip)) {
+                metrics.resume_fail.fetch_add(1, std::memory_order_relaxed);
+                record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 1.0);
+                return;
             }
-            if (resumed_sess) {
-                Session* s = resumed_sess;
-                {
-                    std::lock_guard<std::mutex> slk(s->mu);
-                    s->client_addr = caddr;
-                    s->has_client = true;
-                    s->last_activity = now;
-                    s->last_server_fd = fd;
-                    s->session_id = resumed_sid;
 
-                    // FIX Blocker 2: Restore full cryptographic state and forward-secret session keys using per‑RESUME secret
-                    // Derive a per‑resume key from the token nonce to avoid nonce reuse across resumption.
-                    auto hex_encode = [](const uint8_t* data, size_t len) -> std::string {
-                        static const char* hexdigits = "0123456789abcdef";
-                        std::string out; out.reserve(len * 2);
-                        for (size_t i = 0; i < len; ++i) {
-                            out.push_back(hexdigits[data[i] >> 4]);
-                            out.push_back(hexdigits[data[i] & 0xF]);
-                        }
-                        return out;
-                    };
-                    std::string resume_info = "aegs-resume-" + hex_encode(rtok.nonce, 32);
-                    std::string recv_info = resume_info + "-s2c";
-                    std::string send_info = resume_info + "-c2s";
-                    hkdf_expand(s->master_key, 32, recv_info, s->session_keys.recv_key, 32);
-                    hkdf_expand(s->master_key, 32, send_info, s->session_keys.send_key, 32);
-                    s->v3_handshake_done = true;
-                    s->tx_seq = 0;
-                    s->replay_filter = AntiReplayFilter();
-                }
-                // Update O(1) fast-path endpoint cache
-                update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s);
-                if (resumed_ip) {
-                    std::lock_guard<std::mutex> lk(sessions_mu);
-                    if (!s->assigned_ip) {
-                        s->assigned_ip = resumed_ip;
-                        ip_to_session[s->assigned_ip] = s;
+            {
+                std::lock_guard<std::mutex> slk(s->mu);
+                s->client_addr = caddr;
+                s->has_client = true;
+                s->last_activity = now;
+                s->last_server_fd = fd;
+                s->session_id = resumed_sid;
+
+                auto hex_encode = [](const uint8_t* data, size_t dlen) -> std::string {
+                    static const char* hexdigits = "0123456789abcdef";
+                    std::string out; out.reserve(dlen * 2);
+                    for (size_t i = 0; i < dlen; ++i) {
+                        out.push_back(hexdigits[data[i] >> 4]);
+                        out.push_back(hexdigits[data[i] & 0xF]);
                     }
-                }
-                ResumptionToken new_tok;
-                if (g_resumption.issue(s->session_id, s->assigned_ip, s->master_key, new_tok, (const uint8_t*)&s->key_id_raw)) {
-                    uint8_t rpkt[97];
-                    rpkt[0] = 0x03;
-                    memcpy(rpkt + 1, &new_tok, 96);
-                    sendto(fd, rpkt, 97, 0, (struct sockaddr*)&caddr, sizeof(caddr));
-                }
-                metrics.resume_fast_ok.fetch_add(1, std::memory_order_relaxed);
-                AegsLog::info("[RESUME] Session resumed with restored crypto state for ", inet_ntoa(caddr.sin_addr), " (", IpPool::to_string(s->assigned_ip), ")");
+                    return out;
+                };
+                std::string resume_info = "aegs-resume-" + hex_encode(rtok.nonce, 32);
+                std::string recv_info = resume_info + "-s2c";
+                std::string send_info = resume_info + "-c2s";
+                hkdf_expand(s->master_key, 32, recv_info, s->session_keys.recv_key, 32);
+                hkdf_expand(s->master_key, 32, send_info, s->session_keys.send_key, 32);
+                s->v3_handshake_done = true;
+                s->tx_seq = 0;
+                s->replay_filter = AntiReplayFilter();
             }
+
+            update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s);
+            if (resumed_ip) {
+                if (!s->assigned_ip) {
+                    s->assigned_ip = resumed_ip;
+                }
+                g_sessions.map_ip(s->assigned_ip, s);
+            }
+
+            ResumptionToken new_tok;
+            if (g_resumption.issue(s->session_id, s->assigned_ip, s->master_key, new_tok, (const uint8_t*)&s->key_id_raw)) {
+                uint8_t rpkt[97];
+                rpkt[0] = OP_FAST_RESUME_RESP;
+                memcpy(rpkt + 1, &new_tok, 96);
+                sendto(fd, reinterpret_cast<const char*>(rpkt), 97, 0, (struct sockaddr*)&caddr, sizeof(caddr));
+            }
+            metrics.resume_fast_ok.fetch_add(1, std::memory_order_relaxed);
+            AegsLog::info("[FAST-RESUME] Session resumed for ", inet_ntoa(caddr.sin_addr), " (", IpPool::to_string(s->assigned_ip), ")");
+            return;
+        }
+
+        // =====================================================================
+        // Opcode 0x05: Full PFS Resumption (RFC Ephemeral X25519 ECDH + Fresh Keys)
+        // =====================================================================
+        if (pkt_data[0] == OP_PFS_RESUME && (size_t)len >= sizeof(PfsResumptionRequest)) {
+            const PfsResumptionRequest* req = reinterpret_cast<const PfsResumptionRequest*>(pkt_data);
+            const ResumptionToken& rtok = req->token;
+            uint64_t resumed_sid = 0;
+            uint32_t resumed_ip = 0;
+
+            char kid_hex[17];
+            for (int j = 0; j < 8; j++) sprintf(&kid_hex[j*2], "%02x", rtok.key_id[j]);
+            kid_hex[16] = 0;
+
+            Session* s = g_sessions.find_by_key_id_hex(kid_hex);
+            if (!s || !g_resumption.verify(rtok, s->master_key, resumed_sid, resumed_ip)) {
+                metrics.resume_fail.fetch_add(1, std::memory_order_relaxed);
+                record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 1.0);
+                return;
+            }
+
+            // Generate fresh ephemeral X25519 keypair for Perfect Forward Secrecy
+            EVP_PKEY* s_pkey = ResumptionManager::generate_x25519_key();
+            if (!s_pkey) {
+                metrics.resume_fail.fetch_add(1, std::memory_order_relaxed);
+                return;
+            }
+
+            uint8_t s_pub[32];
+            uint8_t shared_secret[32];
+            uint8_t c2s_key[32], s2c_key[32];
+
+            bool ok = ResumptionManager::extract_x25519_pub(s_pkey, s_pub) &&
+                      ResumptionManager::compute_ecdh_shared(s_pkey, req->client_ephemeral_pub, shared_secret) &&
+                      ResumptionManager::derive_pfs_keys(shared_secret, s->master_key, rtok.nonce, c2s_key, s2c_key);
+            EVP_PKEY_free(s_pkey);
+
+            if (!ok) {
+                metrics.resume_fail.fetch_add(1, std::memory_order_relaxed);
+                return;
+            }
+
+            {
+                std::lock_guard<std::mutex> slk(s->mu);
+                s->client_addr = caddr;
+                s->has_client = true;
+                s->last_activity = now;
+                s->last_server_fd = fd;
+                s->session_id = resumed_sid;
+                std::memcpy(s->session_keys.recv_key, c2s_key, 32);
+                std::memcpy(s->session_keys.send_key, s2c_key, 32);
+                s->v3_handshake_done = true;
+                s->tx_seq = 0;
+                s->replay_filter = AntiReplayFilter();
+            }
+
+            update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s);
+            if (resumed_ip) {
+                if (!s->assigned_ip) {
+                    s->assigned_ip = resumed_ip;
+                }
+                g_sessions.map_ip(s->assigned_ip, s);
+            }
+
+            // Construct 145-byte PFS Resumption Response (Opcode 0x06)
+            PfsResumptionResponse resp;
+            resp.opcode = OP_PFS_RESUME_RESP;
+            std::memcpy(resp.server_ephemeral_pub, s_pub, 32);
+            if (g_resumption.issue(s->session_id, s->assigned_ip, s->master_key, resp.new_token, (const uint8_t*)&s->key_id_raw)) {
+                ResumptionManager::compute_pfs_resp_tag(reinterpret_cast<const uint8_t*>(&resp), 1 + 32 + 96, s->master_key, resp.auth_tag);
+                sendto(fd, reinterpret_cast<const char*>(&resp), sizeof(resp), 0, (struct sockaddr*)&caddr, sizeof(caddr));
+            }
+
+            metrics.resume_pfs_ok.fetch_add(1, std::memory_order_relaxed);
+            AegsLog::info("[PFS-RESUME] Session resumed with fresh ECDH for ", inet_ntoa(caddr.sin_addr), " (", IpPool::to_string(s->assigned_ip), ")");
             return;
         }
 

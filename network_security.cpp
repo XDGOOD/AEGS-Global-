@@ -150,24 +150,100 @@ std::vector<std::string> KillSwitch::generate_rules(const std::string& server_ip
     return rules;
 }
 
+// =============================================================================
+// KillSwitch Transactional Implementation (prepare -> apply -> verify -> commit)
+// =============================================================================
+
+bool KillSwitch::prepare() {
+    if (!is_valid_ip_address(server_ip_)) {
+        std::cerr << "[KillSwitch] Tx prepare failed: Invalid server IP format: " << server_ip_ << "\n";
+        return false;
+    }
+    if (!is_valid_iface_name(tun_iface_)) {
+        std::cerr << "[KillSwitch] Tx prepare failed: Invalid interface name: " << tun_iface_ << "\n";
+        return false;
+    }
+    if (base_port_ == 0 || port_count_ < 1 || port_count_ > 1000 || (base_port_ + port_count_ - 1) > 65535) {
+        std::cerr << "[KillSwitch] Tx prepare failed: Invalid port parameters: base=" << base_port_ << " count=" << port_count_ << "\n";
+        return false;
+    }
+    phase_ = TxPhase::PREPARED;
+    return true;
+}
+
+bool KillSwitch::apply() {
+    if (phase_ != TxPhase::PREPARED) return false;
+    auto rules = generate_rules(server_ip_, base_port_, port_count_, tun_iface_);
+    std::string chain = "AEGS_KILLSWITCH";
+
+    applied_cleanup_commands_.clear();
+    applied_cleanup_commands_.push_back("iptables -D OUTPUT -j " + chain);
+    applied_cleanup_commands_.push_back("iptables -F " + chain);
+    applied_cleanup_commands_.push_back("iptables -X " + chain);
+
+    std::vector<std::string> applied_rules;
+    for (const auto& rule : rules) {
+        int ret = execute_command(rule + " 2>/dev/null");
+        if (ret != 0) {
+            std::cerr << "[KillSwitch] FATAL: Rule application failed (code " << ret << "): " << rule << "\n";
+            rollback();
+            return false;
+        }
+    }
+
+    if (is_ipv6_available()) {
+        std::string chain6 = "AEGS_KILLSWITCH6";
+        applied_cleanup_commands_.push_back("ip6tables -D OUTPUT -j " + chain6);
+        applied_cleanup_commands_.push_back("ip6tables -F " + chain6);
+        applied_cleanup_commands_.push_back("ip6tables -X " + chain6);
+        for (const auto& r : generate_ipv6_rules()) {
+            execute_command(r + " 2>/dev/null");
+        }
+        ipv6_blocked_ = true;
+    }
+
+    phase_ = TxPhase::APPLIED;
+    return true;
+}
+
+bool KillSwitch::verify() {
+    if (phase_ != TxPhase::APPLIED) return false;
+#ifndef _WIN32
+    if (execute_command("iptables -C OUTPUT -j AEGS_KILLSWITCH 2>/dev/null") != 0) {
+        std::cerr << "[KillSwitch] Tx verification failed: AEGS_KILLSWITCH not hooked in OUTPUT\n";
+        rollback();
+        return false;
+    }
+#endif
+    phase_ = TxPhase::VERIFIED;
+    return true;
+}
+
+bool KillSwitch::commit() {
+    if (phase_ != TxPhase::VERIFIED) return false;
+    active_ = true;
+    phase_ = TxPhase::COMMITTED;
+    std::cout << "[KillSwitch] Tx committed: Isolation ACTIVE. Direct leaks blocked, server="
+              << server_ip_ << ":" << base_port_ << "-" << (base_port_ + port_count_ - 1) << "\n";
+    return true;
+}
+
+void KillSwitch::rollback() {
+    std::cerr << "[KillSwitch] Rolling back transaction...\n";
+    for (const auto& cmd : applied_cleanup_commands_) {
+        execute_command(cmd + " 2>/dev/null");
+    }
+    applied_cleanup_commands_.clear();
+    active_ = false;
+    ipv6_blocked_ = false;
+    phase_ = TxPhase::ROLLED_BACK;
+    std::cerr << "[KillSwitch] FAIL-CLOSED: Rollback complete.\n";
+}
+
 bool KillSwitch::enable(const std::string& server_ip,
                         uint16_t           base_port,
                         int                port_count,
                         const std::string& tun_iface) noexcept {
-    // FIX Item 7: Strict input validation preventing command injection in system()
-    if (!is_valid_ip_address(server_ip)) {
-        std::cerr << "[KillSwitch] ERROR: Invalid server IP format: " << server_ip << "\n";
-        return false;
-    }
-    if (!is_valid_iface_name(tun_iface)) {
-        std::cerr << "[KillSwitch] ERROR: Invalid interface name format: " << tun_iface << "\n";
-        return false;
-    }
-    if (base_port == 0 || port_count < 1 || port_count > 1000 || (base_port + port_count - 1) > 65535) {
-        std::cerr << "[KillSwitch] ERROR: Invalid port parameters: base=" << base_port << " count=" << port_count << "\n";
-        return false;
-    }
-
     if (active_) {
         disable();
     }
@@ -177,81 +253,10 @@ bool KillSwitch::enable(const std::string& server_ip,
     port_count_ = (port_count < 1) ? 1 : port_count;
     tun_iface_ = tun_iface;
 
-    auto rules = generate_rules(server_ip_, base_port_, port_count_, tun_iface_);
-    std::string chain = "AEGS_KILLSWITCH";
-
-    // Setup cleanup commands first in reverse order
-    applied_cleanup_commands_.clear();
-    applied_cleanup_commands_.push_back("iptables -D OUTPUT -j " + chain);
-    applied_cleanup_commands_.push_back("iptables -F " + chain);
-    applied_cleanup_commands_.push_back("iptables -X " + chain);
-
-    std::cout << "[KillSwitch] Activating hardware-level firewall isolation on " << tun_iface_ << "...\n";
-    std::vector<std::string> applied_rules; // Track successfully applied rules for rollback
-    for (const auto& rule : rules) {
-        int ret = execute_command(rule + " 2>/dev/null");
-        if (ret != 0) {
-            std::cerr << "[KillSwitch] FATAL: mandatory rule failed (exit code " << ret << "): " << rule << "\n";
-            // Rollback all successfully applied rules in reverse order
-            std::cerr << "[KillSwitch] Rolling back " << applied_rules.size() << " successfully applied rules...\n";
-            for (auto rit = applied_rules.rbegin(); rit != applied_rules.rend(); ++rit) {
-                execute_command(*rit + " 2>/dev/null");
-            }
-            // Also run full cleanup commands to ensure clean state
-            for (const auto& cmd : applied_cleanup_commands_) {
-                execute_command(cmd + " 2>/dev/null");
-            }
-            applied_cleanup_commands_.clear();
-            active_ = false;
-            std::cerr << "[KillSwitch] FAIL-CLOSED: activation aborted, no partial rules remain.\n";
-            return false;
-        }
-        // Build reverse command for rollback: replace -A with -D and -I with -D
-        std::string reverse = rule;
-        auto pos_A = reverse.find(" -A ");
-        if (pos_A != std::string::npos) {
-            reverse.replace(pos_A, 4, " -D ");
-        }
-        auto pos_I = reverse.find(" -I ");
-        if (pos_I != std::string::npos) {
-            reverse.replace(pos_I, 4, " -D ");
-        }
-        // Skip chain creation commands (-N) for reverse — handled by cleanup
-        if (rule.find(" -N ") == std::string::npos) {
-            applied_rules.push_back(reverse);
-        }
-    }
-
-    // Block IPv6 traffic safely via dedicated chain so existing user firewall rules are never touched
-    if (is_ipv6_available()) {
-        std::string chain6 = "AEGS_KILLSWITCH6";
-        applied_cleanup_commands_.push_back("ip6tables -D OUTPUT -j " + chain6);
-        applied_cleanup_commands_.push_back("ip6tables -F " + chain6);
-        applied_cleanup_commands_.push_back("ip6tables -X " + chain6);
-
-        auto v6_rules = generate_ipv6_rules();
-        bool v6_ok = true;
-        for (const auto& r : v6_rules) {
-            if (execute_command(r + " 2>/dev/null") != 0) {
-                std::cerr << "[KillSwitch] Warning: IPv6 rule failed: " << r << "\n";
-                v6_ok = false;
-            }
-        }
-        if (v6_ok) {
-            ipv6_blocked_ = true;
-            std::cout << "[KillSwitch] IPv6 leak protection active: dedicated " << chain6 << " chain\n";
-        } else {
-            // IPv6 failure is non-fatal but logged prominently
-            std::cerr << "[KillSwitch] WARNING: IPv6 lockdown incomplete, some IPv6 leaks may occur\n";
-        }
-    } else {
-        std::cout << "[KillSwitch] IPv6 not available or ip6tables not present, skipping IPv6 lockdown.\n";
-    }
-
-    active_ = true;
-    std::cout << "[KillSwitch] Isolation ACTIVE. Direct leaks blocked, server="
-              << server_ip_ << ":" << base_port_ << "-" << (base_port_ + port_count_ - 1) << "\n";
-    return true;
+    if (!prepare()) return false;
+    if (!apply()) return false;
+    if (!verify()) return false;
+    return commit();
 }
 
 bool KillSwitch::disable() noexcept {
@@ -353,106 +358,100 @@ std::vector<std::string> DnsLeakProtector::generate_rules(const std::string& tun
     return rules;
 }
 
-bool DnsLeakProtector::enable(const std::string& tun_iface,
-                             const std::string& secure_dns) noexcept {
-    std::string dns = secure_dns.empty() ? "10.8.0.1" : secure_dns;
+// =============================================================================
+// DnsLeakProtector Transactional Implementation (prepare -> apply -> verify -> commit)
+// =============================================================================
+
+bool DnsLeakProtector::prepare() {
+    std::string dns = secure_dns_.empty() ? "10.8.0.1" : secure_dns_;
     if (!is_valid_ip_address(dns)) {
-        std::cerr << "[DNS-Shield] ERROR: Invalid DNS IP format: " << dns << "\n";
+        std::cerr << "[DNS-Shield] Tx prepare failed: Invalid DNS IP format: " << dns << "\n";
         return false;
     }
-    if (!is_valid_iface_name(tun_iface)) {
-        std::cerr << "[DNS-Shield] ERROR: Invalid interface name format: " << tun_iface << "\n";
+    if (!is_valid_iface_name(tun_iface_)) {
+        std::cerr << "[DNS-Shield] Tx prepare failed: Invalid interface name: " << tun_iface_ << "\n";
         return false;
+    }
+    phase_ = TxPhase::PREPARED;
+    return true;
+}
+
+bool DnsLeakProtector::apply() {
+    if (phase_ != TxPhase::PREPARED) return false;
+    auto rules = generate_rules(tun_iface_);
+    std::string chain = "AEGS_DNS_SHIELD";
+
+    for (const auto& rule : rules) {
+        if (execute_command(rule + " 2>/dev/null") != 0) {
+            std::cerr << "[DNS-Shield] Rule application failed: " << rule << "\n";
+            rollback();
+            return false;
+        }
     }
 
+    if (is_ipv6_available()) {
+        for (const auto& r : generate_ipv6_rules()) {
+            execute_command(r + " 2>/dev/null");
+        }
+        ipv6_dns_blocked_ = true;
+    }
+
+    phase_ = TxPhase::APPLIED;
+    return true;
+}
+
+bool DnsLeakProtector::verify() {
+    if (phase_ != TxPhase::APPLIED) return false;
+#ifndef _WIN32
+    if (execute_command("iptables -C OUTPUT -j AEGS_DNS_SHIELD 2>/dev/null") != 0) {
+        std::cerr << "[DNS-Shield] Tx verification failed: AEGS_DNS_SHIELD not hooked in OUTPUT\n";
+        rollback();
+        return false;
+    }
+#endif
+    phase_ = TxPhase::VERIFIED;
+    return true;
+}
+
+bool DnsLeakProtector::commit() {
+    if (phase_ != TxPhase::VERIFIED) return false;
+    active_ = true;
+    phase_ = TxPhase::COMMITTED;
+    std::cout << "[DNS-Shield] Tx committed: DNS protection ACTIVE on " << tun_iface_ << "\n";
+    return true;
+}
+
+void DnsLeakProtector::rollback() {
+    std::cerr << "[DNS-Shield] Rolling back DNS shield...\n";
+    std::string chain = "AEGS_DNS_SHIELD";
+    execute_command("iptables -D OUTPUT -j " + chain + " 2>/dev/null");
+    execute_command("iptables -F " + chain + " 2>/dev/null");
+    execute_command("iptables -X " + chain + " 2>/dev/null");
+    if (ipv6_dns_blocked_) {
+        for (const auto& r : generate_ipv6_rules()) {
+            std::string rev = r;
+            auto p = rev.find(" -A ");
+            if (p != std::string::npos) rev.replace(p, 4, " -D ");
+            execute_command(rev + " 2>/dev/null");
+        }
+    }
+    active_ = false;
+    ipv6_dns_blocked_ = false;
+    phase_ = TxPhase::ROLLED_BACK;
+}
+
+bool DnsLeakProtector::enable(const std::string& tun_iface,
+                             const std::string& secure_dns) noexcept {
     if (active_) {
         disable();
     }
-
     tun_iface_ = tun_iface;
-    secure_dns_ = dns;
+    secure_dns_ = secure_dns.empty() ? "10.8.0.1" : secure_dns;
 
-#ifndef _WIN32
-    // R-07 Fix: Non-destructive DNS Leak Protection
-    // 1. Prefer resolvectl if available (systemd-resolved systems)
-    if (execute_command("which resolvectl >/dev/null 2>&1") == 0) {
-        if (execute_command("resolvectl dns " + tun_iface_ + " " + secure_dns_ + " 2>/dev/null") == 0 &&
-            execute_command("resolvectl default-route " + tun_iface_ + " true 2>/dev/null") == 0) {
-            used_resolvectl_ = true;
-            std::cout << "[DNS-Shield] systemd-resolved detected: configured DNS via resolvectl without touching /etc/resolv.conf.\n";
-        }
-    }
-
-    // 2. Fallback to /etc/resolv.conf: detect symlinks before overwriting
-    if (!used_resolvectl_) {
-        struct stat st;
-        if (lstat("/etc/resolv.conf", &st) == 0 && S_ISLNK(st.st_mode)) {
-            char target[512] = {0};
-            ssize_t len = readlink("/etc/resolv.conf", target, sizeof(target) - 1);
-            if (len > 0) {
-                target[len] = '\0';
-                symlink_target_ = target;
-                is_symlink_ = true;
-            }
-        }
-
-        // Backup /etc/resolv.conf if possible
-        std::ifstream src("/etc/resolv.conf");
-        if (src.is_open()) {
-            std::stringstream ss;
-            ss << src.rdbuf();
-            original_resolv_conf_ = ss.str();
-            resolv_conf_backed_up_ = true;
-            src.close();
-
-            if (is_symlink_) {
-                unlink("/etc/resolv.conf");
-            }
-
-            // Write secure resolver
-            std::ofstream dst("/etc/resolv.conf", std::ios::trunc);
-            if (dst.is_open()) {
-                dst << "# Generated by AEGS v4 DnsLeakProtector\n";
-                dst << "nameserver " << secure_dns_ << "\n";
-                dst << "options edns0\n";
-                dst.close();
-            }
-        }
-    }
-#endif
-
-    // Apply iptables port 53 lockdown
-    auto rules = generate_rules(tun_iface_);
-    for (const auto& rule : rules) {
-        int ret = execute_command(rule + " 2>/dev/null");
-        if (ret != 0) {
-            std::cerr << "[DNS-Shield] Warning: command failed (exit code " << ret << "): " << rule << "\n";
-        }
-    }
-
-    // Block IPv6 port 53 leakage
-    if (is_ipv6_available()) {
-        auto v6_rules = generate_ipv6_rules();
-        bool all_ok = true;
-        for (const auto& rule : v6_rules) {
-            int ret = execute_command(rule + " 2>/dev/null");
-            if (ret != 0) {
-                std::cerr << "[DNS-Shield] Warning: failed to apply IPv6 DNS rule (exit code " << ret << "): " << rule << "\n";
-                all_ok = false;
-            }
-        }
-        ipv6_dns_blocked_ = all_ok;
-        if (ipv6_dns_blocked_) {
-            std::cout << "[DNS-Shield] IPv6 port 53 leak protection active.\n";
-        }
-    } else {
-        std::cout << "[DNS-Shield] IPv6 not available or ip6tables not present, skipping IPv6 DNS lockdown.\n";
-    }
-
-    active_ = true;
-    std::cout << "[DNS-Shield] Port 53 lockdown ACTIVE on " << tun_iface_
-              << " -> DNS forced to " << secure_dns_ << "\n";
-    return true;
+    if (!prepare()) return false;
+    if (!apply()) return false;
+    if (!verify()) return false;
+    return commit();
 }
 
 bool DnsLeakProtector::disable() noexcept {

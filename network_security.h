@@ -15,7 +15,27 @@
 #include <array>
 #include <cstddef>
 
-class KillSwitch {
+enum class TxPhase {
+    IDLE,
+    PREPARED,
+    APPLIED,
+    VERIFIED,
+    COMMITTED,
+    ROLLED_BACK
+};
+
+class INetworkTransaction {
+public:
+    virtual ~INetworkTransaction() = default;
+    virtual bool prepare() = 0;
+    virtual bool apply() = 0;
+    virtual bool verify() = 0;
+    virtual bool commit() = 0;
+    virtual void rollback() = 0;
+    virtual TxPhase phase() const noexcept = 0;
+};
+
+class KillSwitch : public INetworkTransaction {
 public:
     KillSwitch() noexcept;
     ~KillSwitch();
@@ -38,6 +58,18 @@ public:
     bool disable() noexcept;
 
     bool is_active() const noexcept { return active_; }
+    TxPhase phase() const noexcept override { return phase_; }
+    bool prepare() override;
+    bool apply() override;
+    bool verify() override;
+    bool commit() override;
+    void rollback() override;
+    TxPhase phase() const noexcept override { return phase_; }
+    bool prepare() override;
+    bool apply() override;
+    bool verify() override;
+    bool commit() override;
+    void rollback() override;
 
     // Generates the exact shell commands needed for audit/dry-run
     std::vector<std::string> generate_rules(const std::string& server_ip,
@@ -52,6 +84,8 @@ public:
 
 private:
     bool active_;
+    TxPhase phase_{TxPhase::IDLE};
+    TxPhase phase_{TxPhase::IDLE};
     std::string server_ip_;
     uint16_t base_port_;
     int port_count_;
@@ -63,7 +97,7 @@ private:
     bool is_ipv6_available() const noexcept;
 };
 
-class DnsLeakProtector {
+class DnsLeakProtector : public INetworkTransaction {
 public:
     DnsLeakProtector() noexcept;
     ~DnsLeakProtector();
@@ -82,6 +116,12 @@ public:
     bool disable() noexcept;
 
     bool is_active() const noexcept { return active_; }
+    TxPhase phase() const noexcept override { return phase_; }
+    bool prepare() override;
+    bool apply() override;
+    bool verify() override;
+    bool commit() override;
+    void rollback() override;
 
     std::vector<std::string> generate_rules(const std::string& tun_iface) const;
     std::vector<std::string> generate_ipv6_rules() const;
@@ -89,6 +129,7 @@ public:
 
 private:
     bool active_;
+    TxPhase phase_{TxPhase::IDLE};
     std::string tun_iface_;
     std::string secure_dns_;
     std::string original_resolv_conf_;

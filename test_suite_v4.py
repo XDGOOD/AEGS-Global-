@@ -519,8 +519,145 @@ class Pillar11_SessionResumption(unittest.TestCase):
         """ResumptionToken must be exactly 96 bytes."""
         self.assertEqual(32 + 32 + 16 + 8 + 8, 96)
 
+    def test_pfs_resumption_full_flow(self):
+        """PFS Resumption (Opcode 0x05 / 0x06): Ephemeral X25519 ECDH + HKDF Traffic Key Derivation."""
+        from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
+        from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+        from cryptography.hazmat.primitives import hashes
+        import hmac, hashlib
+
+        master_key = os.urandom(32)
+        token = self._issue_token(master_key, 0xABCDEF1122334455, 0x0A080002)
+
+        # 1. Client creates ephemeral X25519
+        c_priv = X25519PrivateKey.generate()
+        c_pub = c_priv.public_key().public_bytes_raw()
+
+        # Build 129-byte PFS Resumption Request (0x05)
+        req_pkt = b"\x05" + token + c_pub
+        self.assertEqual(len(req_pkt), 129)
+
+        # 2. Server verifies token & creates server ephemeral X25519
+        sid, ip, _ = self._verify_token(req_pkt[1:97], master_key)
+        self.assertEqual(sid, 0xABCDEF1122334455)
+        self.assertEqual(ip, 0x0A080002)
+
+        s_priv = X25519PrivateKey.generate()
+        s_pub = s_priv.public_key().public_bytes_raw()
+
+        # Server derives shared secret & keys
+        s_shared = s_priv.exchange(X25519PublicKey.from_public_bytes(req_pkt[97:129]))
+        token_nonce = req_pkt[1:33]
+        info_c2s = b"aegs-pfs-resume-" + token_nonce.hex().encode('ascii') + b"-c2s"
+        info_s2c = b"aegs-pfs-resume-" + token_nonce.hex().encode('ascii') + b"-s2c"
+
+        s_c2s = HKDF(algorithm=hashes.SHA256(), length=32, salt=master_key, info=info_c2s).derive(s_shared)
+        s_s2c = HKDF(algorithm=hashes.SHA256(), length=32, salt=master_key, info=info_s2c).derive(s_shared)
+
+        # Server issues fresh token & response (145 bytes)
+        new_token = self._issue_token(master_key, sid, ip)
+        resp_data = b"\x06" + s_pub + new_token
+        auth_tag = hmac.new(master_key, resp_data, hashlib.sha256).digest()[:16]
+        resp_pkt = resp_data + auth_tag
+        self.assertEqual(len(resp_pkt), 145)
+
+        # 3. Client verifies response
+        expected_tag = hmac.new(master_key, resp_pkt[:129], hashlib.sha256).digest()[:16]
+        self.assertEqual(resp_pkt[129:], expected_tag)
+
+        # Client derives matching keys
+        c_shared = c_priv.exchange(X25519PublicKey.from_public_bytes(resp_pkt[1:33]))
+        c_c2s = HKDF(algorithm=hashes.SHA256(), length=32, salt=master_key, info=info_c2s).derive(c_shared)
+        c_s2c = HKDF(algorithm=hashes.SHA256(), length=32, salt=master_key, info=info_s2c).derive(c_shared)
+
+        self.assertEqual(c_c2s, s_c2s)
+        self.assertEqual(c_s2c, s_s2c)
+
+    def test_pfs_resumption_tamper_rejected(self):
+        """PFS Resumption Response: Tampering with public key or token causes HMAC tag mismatch."""
+        from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
+        import hmac, hashlib
+
+        master_key = os.urandom(32)
+        token = self._issue_token(master_key, 12345, 0x0A080002)
+        s_priv = X25519PrivateKey.generate()
+        s_pub = s_priv.public_key().public_bytes_raw()
+
+        resp_data = b"\x06" + s_pub + token
+        auth_tag = hmac.new(master_key, resp_data, hashlib.sha256).digest()[:16]
+        resp_pkt = bytearray(resp_data + auth_tag)
+
+        # Tamper with ephemeral pubkey
+        resp_pkt[5] ^= 0xFF
+        expected_tag = hmac.new(master_key, resp_pkt[:129], hashlib.sha256).digest()[:16]
+        self.assertNotEqual(bytes(resp_pkt[129:]), expected_tag)
+
 class Pillar12_NetworkSecurityAndLeakProtection(unittest.TestCase):
     """Pillar 12: Hardware Kill-Switch isolation, DNS Leak Shield, and TCP Fallback trigger."""
+
+    def test_killswitch_transactional_state_machine(self):
+        """Phase 10: Network Transactional State Machine (prepare -> apply -> verify -> commit / rollback)."""
+        class MockNetworkTransaction:
+            def __init__(self, simulate_verify_failure=False):
+                self.phase = "IDLE"
+                self.active = False
+                self.simulate_verify_failure = simulate_verify_failure
+                self.cleaned_up = False
+
+            def prepare(self, server_ip, base_port, port_count, tun_iface):
+                if not server_ip or not tun_iface or base_port == 0:
+                    return False
+                self.phase = "PREPARED"
+                return True
+
+            def apply(self):
+                if self.phase != "PREPARED":
+                    return False
+                self.phase = "APPLIED"
+                return True
+
+            def verify(self):
+                if self.phase != "APPLIED":
+                    return False
+                if self.simulate_verify_failure:
+                    self.rollback()
+                    return False
+                self.phase = "VERIFIED"
+                return True
+
+            def commit(self):
+                if self.phase != "VERIFIED":
+                    return False
+                self.active = True
+                self.phase = "COMMITTED"
+                return True
+
+            def rollback(self):
+                self.active = False
+                self.cleaned_up = True
+                self.phase = "ROLLED_BACK"
+
+            def enable(self, server_ip, base_port, port_count, tun_iface):
+                if not self.prepare(server_ip, base_port, port_count, tun_iface):
+                    return False
+                if not self.apply():
+                    return False
+                if not self.verify():
+                    return False
+                return self.commit()
+
+        # 1. Normal success path
+        tx_ok = MockNetworkTransaction()
+        self.assertTrue(tx_ok.enable("198.51.100.42", 50001, 10, "aegs0"))
+        self.assertEqual(tx_ok.phase, "COMMITTED")
+        self.assertTrue(tx_ok.active)
+
+        # 2. Verification failure -> immediate fail-closed rollback
+        tx_fail = MockNetworkTransaction(simulate_verify_failure=True)
+        self.assertFalse(tx_fail.enable("198.51.100.42", 50001, 10, "aegs0"))
+        self.assertEqual(tx_fail.phase, "ROLLED_BACK")
+        self.assertFalse(tx_fail.active)
+        self.assertTrue(tx_fail.cleaned_up)
 
     def test_killswitch_rule_synthesis(self):
         """KillSwitch rule generator produces strict, bounded firewall rules."""
