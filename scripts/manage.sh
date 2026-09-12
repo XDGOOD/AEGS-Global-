@@ -224,33 +224,46 @@ install_dependencies() {
 
 # --- Compiler ---
 compile_binaries() {
-    log_info "Compiling AEGS v2 server and client binaries with -O3 optimization..."
+    log_info "Compiling AEGS Pantheon server and client binaries..."
     
-    local src_server="${ROOT_DIR}/server.cpp"
-    local src_client="${ROOT_DIR}/client.cpp"
-
-    if [[ ! -f "$src_server" ]]; then
-        log_fatal "Source file not found: $src_server"
-    fi
-
-    # Compile server
-    g++ -O3 -std=c++17 -Wall -Wextra \
-        -fstack-protector-strong -D_FORTIFY_SOURCE=2 -pie -Wl,-z,relro,-z,now \
-        "$src_server" -o "${SERVER_BIN}" \
-        -lssl -lcrypto -lsqlite3 -lpthread
-
-    chmod 755 "${SERVER_BIN}"
-    log_success "Server compiled successfully -> ${SERVER_BIN}"
-
-    # Compile client if source exists
-    if [[ -f "$src_client" ]]; then
+    if command -v cmake >/dev/null 2>&1; then
+        mkdir -p "${ROOT_DIR}/build"
+        cmake -B "${ROOT_DIR}/build" -S "${ROOT_DIR}" -DCMAKE_BUILD_TYPE=Release
+        cmake --build "${ROOT_DIR}/build" -j"$(nproc 2>/dev/null || echo 2)"
+        cp "${ROOT_DIR}/build/aegis_server" "${SERVER_BIN}"
+        if [[ -f "${ROOT_DIR}/build/aegis_client" ]]; then
+            cp "${ROOT_DIR}/build/aegis_client" "${CLIENT_BIN}"
+        fi
+    else
+        local core_sources=(
+            "${ROOT_DIR}/tun_interface.cpp"
+            "${ROOT_DIR}/ip_router.cpp"
+            "${ROOT_DIR}/handshake.cpp"
+            "${ROOT_DIR}/ip_pool.cpp"
+            "${ROOT_DIR}/nat_manager.cpp"
+            "${ROOT_DIR}/port_hopper.cpp"
+            "${ROOT_DIR}/protocol_mimicry.cpp"
+            "${ROOT_DIR}/traffic_shaper.cpp"
+            "${ROOT_DIR}/chaff_engine.cpp"
+            "${ROOT_DIR}/illusion_prebypass.cpp"
+            "${ROOT_DIR}/blackhole_responder.cpp"
+            "${ROOT_DIR}/network_security.cpp"
+        )
         g++ -O3 -std=c++17 -Wall -Wextra \
             -fstack-protector-strong -D_FORTIFY_SOURCE=2 -pie -Wl,-z,relro,-z,now \
-            "$src_client" -o "${CLIENT_BIN}" \
-            -lssl -lcrypto -lpthread
-        chmod 755 "${CLIENT_BIN}"
-        log_success "Client compiled successfully -> ${CLIENT_BIN}"
+            "${ROOT_DIR}/server.cpp" "${core_sources[@]}" -o "${SERVER_BIN}" \
+            -lssl -lcrypto -lsqlite3 -lpthread
+
+        if [[ -f "${ROOT_DIR}/client.cpp" ]]; then
+            g++ -O3 -std=c++17 -Wall -Wextra \
+                -fstack-protector-strong -D_FORTIFY_SOURCE=2 -pie -Wl,-z,relro,-z,now \
+                "${ROOT_DIR}/client.cpp" "${core_sources[@]}" -o "${CLIENT_BIN}" \
+                -lssl -lcrypto -lpthread
+        fi
     fi
+    chmod 755 "${SERVER_BIN}"
+    chmod 755 "${CLIENT_BIN}" 2>/dev/null || true
+    log_success "Binaries compiled successfully -> ${SERVER_BIN}"
 }
 
 # --- Service Management (Systemd & Docker) ---
