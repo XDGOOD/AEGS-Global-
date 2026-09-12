@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 // ==============================================================================
 // AEGS v5 "Pantheon" Global Edition -- Zero-Allocation Scratchpad & TX Batching
 // Pre-allocated TLS buffers eliminating heap churn and enabling sendmmsg() batching
@@ -70,21 +70,30 @@ struct PacketScratch {
             while (end < tx_count && tx_slots[end].fd == cur_fd) {
                 end++;
             }
-            unsigned int batch_len = static_cast<unsigned int>(end - start);
-            
-            std::array<struct mmsghdr, MAX_BATCH> batch_msgs;
-            for (size_t i = 0; i < batch_len; ++i) {
-                batch_msgs[i] = tx_slots[start + i].msg;
-            }
-            int sent = sendmmsg(cur_fd, batch_msgs.data(), batch_len, MSG_DONTWAIT);
-            if (sent > 0) {
-                sent_total += sent;
-            } else {
-                for (size_t i = start; i < end; ++i) {
-                    if (sendto(tx_slots[i].fd, tx_slots[i].data, tx_slots[i].len, MSG_DONTWAIT,
-                               (struct sockaddr*)&tx_slots[i].addr, sizeof(tx_slots[i].addr)) >= 0) {
-                        sent_total++;
+            // Drain the slice [start, end) without dropping packets on partial sendmmsg()
+            size_t cur = start;
+            while (cur < end) {
+                unsigned int batch_len = static_cast<unsigned int>(end - cur);
+                std::array<struct mmsghdr, MAX_BATCH> batch_msgs;
+                for (size_t i = 0; i < batch_len; ++i) {
+                    batch_msgs[i] = tx_slots[cur + i].msg;
+                }
+                int sent = sendmmsg(cur_fd, batch_msgs.data(), batch_len, MSG_DONTWAIT);
+                if (sent > 0) {
+                    sent_total += static_cast<size_t>(sent);
+                    cur += static_cast<size_t>(sent);
+                } else if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS) {
+                    // Socket queue congested; break to avoid busy-spinning and let caller apply backpressure
+                    break;
+                } else {
+                    // Fallback to sequential sendto for remaining unsent packets in this slice
+                    for (size_t i = cur; i < end; ++i) {
+                        if (sendto(tx_slots[i].fd, tx_slots[i].data, tx_slots[i].len, MSG_DONTWAIT,
+                                   (struct sockaddr*)&tx_slots[i].addr, sizeof(tx_slots[i].addr)) >= 0) {
+                            sent_total++;
+                        }
                     }
+                    break;
                 }
             }
             start = end;

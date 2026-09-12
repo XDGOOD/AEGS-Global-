@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 // ==============================================================================
 // AEGS v5 "Pantheon" Global Edition -- Decomposed Session Model
 // ==============================================================================
@@ -79,6 +79,25 @@ struct Session {
     std::atomic<uint64_t>& tx_seq;
     std::atomic<double>&   last_activity;
 
+    // RCU / Copy-On-Write Crypto Snapshot (Eliminates key reading data-races on packet path)
+    std::shared_ptr<const SessionCrypto> crypto_snap_;
+    mutable std::mutex                   crypto_mu_;
+
+    std::shared_ptr<const SessionCrypto> get_crypto() const noexcept {
+        return std::atomic_load(&crypto_snap_);
+    }
+
+    void set_crypto(const SessionCrypto& c) {
+        std::lock_guard<std::mutex> lk(crypto_mu_);
+        auto snap = std::make_shared<SessionCrypto>(c);
+        // Sync legacy direct-access fields for backward compatibility
+        std::memcpy(crypto.master_key, c.master_key, 32);
+        std::memcpy(crypto.mask_key, c.mask_key, 32);
+        crypto.session_keys = c.session_keys;
+        crypto.v3_handshake_done = c.v3_handshake_done;
+        std::atomic_store(&crypto_snap_, std::shared_ptr<const SessionCrypto>(snap));
+    }
+
     Session()
         : key_id_hex(identity.key_id_hex),
           key_id_raw(identity.key_id_raw),
@@ -93,7 +112,9 @@ struct Session {
           last_server_fd(routing.last_server_fd),
           tx_seq(counters.tx_seq),
           last_activity(counters.last_activity)
-    {}
+    {
+        set_crypto(crypto);
+    }
 
     Session(const Session&) = delete;
     Session& operator=(const Session&) = delete;
@@ -109,7 +130,8 @@ struct Session {
         identity.generation.fetch_add(1, std::memory_order_release);
         routing.has_client = false;
         routing.assigned_ip = 0;
-        crypto.v3_handshake_done = false;
+        SessionCrypto empty_crypto;
+        set_crypto(empty_crypto);
         counters.tx_seq.store(0, std::memory_order_relaxed);
         replay_filter.reset();
     }

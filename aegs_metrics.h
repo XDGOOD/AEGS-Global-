@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 // ==============================================================================
 // AEGS v5 "Pantheon" Global Edition -- Stage 19: Observability & Metrics
 // Cache-line aligned, zero-lock lock-free atomic counters for data plane

@@ -64,12 +64,6 @@ public:
     bool verify() override;
     bool commit() override;
     void rollback() override;
-    TxPhase phase() const noexcept override { return phase_; }
-    bool prepare() override;
-    bool apply() override;
-    bool verify() override;
-    bool commit() override;
-    void rollback() override;
 
     // Generates the exact shell commands needed for audit/dry-run
     std::vector<std::string> generate_rules(const std::string& server_ip,
@@ -84,7 +78,6 @@ public:
 
 private:
     bool active_;
-    TxPhase phase_{TxPhase::IDLE};
     TxPhase phase_{TxPhase::IDLE};
     std::string server_ip_;
     uint16_t base_port_;

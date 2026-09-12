@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # ==============================================================================
 # 🏠 AEGS v4 "Pantheon" (Home & Family Edition) -- 1-Click Server Installer
 # One command to install, configure firewall, start background service, and

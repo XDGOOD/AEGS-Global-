@@ -8,8 +8,8 @@
 [![License](https://img.shields.io/badge/License-MIT-purple.svg)](#)
 [![Status](https://img.shields.io/badge/Status-Production%20Hardened-brightgreen.svg)](#)
 
-> **Carrier-Grade, Multi-Core, Sharded UDP Tunnel Protocol (10+ Gbps Target)**  
-> Engineered to decouple the Control Plane from the Data Plane, eliminate lock contention, and scale linearly across hardware cores.
+> **Carrier-Grade, Multi-Core, Sharded UDP Tunnel Protocol (10+ Gbps Target Architecture)**  
+> Engineered to decouple the Control Plane from the Data Plane, eliminate global lock contention, and scale linearly across hardware cores.
 
 ---
 
@@ -20,7 +20,7 @@
 │                        Control Plane                         │
 │ (PBKDF2 / Handshake / PFS Resume / Epoch Rotations / GC)     │
 └──────────────────────────────┬───────────────────────────────┘
-                               │ Copy-On-Write Snapshots
+                               │ Atomic RCU Snapshots (COW)
  ┌─────────────────────────────┼───────────────────────────────┐
  │                             │                               │
  ▼                             ▼                               ▼
@@ -33,40 +33,44 @@ Endpoint Lookup           Per-Session TX                  Route Lookup
                      (64 Independent Shards)
                                │
                                ▼
-                      Bounded Ring Queues
+                   Zero-Heap Scratch Arenas
                                │
                                ▼
-                   Batch I/O (recvmmsg / sendmmsg)
+            Symmetric Batch I/O (recvmmsg / sendmmsg)
 ```
 
 ### Key Engineering Principles:
-1. **Control Plane Decoupled from Data Plane**: Handshakes, token verification, and garbage collection run asynchronously without taking global locks on active UDP forwarding.
-2. **64-Shard Partitioned Session State**: 64 independent shards (`splitmix64(key_id) % 64`) eliminate lock contention across worker threads.
-3. **Lock-Free COW TUN Routing**: Copy-On-Write `/32` IP route table allows TUN packet forwarding with **0 locks** on the packet path.
-4. **Symmetric Batch I/O**: High-throughput packet processing via `recvmmsg()` (RX) and `sendmmsg()` (TX).
-5. **Zero-Allocation Hot Path**: Thread-local scratch arenas (`thread_local PacketScratch`) ensure 0 heap allocations per forwarded packet.
-6. **AIMD Congestion Control**: Multiplicative decrease and additive increase backpressure controller prevents bufferbloat and socket drops under load.
-7. **Perfect Forward Secrecy on Resumption (PFS)**: Opcode `0x05` performs fresh Ephemeral X25519 ECDH exchanges on reconnects while preserving <5ms latency.
-8. **Fail-Closed Transactional Network State**: `prepare -> apply -> verify -> commit / rollback` state machine guarantees zero firewall or DNS leaks.
+1. **Control Plane Decoupled from Data Plane**: Handshakes, token verification, and garbage collection run asynchronously on dedicated control threads without taking global locks on active UDP forwarding.
+2. **64-Shard Partitioned Session State**: 64 independent shards (`splitmix64(key_id) % 64`) eliminate global session table contention across worker threads.
+3. **Lock-Free COW TUN Routing**: Copy-On-Write `/32` IP route table allows TUN packet forwarding with **zero locks** on the packet path.
+4. **RCU SessionCrypto Snapshots**: RX worker packet decryption reads immutable RCU crypto snapshots (`std::shared_ptr<const SessionCrypto>`) with zero mutex locks and zero data races during concurrent rekeys and resumptions.
+5. **Robust Partial-Send Recovery**: `sendmmsg()` batch egress loops on partial writes (`cur += sent`), eliminating socket drops under partial buffer availability.
+6. **Zero-Allocation Hot Path**: Thread-local scratch arenas (`thread_local PacketScratch`) ensure 0 heap allocations per forwarded packet.
+7. **AIMD Adaptive Backpressure Controller**: Multiplicative decrease and additive increase backpressure prevents socket buffer overflows and packet drops under heavy network congestion.
+8. **Dual Resumption Modes (Fast 0-RTT vs Full PFS)**:
+   - **Fast Resume (Opcode `0x04`)**: 0-RTT instant reconnection using encrypted pre-shared resumption tokens.
+   - **PFS Resume (Opcode `0x05` / `0x06`)**: 1-RTT resumption with fresh ephemeral X25519 ECDH exchange and HKDF key derivation for full Perfect Forward Secrecy.
+9. **Fail-Closed Transactional Network State**: `prepare -> apply -> verify -> commit / rollback` state machine guarantees zero firewall or DNS leaks on Linux hosts.
 
 ---
 
 ## 📊 Roadmap & Implemented Phases
 
 - [x] **Phase 1 — Core Hardening & Security Audit**
-  - P0/P1 cryptographic vulnerability remediation.
-  - Context isolation via HKDF-SHA256 separate sub-keys.
+  - Cryptographic context isolation via HKDF-SHA256 separate sub-keys (header mask vs payload).
   - Shannon entropy randomization (~7.8 / 8.0 bits/byte).
   - RFC 6479 2048-packet multi-word sliding window anti-replay.
+  - Constant-time MAC comparisons (`CRYPTO_memcmp`).
 - [x] **Phase 2 — Sharded Data-Plane Architecture**
   - Complete elimination of global `sessions_mu` and `g_endpoint_mu` from the packet path.
   - 64 independent shards with `splitmix64` dispersion.
   - Lock-free Copy-On-Write (COW/RCU) route table for TUN egress.
-  - Safe generation-counted `SessionHandle` preventing use-after-free.
+  - RCU crypto snapshot readers on RX fast path.
+  - Dedicated GC thread running every 2s for idle session reclamation.
 - [x] **Phase 3 — High-Performance Hot Path & Batching**
-  - Symmetric `sendmmsg()` batch egress.
+  - Symmetric `sendmmsg()` batch egress with partial send retry loop.
   - 64-byte aligned `thread_local PacketScratch` (0 heap allocs/packet).
-  - O(1) ring-buffered rate limiters (`FastRateLimiter<4096>`).
+  - O(1) ring-buffered rate limiters with generational slot eviction (`FastRateLimiter<4096>`).
 - [x] **Phase 4 — Reliability & Chaos Engineering**
   - AIMD adaptive backpressure controller (halves batch on congestion, dynamically scales pacing delay).
   - Network chaos simulation test runner (`tests/chaos_runner.py`: 1-10% loss, reordering, duplication, bit-flips).
@@ -74,8 +78,46 @@ Endpoint Lookup           Per-Session TX                  Route Lookup
   - Transactional firewall & DNS leak state machine with automated rollback.
 - [x] **Phase 5 — Observability & Profiles**
   - Zero-lock atomic Prometheus & JSON metrics exporter (`aegs_metrics.h`).
-  - Structured logging level system (`aegs_log.h` TRACE, DEBUG, INFO, WARN, ERROR).
+  - Structured logging level system (`aegs_log.h`: TRACE, DEBUG, INFO, WARN, ERROR).
   - Modular profiles (`AEGS_PROFILE=lite`, `AEGS_PROFILE=stealth`, `AEGS_PROFILE=balanced`).
+
+---
+
+## 🛠️ Build & Compilation
+
+### Requirements
+- Linux kernel 5.4+ (with `recvmmsg` / `sendmmsg` support)
+- GCC 9+ or Clang 10+ (supporting C++17)
+- CMake 3.16+
+- OpenSSL 1.1.1+ or 3.0+ (`libssl-dev`)
+- SQLite3 (`libsqlite3-dev`)
+
+### Standard Release Build
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)
+```
+
+### Sanitizer Builds (Development & Testing)
+```bash
+# AddressSanitizer (ASan) + UndefinedBehaviorSanitizer (UBSan)
+cmake -S . -B build-asan -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=ON
+cmake --build build-asan -j$(nproc)
+
+# ThreadSanitizer (TSAN)
+cmake -S . -B build-tsan -DCMAKE_BUILD_TYPE=Debug -DENABLE_TSAN=ON
+cmake --build build-tsan -j$(nproc)
+```
+
+### Running Hot-Path Benchmarks
+```bash
+./build/bench_hotpath
+```
+
+### Running Parser Fuzz Harness
+```bash
+./build/aegs_fuzz
+```
 
 ---
 

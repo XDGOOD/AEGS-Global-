@@ -31,7 +31,6 @@
 #include <algorithm>
 
 #include "tun_interface.h"
-#include "ip_router.h"
 #include "handshake.h"
 #include "ip_pool.h"
 #include "nat_manager.h"
@@ -92,7 +91,7 @@ template <size_t CAPACITY = 4096>
 class FastRateLimiter {
 public:
     FastRateLimiter() : head_(0) {
-        ring_.fill(0);
+        for (auto& slot : ring_) slot = {0, 0};
     }
 
     bool check(uint32_t ip_num, double now, int max_per_sec) {
@@ -100,14 +99,19 @@ public:
         auto it = map_.find(ip_num);
         if (it == map_.end()) {
             if (map_.size() >= CAPACITY) {
-                uint32_t evict_ip = ring_[head_];
-                if (evict_ip != 0) {
-                    map_.erase(evict_ip);
+                const auto& evict = ring_[head_];
+                if (evict.ip != 0) {
+                    auto map_it = map_.find(evict.ip);
+                    // Only evict if generation matches, avoiding eviction of re-inserted state
+                    if (map_it != map_.end() && map_it->second.generation == evict.generation) {
+                        map_.erase(map_it);
+                    }
                 }
             }
-            ring_[head_] = ip_num;
+            uint64_t gen = ++gen_counter_;
+            ring_[head_] = {ip_num, gen};
             head_ = (head_ + 1) % CAPACITY;
-            map_[ip_num] = {now, 1};
+            map_[ip_num] = {now, 1, gen};
             return true;
         }
         if (now - it->second.window_start >= 1.0) {
@@ -134,11 +138,17 @@ private:
     struct Entry {
         double window_start = 0;
         int count = 0;
+        uint64_t generation = 0;
+    };
+    struct RingSlot {
+        uint32_t ip = 0;
+        uint64_t generation = 0;
     };
     std::mutex mu_;
     std::unordered_map<uint32_t, Entry> map_;
-    std::array<uint32_t, CAPACITY> ring_;
+    std::array<RingSlot, CAPACITY> ring_;
     size_t head_ = 0;
+    uint64_t gen_counter_ = 0;
 };
 
 static FastRateLimiter<4096> g_hs_limiter;
@@ -184,8 +194,7 @@ void cleanup_maps(double now, IpPool& ip_pool) {
     g_sessions.for_each_session([&](Session* s) {
         std::lock_guard<std::mutex> slk(s->mu);
         if (s->has_client && (now - s->last_activity.load() > SESSION_IDLE_TIMEOUT)) {
-            std::cerr << "[GC] Session " << s->key_id_hex << " idle timeout
-";
+            std::cerr << "[GC] Session " << s->key_id_hex << " idle timeout\n";
             if (s->assigned_ip) {
                 g_sessions.unmap_ip(s->assigned_ip);
                 ip_pool.release(s->assigned_ip);
@@ -427,6 +436,13 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 s->v3_handshake_done = true;
                 s->tx_seq = 0;
                 s->replay_filter = AntiReplayFilter();
+
+                SessionCrypto sc;
+                std::memcpy(sc.master_key, s->master_key, 32);
+                std::memcpy(sc.mask_key, s->mask_key, 32);
+                sc.session_keys = s->session_keys;
+                sc.v3_handshake_done = true;
+                s->set_crypto(sc);
             }
 
             update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s);
@@ -502,6 +518,13 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 s->v3_handshake_done = true;
                 s->tx_seq = 0;
                 s->replay_filter = AntiReplayFilter();
+
+                SessionCrypto sc;
+                std::memcpy(sc.master_key, s->master_key, 32);
+                std::memcpy(sc.mask_key, s->mask_key, 32);
+                sc.session_keys = s->session_keys;
+                sc.v3_handshake_done = true;
+                s->set_crypto(sc);
             }
 
             update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s);
@@ -570,6 +593,13 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                     s->replay_filter = AntiReplayFilter();
                     s->last_activity = now;
                     s->last_server_fd = fd;
+
+                    SessionCrypto sc;
+                    std::memcpy(sc.master_key, s->master_key, 32);
+                    std::memcpy(sc.mask_key, s->mask_key, 32);
+                    sc.session_keys = sk;
+                    sc.v3_handshake_done = true;
+                    s->set_crypto(sc);
                 }
                 // Register in O(1) fast-path cache
                 update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s);
@@ -596,37 +626,43 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
 
         const uint8_t* hdr_iv = pkt_data;
         Session* matched_sess = nullptr;
+        std::shared_ptr<const SessionCrypto> matched_crypto = nullptr;
         uint8_t unmasked_hdr[16];
 
-        // FIX Phase 2: Sharded O(1) lookup on client endpoint (zero global lock)
+        // RCU / Copy-On-Write SessionCrypto snapshot lookup (Zero data races with concurrent Handshakes/Resumes)
         uint64_t ep_key = make_endpoint_key(ip_num, caddr.sin_port);
         Session* fast_sess = g_sessions.find_by_endpoint(ep_key);
-
-        if (fast_sess && mask_unmask_header(pkt_data + 12, 16, fast_sess->mask_key, hdr_iv, unmasked_hdr)) {
-            if (std::memcmp(unmasked_hdr, &fast_sess->key_id_raw, 8) == 0 && std::memcmp(unmasked_hdr + 12, VER_MAGIC.data(), 4) == 0) {
-                matched_sess = fast_sess;
+        if (fast_sess) {
+            auto fc = fast_sess->get_crypto();
+            if (fc && mask_unmask_header(pkt_data + 12, 16, fc->mask_key, hdr_iv, unmasked_hdr)) {
+                if (std::memcmp(unmasked_hdr, &fast_sess->key_id_raw, 8) == 0 && std::memcmp(unmasked_hdr + 12, VER_MAGIC.data(), 4) == 0) {
+                    matched_sess = fast_sess;
+                    matched_crypto = fc;
+                }
             }
         }
 
         // Slow-path fallback: scan registered sessions if new connection or roaming
         if (!matched_sess) {
-            // FIX Review Issue 5: Rate limit slow-path unmask scans to prevent CPU-DoS from unknown packet floods
             if (!check_roaming_rate_limit(ip_num, now)) {
                 record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 0.5);
                 return;
             }
             g_sessions.for_each_session([&](Session* s) {
                 if (matched_sess) return;
-                if (mask_unmask_header(pkt_data + 12, 16, s->mask_key, hdr_iv, unmasked_hdr)) {
+                auto sc = s->get_crypto();
+                if (!sc) return;
+                if (mask_unmask_header(pkt_data + 12, 16, sc->mask_key, hdr_iv, unmasked_hdr)) {
                     if (std::memcmp(unmasked_hdr, &s->key_id_raw, 8) == 0 && std::memcmp(unmasked_hdr + 12, VER_MAGIC.data(), 4) == 0) {
                         matched_sess = s;
+                        matched_crypto = sc;
                         update_endpoint_cache(ep_key, s);
                     }
                 }
             });
         }
 
-        if (!matched_sess) { record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 1.0); return; }
+        if (!matched_sess || !matched_crypto) { record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 1.0); return; }
 
         Session* s = matched_sess;
 
@@ -653,18 +689,14 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
         const uint8_t* ct = pkt_data + aead_offset + 12;
         size_t ct_len = len - (aead_offset + 12);
 
-        size_t dec_len = 0;
-        uint8_t dec_key[32];
-        {
-            std::lock_guard<std::mutex> slk(s->mu);
-            if (!s->v3_handshake_done) {
-                record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 0.5);
-                return;
-            }
-            std::memcpy(dec_key, s->session_keys.recv_key, 32);
+        if (!matched_crypto->v3_handshake_done) {
+            record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 0.5);
+            return;
         }
-        // FIX Blocker 3: Authenticate outer header (IV + masked header + junk) as AAD to prevent bit-flipping
-        if (!chacha20_poly1305_decrypt(ct, ct_len, dec_key, aead_nonce, dec_buf, dec_len, pkt_data, aead_offset)) {
+
+        size_t dec_len = 0;
+        // Lock-free decryption using immutable SessionCrypto snapshot (0 mutex locks taken on decrypt path)
+        if (!chacha20_poly1305_decrypt(ct, ct_len, matched_crypto->session_keys.recv_key, aead_nonce, dec_buf, dec_len, pkt_data, aead_offset)) {
             metrics.decrypt_fail.fetch_add(1, std::memory_order_relaxed);
             record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 0.5); return;
         }
@@ -725,7 +757,6 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
         }
 
         double now = std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count();
-        cleanup_maps(now, ip_pool);
 
         for (int i = 0; i < nfds; ++i) {
             int fd = events[i].data.fd;
@@ -925,8 +956,7 @@ int main() {
     }
 
     if (g_sessions.total_sessions() == 0) {
-        std::cerr << "no sessions loaded from db, nothing to serve
-";
+        std::cerr << "no sessions loaded from db, nothing to serve\n";
         return 1;
     }
     
@@ -982,6 +1012,16 @@ int main() {
               << (num_workers > 1 ? " (SO_REUSEPORT active)" : "")
               << ", Batch size: " << cfg.recv_batch_size << "\n";
 
+    // Dedicated Control-Plane GC Thread: offloads cleanup, token expiry, and rate-limit maintenance
+    std::thread gc_thread([&]() {
+        while (g_running.load(std::memory_order_relaxed)) {
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            if (!g_running.load(std::memory_order_relaxed)) break;
+            double now = std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count();
+            cleanup_maps(now, ip_pool);
+        }
+    });
+
     if (num_workers > 1) {
         std::vector<std::thread> workers;
         workers.reserve(num_workers);
@@ -994,6 +1034,10 @@ int main() {
         }
     } else {
         worker_loop(0, 1, cfg, ports, tun, hs_server, ip_pool, shaper);
+    }
+
+    if (gc_thread.joinable()) {
+        gc_thread.join();
     }
 
     std::cout << "[AEGS v4 Server] Shutting down...\n";

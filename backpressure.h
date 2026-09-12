@@ -130,7 +130,7 @@ private:
     size_t   max_batch_;
     size_t   min_batch_;
     size_t   current_batch_;
-    int      consecutive_failures_;
+    mutable int consecutive_failures_;
     size_t   consecutive_successes_;
     uint64_t congestion_events_;
     uint32_t pacing_delay_us_;
