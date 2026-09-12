@@ -120,7 +120,13 @@ void fuzz_anti_replay(const uint8_t* data, size_t size) {
 // -----------------------------------------------------------------------------
 void fuzz_blackhole_probes(const uint8_t* data, size_t size) {
     BlackholeResponder responder;
-    responder.process_probe(data, size, 0x7F000001, 1000.0);
+    std::string ip = "127.0.0.1";
+    if (responder.should_respond(ip, 1000.0)) {
+        auto resp = responder.generate_response(data, size);
+        if (!resp.empty()) {
+            responder.record_response(ip, resp.size());
+        }
+    }
 }
 
 // -----------------------------------------------------------------------------

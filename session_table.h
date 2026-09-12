@@ -113,7 +113,7 @@ public:
             std::unique_lock<std::shared_mutex> lk(ep_shards_[s].mu);
             for (auto it = ep_shards_[s].by_endpoint.begin(); it != ep_shards_[s].by_endpoint.end(); ) {
                 Session* sess = it->second;
-                if (!sess || !sess->routing.has_client || (now - sess->counters.last_activity.load() > timeout_sec)) {
+                if (!sess || !sess->has_client() || (now - sess->counters.last_activity.load() > timeout_sec)) {
                     it = ep_shards_[s].by_endpoint.erase(it);
                 } else {
                     ++it;
@@ -124,10 +124,17 @@ public:
 
     Session* find_if(const std::function<bool(Session*)>& predicate) const {
         for (size_t s = 0; s < NUM_SHARDS; ++s) {
-            std::shared_lock<std::shared_mutex> lk(shards_[s].mu);
-            for (const auto& kv : shards_[s].by_key_id) {
-                if (predicate(kv.second)) {
-                    return kv.second;
+            std::vector<Session*> candidates;
+            {
+                std::shared_lock<std::shared_mutex> lk(shards_[s].mu);
+                candidates.reserve(shards_[s].by_key_id.size());
+                for (const auto& kv : shards_[s].by_key_id) {
+                    candidates.push_back(kv.second);
+                }
+            }
+            for (Session* sess : candidates) {
+                if (sess && predicate(sess)) {
+                    return sess;
                 }
             }
         }

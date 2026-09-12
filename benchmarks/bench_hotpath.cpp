@@ -29,17 +29,19 @@ int main() {
         Session* s = new Session();
         s->identity.key_id_raw = 0xA000000000000000ULL + i;
         s->identity.key_id_hex = SessionTable::u64_to_hex(s->identity.key_id_raw);
-        s->routing.assigned_ip = 0x0A080000 + i; // 10.8.0.x
-        s->routing.has_client = true;
-        s->routing.last_server_fd = 3;
+        SessionRouting r;
+        r.assigned_ip = 0x0A080000 + i; // 10.8.0.x
+        r.has_client = true;
+        r.last_server_fd = 3;
+        s->set_routing(r);
 
-        uint64_t ep = (static_cast<uint64_t>(s->routing.assigned_ip) << 16) | (50000 + (i % 1000));
+        uint64_t ep = (static_cast<uint64_t>(r.assigned_ip) << 16) | (50000 + (i % 1000));
         table.insert_session(s);
-        table.map_ip(s->routing.assigned_ip, s);
+        table.map_ip(r.assigned_ip, s);
         table.update_endpoint(ep, s);
 
         key_ids.push_back(s->identity.key_id_raw);
-        ips.push_back(s->routing.assigned_ip);
+        ips.push_back(r.assigned_ip);
         endpoints.push_back(ep);
     }
     assert(table.total_sessions() == 10000);

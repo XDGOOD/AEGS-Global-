@@ -31,35 +31,39 @@ ChaffEngine::ChaffEngine(int idle_threshold_ms, int min_interval_ms, int max_int
     mark_real_packet();
 }
 
-void ChaffEngine::schedule_next_chaff() {
+void ChaffEngine::schedule_next_chaff(std::chrono::steady_clock::time_point now) {
     auto& gen = chaff_rng();
     std::uniform_int_distribution<> dist(min_interval_ms_, max_interval_ms_);
-    next_chaff_time_ = std::chrono::steady_clock::now() + std::chrono::milliseconds(dist(gen));
+    next_chaff_time_ = now + std::chrono::milliseconds(dist(gen));
 }
 
-void ChaffEngine::mark_real_packet() {
-    // FIX +15% Performance: Lightweight timestamp record without RNG or rescheduling
-    // Previously invoked std::chrono::steady_clock::now() twice and random distribution
-    // on every single real packet in the hot forwarding path.
-    last_real_packet_ = std::chrono::steady_clock::now();
+void ChaffEngine::mark_real_packet(std::chrono::steady_clock::time_point now) {
+    last_real_packet_ = now;
     is_idle_ = false;
 }
 
-bool ChaffEngine::should_send_chaff() {
-    auto now = std::chrono::steady_clock::now();
+void ChaffEngine::mark_real_packet() {
+    mark_real_packet(std::chrono::steady_clock::now());
+}
+
+bool ChaffEngine::should_send_chaff(std::chrono::steady_clock::time_point now) {
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_real_packet_).count();
     if (elapsed > idle_threshold_ms_) {
         if (!is_idle_) {
             is_idle_ = true;
-            schedule_next_chaff();
+            schedule_next_chaff(now);
             return false;
         }
         if (now >= next_chaff_time_) {
-            schedule_next_chaff();
+            schedule_next_chaff(now);
             return true;
         }
     }
     return false;
+}
+
+bool ChaffEngine::should_send_chaff() {
+    return should_send_chaff(std::chrono::steady_clock::now());
 }
 
 std::vector<uint8_t> ChaffEngine::generate_dummy_payload() {

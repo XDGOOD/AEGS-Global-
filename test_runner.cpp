@@ -304,15 +304,19 @@ int main() {
     // -------------------------------------------------------------
     std::cout << "\n[PILLAR 8] ACTIVE CHAFFING & SILENT DROP VERIFICATION..." << std::endl;
     ChaffEngine chaff(50, 10, 20); // 50ms idle threshold, 10-20ms chaff interval
-    assert(!chaff.should_send_chaff()); // Not idle yet
+    auto t0 = std::chrono::steady_clock::now();
+    chaff.mark_real_packet(t0);
+    assert(!chaff.should_send_chaff(t0)); // Not idle yet (elapsed = 0ms)
 
-    // Wait for idle timeout
-    std::this_thread::sleep_for(std::chrono::milliseconds(60));
-    assert(chaff.should_send_chaff());
+    // Deterministic simulated clock test (eliminates flaky sleep & OS scheduler jitter)
+    auto t1 = t0 + std::chrono::milliseconds(55); // > 50ms idle threshold
+    chaff.should_send_chaff(t1); // Enters idle state and schedules next chaff
+    auto t2 = t1 + std::chrono::milliseconds(25); // > max 20ms interval
+    assert(chaff.should_send_chaff(t2)); // Triggered deterministically
 
     // Reset with real packet activity
-    chaff.mark_real_packet();
-    assert(!chaff.should_send_chaff());
+    chaff.mark_real_packet(t2);
+    assert(!chaff.should_send_chaff(t2 + std::chrono::milliseconds(5)));
 
     // Build and verify chaff wire packet
     uint8_t test_raw_kid[8] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};

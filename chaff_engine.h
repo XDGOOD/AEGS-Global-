@@ -8,7 +8,9 @@ public:
     ChaffEngine(int idle_threshold_ms = 500, int min_interval_ms = 50, int max_interval_ms = 200);
 
     bool should_send_chaff();
+    bool should_send_chaff(std::chrono::steady_clock::time_point now);
     void mark_real_packet();
+    void mark_real_packet(std::chrono::steady_clock::time_point now);
     
     // Zero-allocation buffer builder (+15% throughput optimization)
     size_t build_chaff_packet(const uint8_t* raw_kid, const uint8_t* mask_key,
@@ -27,5 +29,5 @@ private:
     std::chrono::steady_clock::time_point last_real_packet_;
     std::chrono::steady_clock::time_point next_chaff_time_;
     
-    void schedule_next_chaff();
+    void schedule_next_chaff(std::chrono::steady_clock::time_point now);
 };
