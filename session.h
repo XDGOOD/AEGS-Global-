@@ -136,6 +136,9 @@ struct Session {
     }
 
     bool enter_reader() noexcept {
+        if (is_recycling_.load(std::memory_order_acquire)) {
+            return false;
+        }
         active_readers_.fetch_add(1, std::memory_order_acquire);
         if (is_recycling_.load(std::memory_order_acquire)) {
             active_readers_.fetch_sub(1, std::memory_order_release);
@@ -177,17 +180,18 @@ struct Session {
             return;
         }
         identity.generation.fetch_add(1, std::memory_order_release);
-        // Wait for any in-flight reader in this generation to complete (quiesce)
+        // Quiesce: wait for all in-flight readers in this generation to exit WITHOUT holding mu!
         while (active_readers_.load(std::memory_order_acquire) > 0) {
             std::this_thread::yield();
         }
-        SessionRouting empty_routing{};
-        set_routing(empty_routing);
-        SessionCrypto empty_crypto{};
-        set_crypto(empty_crypto);
-        counters.tx_seq.store(0, std::memory_order_relaxed);
         {
+            // Atomically clear routing, crypto, and anti-replay under mutex only AFTER readers exit
             std::lock_guard<std::mutex> lk(mu);
+            SessionRouting empty_routing{};
+            set_routing(empty_routing);
+            SessionCrypto empty_crypto{};
+            set_crypto(empty_crypto);
+            counters.tx_seq.store(0, std::memory_order_relaxed);
             replay_filter.reset();
         }
         is_recycling_.store(false, std::memory_order_release);
@@ -236,7 +240,7 @@ struct SessionHandle {
         return *this;
     }
 
-    void reset(Session* s) noexcept {
+    void reset(Session* s = nullptr) noexcept {
         release();
         if (s) {
             uint64_t g = s->identity.generation.load(std::memory_order_acquire);

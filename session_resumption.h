@@ -57,7 +57,9 @@ public:
     ResumptionManager() {
         // Generate per-boot secret: tokens from previous server instances
         // automatically fail verification even if still within TTL
-        RAND_bytes(boot_secret_, 32);
+        if (RAND_bytes(boot_secret_, 32) != 1) {
+            throw std::runtime_error("OpenSSL RAND_bytes failed to generate boot_secret");
+        }
     }
 
     // Issue a resumption token after successful handshake

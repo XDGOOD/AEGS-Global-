@@ -343,8 +343,9 @@ bool HandshakeServer::process_init(const uint8_t* init, size_t len, uint64_t& ke
         }
     }
 
-    if (m_seen_timestamps.find(ts) != m_seen_timestamps.end()) return false;
-    m_seen_timestamps[ts] = now;
+    HandshakeSeenKey seen_key{key_id_out, ts};
+    if (m_seen_timestamps.find(seen_key) != m_seen_timestamps.end()) return false;
+    m_seen_timestamps[seen_key] = now;
 
     // Free any stale ephemeral key from a previous abandoned handshake for this key_id
     auto existing = m_pending_clients.find(key_id_out);
@@ -400,7 +401,7 @@ std::vector<uint8_t> HandshakeServer::build_resp(uint64_t key_id, uint32_t assig
     uint8_t config_key[32];
     hkdf_sha256(shared_secret, master_key, master_key_len, "aegs-cfg", config_key, 32);
 
-    RAND_bytes((uint8_t*)&out.session_id, 8);
+    if (RAND_bytes((uint8_t*)&out.session_id, 8) != 1) return {};
     out.assigned_ip = assigned_ip;
     out.mtu = mtu;
 

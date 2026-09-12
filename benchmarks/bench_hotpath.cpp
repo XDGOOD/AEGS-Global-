@@ -53,7 +53,7 @@ int main() {
     size_t hits = 0;
     for (size_t i = 0; i < NUM_LOOKUPS; ++i) {
         uint64_t ep = endpoints[i % endpoints.size()];
-        Session* s = table.find_by_endpoint(ep);
+        SessionHandle s = table.find_by_endpoint(ep);
         if (s) hits++;
     }
     auto t1 = std::chrono::high_resolution_clock::now();

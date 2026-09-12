@@ -214,7 +214,7 @@ std::vector<uint8_t> BlackholeResponder::quic_retry(
     }
 
     uint8_t server_scid[8];
-    RAND_bytes(server_scid, 8);
+    if (RAND_bytes(server_scid, 8) != 1) return {};
 
     uint8_t retry_token[16];
     // Derive token from probe entropy for deterministic-looking behavior
@@ -222,7 +222,7 @@ std::vector<uint8_t> BlackholeResponder::quic_retry(
         retry_token[i] = (i < (int)probe_len) ? (probe_data[i] ^ 0xA5) : 0x42;
 
     uint8_t integrity_tag[16];
-    RAND_bytes(integrity_tag, 16);
+    if (RAND_bytes(integrity_tag, 16) != 1) return {};
 
     uint8_t type_byte = 0xF0;
     if (probe_len > 0)
@@ -289,7 +289,7 @@ std::vector<uint8_t> BlackholeResponder::quic_connection_close(
 
     // Remainder of packet is AEAD ciphertext simulation: 100% cryptographic entropy,
     // zero identifiable plain strings.
-    RAND_bytes(&pkt[off], pkt_len - off);
+    if (RAND_bytes(&pkt[off], pkt_len - off) != 1) return {};
 
     return pkt;
 }

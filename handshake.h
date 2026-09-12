@@ -48,6 +48,22 @@ private:
     EVP_PKEY* m_ephemeral_pkey;
 };
 
+struct HandshakeSeenKey {
+    uint64_t key_id{0};
+    uint64_t timestamp{0};
+
+    bool operator==(const HandshakeSeenKey& other) const noexcept {
+        return key_id == other.key_id && timestamp == other.timestamp;
+    }
+};
+
+struct HandshakeSeenKeyHash {
+    size_t operator()(const HandshakeSeenKey& k) const noexcept {
+        uint64_t h = k.key_id ^ (k.timestamp + 0x9e3779b97f4a7c15ULL + (k.key_id << 6) + (k.key_id >> 2));
+        return static_cast<size_t>(h);
+    }
+};
+
 class HandshakeServer {
 public:
     // FIX CRIT-1: Now takes master_key_map (key_id → 32-byte master key) so that
@@ -71,7 +87,7 @@ private:
     // Previously, prune_timestamps() called m_seen_timestamps.clear() every 60s,
     // which created a vulnerability window where replayed HANDSHAKE_INIT packets
     // within the 30-second window were accepted again after the wipe.
-    std::unordered_map<uint64_t, uint64_t> m_seen_timestamps;
+    std::unordered_map<HandshakeSeenKey, uint64_t, HandshakeSeenKeyHash> m_seen_timestamps;
     uint64_t m_last_prune_time;
 
     struct ClientState {

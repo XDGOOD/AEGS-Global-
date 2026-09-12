@@ -95,7 +95,7 @@ size_t ChaffEngine::build_chaff_packet(const uint8_t* raw_kid, const uint8_t* ma
     uint8_t aead_nonce[12] = {0};
     tx_seq++;
     std::memcpy(aead_nonce, &tx_seq, sizeof(uint64_t));
-    RAND_bytes(aead_nonce + 8, 4);
+    if (RAND_bytes(aead_nonce + 8, 4) != 1) return 0;
 
     // Header preparation
     uint8_t hdr_plain[16];
@@ -107,7 +107,7 @@ size_t ChaffEngine::build_chaff_packet(const uint8_t* raw_kid, const uint8_t* ma
     std::memcpy(hdr_plain + 12, CHAFF_VER_MAGIC.data(), 4);
 
     uint8_t hdr_iv[12];
-    RAND_bytes(hdr_iv, 12);
+    if (RAND_bytes(hdr_iv, 12) != 1) return 0;
     uint8_t masked_hdr[16];
     if (!mask_unmask_header(hdr_plain, 16, mask_key, hdr_iv, masked_hdr)) {
         return 0;

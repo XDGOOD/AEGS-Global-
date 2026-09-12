@@ -37,32 +37,41 @@ public:
     // -------------------------------------------------------------------------
     // Fast O(1) shard-indexed lookups
     // -------------------------------------------------------------------------
-    Session* find_by_key_id(uint64_t key_id) const {
+    SessionHandle find_by_key_id(uint64_t key_id) const {
         size_t s = shard_idx(key_id);
         std::shared_lock<std::shared_mutex> lk(shards_[s].mu);
         auto it = shards_[s].by_key_id.find(key_id);
-        return (it != shards_[s].by_key_id.end()) ? it->second : nullptr;
+        if (it != shards_[s].by_key_id.end() && it->second) {
+            return SessionHandle(it->second);
+        }
+        return SessionHandle{};
     }
 
-    Session* find_by_key_id_hex(const std::string& hex) const {
+    SessionHandle find_by_key_id_hex(const std::string& hex) const {
         return find_by_key_id(hex_to_u64(hex));
     }
 
     // -------------------------------------------------------------------------
     // Lock-Free COW TUN Route Lookup (Phase 11): 0 locks on packet hot path
     // -------------------------------------------------------------------------
-    Session* find_by_assigned_ip(uint32_t ip) const noexcept {
-        if (!ip) return nullptr;
+    SessionHandle find_by_assigned_ip(uint32_t ip) const noexcept {
+        if (!ip) return SessionHandle{};
         std::shared_ptr<const RouteMap> snap = std::atomic_load(&routes_);
         auto it = snap->find(ip);
-        return (it != snap->end()) ? it->second : nullptr;
+        if (it != snap->end() && it->second) {
+            return SessionHandle(it->second);
+        }
+        return SessionHandle{};
     }
 
-    Session* find_by_endpoint(uint64_t ep_key) const {
+    SessionHandle find_by_endpoint(uint64_t ep_key) const {
         size_t s = shard_idx(ep_key);
         std::shared_lock<std::shared_mutex> lk(ep_shards_[s].mu);
         auto it = ep_shards_[s].by_endpoint.find(ep_key);
-        return (it != ep_shards_[s].by_endpoint.end()) ? it->second : nullptr;
+        if (it != ep_shards_[s].by_endpoint.end() && it->second) {
+            return SessionHandle(it->second);
+        }
+        return SessionHandle{};
     }
 
     // -------------------------------------------------------------------------
@@ -122,23 +131,26 @@ public:
         }
     }
 
-    Session* find_if(const std::function<bool(Session*)>& predicate) const {
+    SessionHandle find_if(const std::function<bool(Session*)>& predicate) const {
         for (size_t s = 0; s < NUM_SHARDS; ++s) {
-            std::vector<Session*> candidates;
+            std::vector<SessionHandle> candidates;
             {
                 std::shared_lock<std::shared_mutex> lk(shards_[s].mu);
                 candidates.reserve(shards_[s].by_key_id.size());
                 for (const auto& kv : shards_[s].by_key_id) {
-                    candidates.push_back(kv.second);
+                    if (kv.second) {
+                        SessionHandle h(kv.second);
+                        if (h) candidates.push_back(std::move(h));
+                    }
                 }
             }
-            for (Session* sess : candidates) {
-                if (sess && predicate(sess)) {
-                    return sess;
+            for (auto& h : candidates) {
+                if (h && predicate(h.get())) {
+                    return h;
                 }
             }
         }
-        return nullptr;
+        return SessionHandle{};
     }
 
     void for_each_session(std::function<void(Session*)> fn) {
@@ -160,20 +172,26 @@ public:
     }
 
     void clear() {
+        // 1. Clear endpoints first to prevent new lookups during shutdown
         for (size_t s = 0; s < NUM_SHARDS; ++s) {
-            std::unique_lock<std::shared_mutex> lk(shards_[s].mu);
-            for (auto& kv : shards_[s].by_key_id) {
-                delete kv.second;
-            }
-            shards_[s].by_key_id.clear();
+            std::unique_lock<std::shared_mutex> lk(ep_shards_[s].mu);
+            ep_shards_[s].by_endpoint.clear();
         }
+        // 2. Clear COW IP routes
         {
             std::lock_guard<std::mutex> lk(route_write_mu_);
             std::atomic_store(&routes_, std::make_shared<const RouteMap>());
         }
+        // 3. Recycle & delete sessions (quiescing any in-flight readers first)
         for (size_t s = 0; s < NUM_SHARDS; ++s) {
-            std::unique_lock<std::shared_mutex> lk(ep_shards_[s].mu);
-            ep_shards_[s].by_endpoint.clear();
+            std::unique_lock<std::shared_mutex> lk(shards_[s].mu);
+            for (auto& kv : shards_[s].by_key_id) {
+                if (kv.second) {
+                    kv.second->recycle();
+                    delete kv.second;
+                }
+            }
+            shards_[s].by_key_id.clear();
         }
     }
 

@@ -314,7 +314,7 @@ int main(int argc, char* argv[]) {
                 uint8_t aead_nonce[12] = {0};
                 client_tx_seq++;
                 std::memcpy(aead_nonce, &client_tx_seq, sizeof(uint64_t));
-                RAND_bytes(aead_nonce + 8, 4);
+                if (RAND_bytes(aead_nonce + 8, 4) != 1) continue;
 
                 uint16_t junk_len = generate_junk_len();
 
@@ -325,7 +325,7 @@ int main(int argc, char* argv[]) {
                 hdr_plain[10] = 0; hdr_plain[11] = 0;
                 std::memcpy(hdr_plain + 12, VER_MAGIC.data(), 4);
 
-                uint8_t hdr_iv[12]; RAND_bytes(hdr_iv, 12);
+                uint8_t hdr_iv[12]; if (RAND_bytes(hdr_iv, 12) != 1) continue;
                 uint8_t masked_hdr[16];
                 if (!mask_unmask_header(hdr_plain, 16, mask_key, hdr_iv, masked_hdr)) continue;
 
@@ -333,7 +333,7 @@ int main(int argc, char* argv[]) {
                 size_t out_len = 0;
                 std::memcpy(out_buf.data(), hdr_iv, 12); out_len += 12;
                 std::memcpy(out_buf.data() + out_len, masked_hdr, 16); out_len += 16;
-                if (junk_len > 0) { RAND_bytes(out_buf.data() + out_len, (int)junk_len); out_len += junk_len; }
+                if (junk_len > 0) { if (RAND_bytes(out_buf.data() + out_len, (int)junk_len) != 1) continue; out_len += junk_len; }
                 size_t aead_offset = out_len;
                 std::memcpy(out_buf.data() + out_len, aead_nonce, 12); out_len += 12;
 
@@ -366,7 +366,7 @@ int main(int argc, char* argv[]) {
                     uint8_t aead_nonce[12] = {0};
                     client_tx_seq++;
                     std::memcpy(aead_nonce, &client_tx_seq, sizeof(uint64_t));
-                    RAND_bytes(aead_nonce + 8, 4);
+                    if (RAND_bytes(aead_nonce + 8, 4) != 1) continue;
 
                     uint16_t junk_len = generate_junk_len();
 
@@ -377,7 +377,7 @@ int main(int argc, char* argv[]) {
                     hdr_plain[10] = 0; hdr_plain[11] = 0;
                     std::memcpy(hdr_plain + 12, VER_MAGIC.data(), 4);
 
-                    uint8_t hdr_iv[12]; RAND_bytes(hdr_iv, 12);
+                    uint8_t hdr_iv[12]; if (RAND_bytes(hdr_iv, 12) != 1) continue;
                     uint8_t masked_hdr[16];
                     if (!mask_unmask_header(hdr_plain, 16, mask_key, hdr_iv, masked_hdr)) continue;
 
@@ -385,7 +385,7 @@ int main(int argc, char* argv[]) {
                     size_t out_len = 0;
                     std::memcpy(out_buf.data(), hdr_iv, 12); out_len += 12;
                     std::memcpy(out_buf.data() + out_len, masked_hdr, 16); out_len += 16;
-                    if (junk_len > 0) { RAND_bytes(out_buf.data() + out_len, (int)junk_len); out_len += junk_len; }
+                    if (junk_len > 0) { if (RAND_bytes(out_buf.data() + out_len, (int)junk_len) != 1) continue; out_len += junk_len; }
                     size_t aead_offset = out_len;
                     std::memcpy(out_buf.data() + out_len, aead_nonce, 12); out_len += 12;
 

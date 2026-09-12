@@ -419,7 +419,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
             for (int j = 0; j < 8; j++) sprintf(&kid_hex[j*2], "%02x", rtok.key_id[j]);
             kid_hex[16] = 0;
 
-            Session* s = g_sessions.find_by_key_id_hex(kid_hex);
+            SessionHandle s = g_sessions.find_by_key_id_hex(kid_hex);
             auto cur_c = s ? s->get_crypto() : nullptr;
             if (!s || !cur_c || !g_resumption.verify(rtok, cur_c->master_key, resumed_sid, resumed_ip)) {
                 metrics.resume_fail.fetch_add(1, std::memory_order_relaxed);
@@ -427,6 +427,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 return;
             }
 
+            s->identity.generation.fetch_add(1, std::memory_order_release);
             s->identity.session_id = resumed_sid;
             s->counters.last_activity.store(now, std::memory_order_relaxed);
             s->counters.tx_seq.store(0, std::memory_order_relaxed);
@@ -462,9 +463,9 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
             sr.assigned_ip = assigned;
             s->set_routing(sr);
 
-            update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s);
+            update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s.get());
             if (assigned) {
-                g_sessions.map_ip(assigned, s);
+                g_sessions.map_ip(assigned, s.get());
             }
 
             ResumptionToken new_tok;
@@ -492,7 +493,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
             for (int j = 0; j < 8; j++) sprintf(&kid_hex[j*2], "%02x", rtok.key_id[j]);
             kid_hex[16] = 0;
 
-            Session* s = g_sessions.find_by_key_id_hex(kid_hex);
+            SessionHandle s = g_sessions.find_by_key_id_hex(kid_hex);
             auto cur_c = s ? s->get_crypto() : nullptr;
             if (!s || !cur_c || !g_resumption.verify(rtok, cur_c->master_key, resumed_sid, resumed_ip)) {
                 metrics.resume_fail.fetch_add(1, std::memory_order_relaxed);
@@ -521,6 +522,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 return;
             }
 
+            s->identity.generation.fetch_add(1, std::memory_order_release);
             s->identity.session_id = resumed_sid;
             s->counters.last_activity.store(now, std::memory_order_relaxed);
             s->counters.tx_seq.store(0, std::memory_order_relaxed);
@@ -544,9 +546,9 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
             sr.assigned_ip = assigned;
             s->set_routing(sr);
 
-            update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s);
+            update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s.get());
             if (assigned) {
-                g_sessions.map_ip(assigned, s);
+                g_sessions.map_ip(assigned, s.get());
             }
 
             // Construct 145-byte PFS Resumption Response (Opcode 0x06)
@@ -583,7 +585,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
             char kid_hex[17];
             for (int j = 0; j < 8; j++) sprintf(&kid_hex[j*2], "%02x", ((uint8_t*)&key_id_out)[j]);
             kid_hex[16] = 0;
-            Session* s = g_sessions.find_by_key_id(key_id_out);
+            SessionHandle s = g_sessions.find_by_key_id(key_id_out);
             auto cur_c = s ? s->get_crypto() : nullptr;
             if (s && cur_c) {
                 auto maybe_ip = ip_pool.allocate();
@@ -594,11 +596,12 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                     g_sessions.unmap_ip(old_r->assigned_ip);
                 }
                 uint32_t new_ip = *maybe_ip;
-                g_sessions.map_ip(new_ip, s);
+                g_sessions.map_ip(new_ip, s.get());
                 
                 SessionKeys sk;
                 auto resp = hs_server.build_resp(key_id_out, new_ip, 1400, sk);
 
+                s->identity.generation.fetch_add(1, std::memory_order_release);
                 s->identity.session_id = sk.session_id;
                 s->counters.tx_seq.store(0, std::memory_order_relaxed);
                 s->counters.last_activity.store(now, std::memory_order_relaxed);
@@ -643,18 +646,18 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
         if (len < 56) { record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 1.0); return; }
 
         const uint8_t* hdr_iv = pkt_data;
-        Session* matched_sess = nullptr;
+        SessionHandle matched_sess;
         std::shared_ptr<const SessionCrypto> matched_crypto = nullptr;
         uint8_t unmasked_hdr[16];
 
         // RCU / Copy-On-Write SessionCrypto snapshot lookup (Zero data races with concurrent Handshakes/Resumes)
         uint64_t ep_key = make_endpoint_key(ip_num, caddr.sin_port);
-        Session* fast_sess = g_sessions.find_by_endpoint(ep_key);
+        SessionHandle fast_sess = g_sessions.find_by_endpoint(ep_key);
         if (fast_sess) {
             auto fc = fast_sess->get_crypto();
             if (fc && mask_unmask_header(pkt_data + 12, 16, fc->mask_key, hdr_iv, unmasked_hdr)) {
-                if (std::memcmp(unmasked_hdr, &fast_sess->key_id_raw, 8) == 0 && std::memcmp(unmasked_hdr + 12, VER_MAGIC.data(), 4) == 0) {
-                    matched_sess = fast_sess;
+                if (std::memcmp(unmasked_hdr, &fast_sess->identity.key_id_raw, 8) == 0 && std::memcmp(unmasked_hdr + 12, VER_MAGIC.data(), 4) == 0) {
+                    matched_sess = std::move(fast_sess);
                     matched_crypto = fc;
                 }
             }
@@ -671,7 +674,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 auto sc = s->get_crypto();
                 if (!sc) return false;
                 if (mask_unmask_header(pkt_data + 12, 16, sc->mask_key, hdr_iv, unmasked_hdr)) {
-                    if (std::memcmp(unmasked_hdr, &s->key_id_raw, 8) == 0 && std::memcmp(unmasked_hdr + 12, VER_MAGIC.data(), 4) == 0) {
+                    if (std::memcmp(unmasked_hdr, &s->identity.key_id_raw, 8) == 0 && std::memcmp(unmasked_hdr + 12, VER_MAGIC.data(), 4) == 0) {
                         matched_crypto = sc;
                         return true;
                     }
@@ -680,13 +683,13 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
             });
             if (matched_sess) {
                 metrics.roaming_hits.fetch_add(1, std::memory_order_relaxed);
-                update_endpoint_cache(ep_key, matched_sess);
+                update_endpoint_cache(ep_key, matched_sess.get());
             }
         }
 
         if (!matched_sess || !matched_crypto) { record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 1.0); return; }
 
-        Session* s = matched_sess;
+        SessionHandle s = std::move(matched_sess);
 
         // Verify incoming port hopping compliance if multi-port listening is active
         if (ports.size() > 1 && matched_crypto->v3_handshake_done) {
@@ -725,7 +728,8 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
         metrics.decrypt_ok.fetch_add(1, std::memory_order_relaxed);
 
         // Authentication passed! Securely update roaming endpoint & cache via lock-free RCU.
-        {
+        // Generation check (Problem #4 fix): ensure session hasn't resumed or rotated while packet was in flight.
+        if (s.is_valid()) {
             auto cur_r = s->get_routing();
             if (!cur_r || !cur_r->has_client ||
                 cur_r->client_addr.sin_addr.s_addr != caddr.sin_addr.s_addr ||
@@ -846,8 +850,8 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                     uint32_t dst_ip = (uint32_t(buffer[16]) << 24) | (uint32_t(buffer[17]) << 16)
                                     | (uint32_t(buffer[18]) << 8)  |  uint32_t(buffer[19]);
 
-                    // FIX Phase 2: Sharded O(1) IP route lookup without global mutex
-                    Session* s = g_sessions.find_by_assigned_ip(dst_ip);
+                    // FIX Phase 2: Sharded O(1) IP route lookup using safe SessionHandle
+                    SessionHandle s = g_sessions.find_by_assigned_ip(dst_ip);
                     if (!s) continue;
 
                     // FIX Client Isolation: Drop inter-client traffic when isolation enabled
@@ -855,7 +859,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                         uint32_t src_ip = (uint32_t(buffer[12]) << 24) | (uint32_t(buffer[13]) << 16)
                                         | (uint32_t(buffer[14]) << 8)  |  uint32_t(buffer[15]);
                         if (src_ip != dst_ip) {
-                            if (g_sessions.find_by_assigned_ip(src_ip) != nullptr) {
+                            if (g_sessions.find_by_assigned_ip(src_ip)) {
                                 AegsMetrics::instance().acl_drop.fetch_add(1, std::memory_order_relaxed);
                                 continue; // Drop: client-to-client traffic blocked
                             }
@@ -893,7 +897,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
 
                     uint8_t aead_nonce[12] = {0};
                     std::memcpy(aead_nonce, &seq, sizeof(uint64_t));
-                    RAND_bytes(aead_nonce + 8, 4);
+                    if (RAND_bytes(aead_nonce + 8, 4) != 1) continue;
 
                     uint16_t junk_len = generate_junk_len();
 
@@ -904,14 +908,15 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                     hdr_plain[10] = 0; hdr_plain[11] = 0;
                     std::memcpy(hdr_plain + 12, VER_MAGIC.data(), 4);
 
-                    uint8_t hdr_iv[12]; RAND_bytes(hdr_iv, 12);
+                    uint8_t hdr_iv[12];
+                    if (RAND_bytes(hdr_iv, 12) != 1) continue;
                     uint8_t masked_hdr[16];
                     if (mask_unmask_header(hdr_plain, 16, s_mask_key, hdr_iv, masked_hdr)) {
                         size_t out_len = 0;
                         std::memcpy(out_buf, hdr_iv, 12); out_len += 12;
                         std::memcpy(out_buf + out_len, masked_hdr, 16); out_len += 16;
                         if (junk_len > 0) {
-                            RAND_bytes(out_buf + out_len, (int)junk_len);
+                            if (RAND_bytes(out_buf + out_len, (int)junk_len) != 1) continue;
                             out_len += junk_len;
                         }
                         size_t aead_offset = out_len;

@@ -85,8 +85,7 @@ void worker_thread_func(int worker_id, SessionTable& session_table) {
         uint64_t ep_key = make_endpoint_key(ip, port);
 
         // Fast-path lookup
-        Session* fast_s = session_table.find_by_endpoint(ep_key);
-        SessionHandle handle(fast_s);
+        SessionHandle handle = session_table.find_by_endpoint(ep_key);
 
         if (handle.is_valid()) {
             g_worker_fast_hits.fetch_add(1, std::memory_order_relaxed);
@@ -126,10 +125,9 @@ void worker_thread_func(int worker_id, SessionTable& session_table) {
             // Slow-path fallback: find by KeyID
             g_worker_slow_scans.fetch_add(1, std::memory_order_relaxed);
             uint64_t kid = BASE_KEY_ID + idx;
-            Session* slow_s = session_table.find_by_key_id(kid);
-            SessionHandle slow_h(slow_s);
-            if (slow_h.is_valid()) {
-                session_table.update_endpoint(ep_key, slow_s);
+            SessionHandle slow_s = session_table.find_by_key_id(kid);
+            if (slow_s.is_valid()) {
+                session_table.update_endpoint(ep_key, slow_s.get());
             }
         }
 
@@ -154,7 +152,7 @@ void handshake_thread_func(SessionTable& session_table, ResumptionManager& resum
             // Scenario A: Re-key an existing session
             size_t idx = static_cast<size_t>(rng() % NUM_INITIAL_SESSIONS);
             uint64_t kid = BASE_KEY_ID + idx;
-            Session* s = session_table.find_by_key_id(kid);
+            SessionHandle s = session_table.find_by_key_id(kid);
             if (s) {
                 auto cur_c = s->get_crypto();
                 SessionCrypto sc = cur_c ? *cur_c : SessionCrypto{};
@@ -303,7 +301,7 @@ void roaming_thread_func(SessionTable& session_table) {
     while (!g_stop_signal.load(std::memory_order_relaxed)) {
         size_t idx = static_cast<size_t>(rng() % NUM_INITIAL_SESSIONS);
         uint64_t kid = BASE_KEY_ID + idx;
-        Session* s = session_table.find_by_key_id(kid);
+        SessionHandle s = session_table.find_by_key_id(kid);
 
         if (s) {
             uint32_t new_client_ip = 0x0a0a0000 + static_cast<uint32_t>(rng() % 0xFFFF);
@@ -311,7 +309,7 @@ void roaming_thread_func(SessionTable& session_table) {
             uint64_t new_ep_key = make_endpoint_key(new_client_ip, new_client_port);
 
             // Update sharded endpoint mapping
-            session_table.update_endpoint(new_ep_key, s);
+            session_table.update_endpoint(new_ep_key, s.get());
 
             // Update atomic RCU routing snapshot
             auto cur_r = s->get_routing();
@@ -347,7 +345,7 @@ void gc_cleanup_thread_func(SessionTable& session_table) {
         // 2. Trigger recycle quiescence on a rotating subset of active sessions
         target_idx = 32 + (target_idx + 1) % 16;
         uint64_t target_kid = BASE_KEY_ID + target_idx;
-        Session* s = session_table.find_by_key_id(target_kid);
+        SessionHandle s = session_table.find_by_key_id(target_kid);
 
         if (s) {
             auto r = s->get_routing();
@@ -380,7 +378,7 @@ void gc_cleanup_thread_func(SessionTable& session_table) {
 
             uint64_t ep_key = make_endpoint_key(0xc0a80102 + static_cast<uint32_t>(target_idx),
                                                 static_cast<uint16_t>(5000 + target_idx));
-            session_table.update_endpoint(ep_key, s);
+            session_table.update_endpoint(ep_key, s.get());
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
@@ -404,7 +402,7 @@ void routing_thread_func(SessionTable& session_table) {
         uint32_t src_ip = 0x0a080002 + static_cast<uint32_t>(src_idx);
 
         // Lock-free route lookup: 0 locks taken on packet forwarding hot path
-        Session* s = session_table.find_by_assigned_ip(dst_ip);
+        SessionHandle s = session_table.find_by_assigned_ip(dst_ip);
         g_routing_lookups.fetch_add(1, std::memory_order_relaxed);
 
         if (s) {
@@ -413,7 +411,7 @@ void routing_thread_func(SessionTable& session_table) {
 
             if (sr && sr->has_client && sc && sc->v3_handshake_done) {
                 // Multi-tenant client isolation check
-                Session* src_s = session_table.find_by_assigned_ip(src_ip);
+                SessionHandle src_s = session_table.find_by_assigned_ip(src_ip);
                 (void)src_s;
 
                 // Lock-free egress metrics update
@@ -468,7 +466,122 @@ void blackhole_thread_func(BlackholeResponder& blackhole) {
 // ---------------------------------------------------------------------------
 // Main Orchestrator: Setup, Latch Release, Concurrent Stress, TSAN Validation
 // ---------------------------------------------------------------------------
+
+// ==============================================================================
+// TARGETED VALIDATION TESTS FOR RECENT ARCHITECTURAL DEFECTS
+// ==============================================================================
+
+void test_recycle_no_deadlock() {
+    std::cout << "[UNIT 1] Testing Session::recycle() deadlock freedom under active reader...\n";
+    Session s;
+    s.identity.key_id_raw = 0xDEADBEEF00000001ULL;
+    s.identity.generation.store(1);
+
+    std::atomic<bool> reader_entered{false};
+    std::atomic<bool> reader_done{false};
+    std::atomic<bool> recycle_done{false};
+
+    // Thread A: Reader holds SessionHandle and continuously performs check_replay()
+    std::thread reader([&]() {
+        SessionHandle h(&s);
+        assert(h.is_valid());
+        reader_entered.store(true, std::memory_order_release);
+
+        uint64_t seq = 1;
+        uint8_t nonce[12] = {0};
+        for (int i = 0; i < 5000; ++i) {
+            std::memcpy(nonce, &seq, sizeof(uint64_t));
+            seq++;
+            h->check_replay(nonce);
+            std::this_thread::yield();
+        }
+        reader_done.store(true, std::memory_order_release);
+    });
+
+    // Thread B: GC calls recycle() concurrently
+    std::thread gc([&]() {
+        while (!reader_entered.load(std::memory_order_acquire)) {
+            std::this_thread::yield();
+        }
+        // recycle() must quiesce and wait for reader to complete WITHOUT DEADLOCK
+        s.recycle();
+        recycle_done.store(true, std::memory_order_release);
+    });
+
+    reader.join();
+    gc.join();
+
+    assert(reader_done.load());
+    assert(recycle_done.load());
+    std::cout << "  [PASS] recycle() completed without deadlocking active reader holding mu!\n";
+}
+
+void test_session_handle_reader_epoch() {
+    std::cout << "[UNIT 2] Testing SessionHandle reader epoch & safe lookup...\n";
+    SessionTable table;
+    Session* s = new Session();
+    s->identity.key_id_raw = 0x1234567890ABCDEFULL;
+    s->identity.generation.store(1);
+    table.insert_session(s);
+    table.update_endpoint(9999, s);
+
+    {
+        SessionHandle h = table.find_by_endpoint(9999);
+        assert(h.is_valid());
+        assert(h.get() == s);
+        assert(h->active_readers_.load() == 1);
+        
+        SessionHandle h2 = h; // Copy handle: active_readers bumped
+        assert(h2.is_valid());
+        assert(s->active_readers_.load() == 2);
+    }
+    // Out of scope: readers decremented
+    assert(s->active_readers_.load() == 0);
+    table.clear();
+    std::cout << "  [PASS] SessionHandle reader epoch refcounting verified.\n";
+}
+
+void test_resumption_generation_rollback_defense() {
+    std::cout << "[UNIT 3] Testing Resumption generation increment (in-flight rollback defense)...\n";
+    Session s;
+    s.identity.generation.store(1);
+    
+    SessionHandle in_flight_packet(&s);
+    assert(in_flight_packet.is_valid());
+    assert(in_flight_packet.gen == 1);
+
+    // Resumption happens in parallel: generation incremented
+    s.identity.generation.fetch_add(1, std::memory_order_release);
+
+    // In-flight packet finishes decryption, checks validity:
+    assert(!in_flight_packet.is_valid()); // Must be invalid: generation bumped from 1 to 2!
+    std::cout << "  [PASS] In-flight packet correctly rejected from mutating post-resumption routing.\n";
+}
+
+void test_handshake_same_timestamp_parallel_clients() {
+    std::cout << "[UNIT 4] Testing parallel clients with identical millisecond timestamp in Handshake...\n";
+    uint64_t kid_A = 0xAAAA000000000001ULL;
+    uint64_t kid_B = 0xBBBB000000000002ULL;
+    uint64_t collision_ts = 1700000000000ULL;
+
+    HandshakeSeenKey kA{kid_A, collision_ts};
+    HandshakeSeenKey kB{kid_B, collision_ts};
+    assert(kA != kB);
+    
+    std::unordered_map<HandshakeSeenKey, uint64_t, HandshakeSeenKeyHash> map;
+    map[kA] = 1000;
+    assert(map.find(kB) == map.end()); // Different clients with same timestamp do NOT collide
+    map[kB] = 1000;
+    assert(map.size() == 2);
+    std::cout << "  [PASS] Per-identity seen_timestamps prevents cross-client timestamp collision DoS.\n";
+}
+
 int main(int argc, char* argv[]) {
+    test_recycle_no_deadlock();
+    test_session_handle_reader_epoch();
+    test_resumption_generation_rollback_defense();
+    test_handshake_same_timestamp_parallel_clients();
+
     int duration_sec = 4;
     if (argc > 1) {
         duration_sec = std::max(1, std::atoi(argv[1]));
