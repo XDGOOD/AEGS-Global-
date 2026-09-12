@@ -345,16 +345,21 @@ void gc_cleanup_thread_func(SessionTable& session_table) {
         // 2. Trigger recycle quiescence on a rotating subset of active sessions
         target_idx = 32 + (target_idx + 1) % 16;
         uint64_t target_kid = BASE_KEY_ID + target_idx;
-        SessionHandle s = session_table.find_by_key_id(target_kid);
-
-        if (s) {
-            auto r = s->get_routing();
-            if (r && r->assigned_ip) {
-                session_table.unmap_ip(r->assigned_ip);
+        Session* target_s = nullptr;
+        {
+            SessionHandle h = session_table.find_by_key_id(target_kid);
+            if (h) {
+                target_s = h.get();
+                auto r = target_s->get_routing();
+                if (r && r->assigned_ip) {
+                    session_table.unmap_ip(r->assigned_ip);
+                }
             }
+        } // Reader handle h destroyed here so target_s->active_readers_ is 0 (prevents self-deadlock!)
 
+        if (target_s) {
             // Quiescence recycle: verifies active readers drain cleanly without deadlock
-            s->recycle();
+            target_s->recycle();
             g_gc_quiescence_cycles.fetch_add(1, std::memory_order_relaxed);
 
             // Re-populate session state so it can rejoin concurrent active rotation
@@ -365,8 +370,8 @@ void gc_cleanup_thread_func(SessionTable& session_table) {
             nr.client_addr.sin_port = htons(static_cast<uint16_t>(5000 + target_idx));
             nr.has_client = true;
             nr.last_server_fd = 42;
-            s->set_routing(nr);
-            session_table.map_ip(nr.assigned_ip, s.get());
+            target_s->set_routing(nr);
+            session_table.map_ip(nr.assigned_ip, target_s);
 
             SessionCrypto nc;
             RAND_bytes(nc.master_key, 32);
@@ -374,11 +379,11 @@ void gc_cleanup_thread_func(SessionTable& session_table) {
             RAND_bytes(nc.session_keys.recv_key, 32);
             RAND_bytes(nc.session_keys.send_key, 32);
             nc.v3_handshake_done = true;
-            s->set_crypto(nc);
+            target_s->set_crypto(nc);
 
             uint64_t ep_key = make_endpoint_key(0xc0a80102 + static_cast<uint32_t>(target_idx),
                                                 static_cast<uint16_t>(5000 + target_idx));
-            session_table.update_endpoint(ep_key, s.get());
+            session_table.update_endpoint(ep_key, target_s);
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(5));

@@ -140,7 +140,6 @@ void run_capacity_benchmark(size_t session_count) {
         s->set_routing(r);
 
         table.insert_session(s);
-        table.map_ip(ip, s);
         table.update_endpoint(ep, s);
         endpoints.push_back(ep);
     }
@@ -213,7 +212,6 @@ int main() {
         s->set_routing(r);
 
         table.insert_session(s);
-        table.map_ip(ip, s);
         table.update_endpoint(ep, s);
         endpoints.push_back(ep);
     }
