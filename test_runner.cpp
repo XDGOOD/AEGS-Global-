@@ -355,7 +355,7 @@ int main() {
     size_t chaff_ct_len = chaff_wire.size() - (12 + 16 + 12);
     std::vector<uint8_t> chaff_pt(chaff_ct_len);
     size_t chaff_pt_len = 0;
-    assert(chacha20_poly1305_decrypt(chaff_ct, chaff_ct_len, payload_key, chaff_nonce, chaff_pt.data(), chaff_pt_len));
+    assert(chacha20_poly1305_decrypt(chaff_ct, chaff_ct_len, payload_key, chaff_nonce, chaff_pt.data(), chaff_pt_len, chaff_wire.data(), 12 + 16));
     uint16_t real_payload_len = (chaff_pt[0] << 8) | chaff_pt[1];
     assert(real_payload_len == 0); // Zero bytes payload - server drops cleanly!
     std::cout << "  [PASS] Chaff Idle Engine: Timing-driven generation verified" << std::endl;
