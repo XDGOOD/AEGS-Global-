@@ -67,13 +67,6 @@ public:
                                     const uint8_t  session_seed[2] = nullptr,
                                     uint32_t       quic_version = 0) noexcept;
 
-    // Member function alias matching wrap_quic_initial naming from audit
-    size_t wrap_quic_initial(uint8_t*       buf,
-                             size_t         data_len,
-                             size_t         buf_capacity,
-                             const uint8_t  session_seed[2] = nullptr) noexcept {
-        return wrap(buf, data_len, buf_capacity, session_seed);
-    }
 
     // Prepend the mimicry header in-place.
     // The caller MUST ensure buf_capacity >= data_len + header_size_.
