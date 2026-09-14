@@ -1,11 +1,15 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
 #include <mutex>
 #include <string>
+#include <openssl/hmac.h>
+#include <openssl/evp.h>
+#include <openssl/crypto.h>
 
 // FIX CRIT-5: Upper bounds for pre-authentication state to prevent DoS
 // via handshake flooding. Values chosen to allow legitimate burst traffic
@@ -36,11 +40,30 @@ class StatelessCookie {
 public:
     static constexpr size_t COOKIE_LEN = 16;
 
-    // Generates a 16-byte HMAC-SHA256 cookie bound to client IP, port, and a 20-second time slice
-    static void generate(const uint8_t secret[32], uint32_t client_ip, uint16_t client_port, uint64_t now_sec, uint8_t cookie_out[16]) noexcept;
+    static inline void generate(const uint8_t secret[32], uint32_t client_ip, uint16_t client_port, uint64_t now_sec, uint8_t cookie_out[16]) noexcept {
+        uint64_t epoch = now_sec / 20;
+        uint8_t msg[14];
+        std::memcpy(msg, &client_ip, 4);
+        std::memcpy(msg + 4, &client_port, 2);
+        std::memcpy(msg + 6, &epoch, 8);
 
-    // Verifies a 16-byte cookie against current or previous 20-second time slice (tolerating 20s network/clock drift)
-    static bool verify(const uint8_t secret[32], uint32_t client_ip, uint16_t client_port, uint64_t now_sec, const uint8_t cookie_in[16]) noexcept;
+        unsigned int md_len = 0;
+        uint8_t md[EVP_MAX_MD_SIZE];
+        HMAC(EVP_sha256(), secret, 32, msg, sizeof(msg), md, &md_len);
+        std::memcpy(cookie_out, md, COOKIE_LEN);
+    }
+
+    static inline bool verify(const uint8_t secret[32], uint32_t client_ip, uint16_t client_port, uint64_t now_sec, const uint8_t cookie_in[16]) noexcept {
+        uint8_t expected[COOKIE_LEN];
+        generate(secret, client_ip, client_port, now_sec, expected);
+        if (CRYPTO_memcmp(cookie_in, expected, COOKIE_LEN) == 0) return true;
+
+        if (now_sec >= 20) {
+            generate(secret, client_ip, client_port, now_sec - 20, expected);
+            if (CRYPTO_memcmp(cookie_in, expected, COOKIE_LEN) == 0) return true;
+        }
+        return false;
+    }
 };
 
 class HandshakeClient {
