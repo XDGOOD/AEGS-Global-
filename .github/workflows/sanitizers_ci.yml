@@ -31,7 +31,7 @@ jobs:
 
       - name: Build Targets
         run: |
-          cmake --build build_asan -j2
+          cmake --build build_asan -j2 --verbose
 
       - name: Run Core Suite under ASan + UBSan
         run: |

@@ -121,7 +121,7 @@ size_t ProtocolMimicry::wrap(uint8_t*       buf,
 // is_quic_mimicry() & strip_quic_mimicry()
 // ---------------------------------------------------------------------------
 bool ProtocolMimicry::is_quic_mimicry(const uint8_t* buf, size_t len) noexcept {
-    if (!buf || len < kQuicHeaderSize + 56) return false;
+    if (!buf || len < kQuicHeaderSize) return false;
     uint8_t b0 = buf[0];
     if ((b0 & 0x80) == 0) return false; // Must be Long Header
     if (buf[5] != 0x08 || buf[14] != 0x08 || buf[23] != 0x00) return false;
