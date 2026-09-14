@@ -40,7 +40,7 @@ jobs:
 
       - name: Build aegs_test under ASan
         run: |
-          cmake --build build_asan --target aegs_test -j2 > test_build.log 2>&1 || (cat test_build.log && exit 1)
+          cmake --build build_asan --target aegs_test -j2 > test_build.log 2>&1 || (python3 -c "import sys; print('::error file=test_runner.cpp::' + open('test_build.log').read().replace('\n', '%0A'))" && exit 1)
 
       - name: Build aegs_fuzz under ASan
         run: |
