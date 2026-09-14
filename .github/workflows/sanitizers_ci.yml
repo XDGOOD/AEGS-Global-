@@ -29,9 +29,22 @@ jobs:
         run: |
           cmake -B build_asan -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=ON
 
-      - name: Build Targets
+      - name: Build aegs_server under ASan
+        run: cmake --build build_asan --target aegs_server -j2
+
+      - name: Build aegs_client under ASan
+        run: cmake --build build_asan --target aegs_client -j2
+
+      - name: Build bench_hotpath under ASan
+        run: cmake --build build_asan --target bench_hotpath -j2
+
+      - name: Build aegs_test under ASan
         run: |
-          cmake --build build_asan -j2 --verbose
+          cmake --build build_asan --target aegs_test -j2 > test_build.log 2>&1 || (cat test_build.log && exit 1)
+
+      - name: Build aegs_fuzz under ASan
+        run: |
+          cmake --build build_asan --target aegs_fuzz -j2 > fuzz_build.log 2>&1 || (cat fuzz_build.log && exit 1)
 
       - name: Run Core Suite under ASan + UBSan
         run: |
