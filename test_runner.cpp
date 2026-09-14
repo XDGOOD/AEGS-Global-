@@ -30,6 +30,7 @@
 #include "network_security.h"
 #include "crypto_utils.h"
 #include "session_resumption.h"
+#include "handshake.h"
 
 
 double calculate_entropy(const uint8_t* data, size_t len) {
