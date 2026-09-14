@@ -317,9 +317,21 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
         int sfd = socket(AF_INET, SOCK_DGRAM, 0);
         if (sfd < 0) { perror("socket"); return; }
         if (!set_nonblocking(sfd)) { perror("fcntl"); close(sfd); return; }
-        int sock_buf_size = 4 * 1024 * 1024;
+        int sock_buf_size = 16 * 1024 * 1024;
+#ifdef SO_RCVBUFFORCE
+        if (setsockopt(sfd, SOL_SOCKET, SO_RCVBUFFORCE, &sock_buf_size, sizeof(sock_buf_size)) < 0) {
+            setsockopt(sfd, SOL_SOCKET, SO_RCVBUF, &sock_buf_size, sizeof(sock_buf_size));
+        }
+#else
         setsockopt(sfd, SOL_SOCKET, SO_RCVBUF, &sock_buf_size, sizeof(sock_buf_size));
+#endif
+#ifdef SO_SNDBUFFORCE
+        if (setsockopt(sfd, SOL_SOCKET, SO_SNDBUFFORCE, &sock_buf_size, sizeof(sock_buf_size)) < 0) {
+            setsockopt(sfd, SOL_SOCKET, SO_SNDBUF, &sock_buf_size, sizeof(sock_buf_size));
+        }
+#else
         setsockopt(sfd, SOL_SOCKET, SO_SNDBUF, &sock_buf_size, sizeof(sock_buf_size));
+#endif
         int reuse = 1;
         setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
         if (num_workers > 1) {

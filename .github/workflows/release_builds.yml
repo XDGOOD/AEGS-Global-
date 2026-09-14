@@ -54,7 +54,7 @@ jobs:
           mkdir -p package/aegs-v5.0-linux-x86_64
           cp build_rel/aegs_server package/aegs-v5.0-linux-x86_64/
           cp build_rel/aegs_client package/aegs-v5.0-linux-x86_64/
-          cp install.sh manage.sh deploy_migrate.sh docker-compose.yml README.md LICENSE package/aegs-v5.0-linux-x86_64/ 2>/dev/null || true
+          cp install.sh manage.sh deploy_migrate.sh optimize_sysctl.sh docker-compose.yml README.md LICENSE package/aegs-v5.0-linux-x86_64/ 2>/dev/null || true
           chmod +x package/aegs-v5.0-linux-x86_64/*.sh package/aegs-v5.0-linux-x86_64/aegs_server package/aegs-v5.0-linux-x86_64/aegs_client
           tar -czvf aegs-v5.0-linux-x86_64.tar.gz -C package aegs-v5.0-linux-x86_64
           sha256sum aegs-v5.0-linux-x86_64.tar.gz > aegs-v5.0-linux-x86_64.tar.gz.sha256

@@ -205,5 +205,13 @@ bool TunInterface::configure_interface() {
     }
 
     ::close(sock);
+
+    // High-speed line tuning (300-900+ Mbps): expand interface transmit queue to 4096 to prevent buffer overrun
+    safe_exec("ip link set dev " + iface_name_ + " txqueuelen 4096");
+
+    // Prevent TCP throughput collapse from IP fragmentation: clamp MSS to PMTU
+    safe_exec("iptables -t mangle -A FORWARD -o " + iface_name_ + " -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu");
+    safe_exec("iptables -t mangle -A POSTROUTING -o " + iface_name_ + " -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu");
+
     return true;
 }
