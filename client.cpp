@@ -17,6 +17,7 @@
 #include <openssl/kdf.h>
 #include "tun_interface.h"
 #include "handshake.h"
+#include "protocol_mimicry.h"
 #include "ip_pool.h"
 #include "illusion_prebypass.h"
 #include "chaff_engine.h"
@@ -141,7 +142,10 @@ int main(int argc, char* argv[]) {
             close(fd);
             return 1;
         }
-        sendto(fd, init_pkt.data(), init_pkt.size(), 0, (struct sockaddr*)&s_addr, sizeof(s_addr));
+        uint8_t mimicked_init[512];
+        std::memcpy(mimicked_init, init_pkt.data(), init_pkt.size());
+        size_t mlen = ProtocolMimicry::wrap_quic_initial(mimicked_init, init_pkt.size(), sizeof(mimicked_init));
+        sendto(fd, mimicked_init, mlen, 0, (struct sockaddr*)&s_addr, sizeof(s_addr));
 
         struct pollfd pfd;
         pfd.fd = fd; pfd.events = POLLIN;
@@ -149,7 +153,10 @@ int main(int argc, char* argv[]) {
             struct sockaddr_in src; socklen_t slen = sizeof(src);
             std::vector<uint8_t> resp(BUFFER_SIZE);
             ssize_t len = recvfrom(fd, resp.data(), resp.size(), 0, (struct sockaddr*)&src, &slen);
-            if (len > 0 && src.sin_addr.s_addr == s_addr.sin_addr.s_addr && hc.process_resp(resp.data(), len, session_keys)) {
+            const uint8_t* resp_ptr = resp.data();
+            size_t rlen = static_cast<size_t>(len);
+            ProtocolMimicry::strip_quic_mimicry(resp_ptr, rlen);
+            if (len > 0 && src.sin_addr.s_addr == s_addr.sin_addr.s_addr && hc.process_resp(resp_ptr, rlen, session_keys)) {
                 assigned_ip = session_keys.assigned_ip;
                 mtu = session_keys.mtu;
                 handshake_ok = true;
@@ -273,9 +280,14 @@ int main(int argc, char* argv[]) {
                 uint16_t src_port = ntohs(src.sin_port);
                 bool port_ok = (src_port >= (uint16_t)s_port && src_port < (uint16_t)(s_port + port_count));
                 if (len > 0 && src.sin_addr.s_addr == s_addr.sin_addr.s_addr && port_ok) {
+                    uint8_t* rx_data = buf.data();
+                    size_t ulen = static_cast<size_t>(len);
+                    if (ProtocolMimicry::strip_quic_mimicry(rx_data, ulen)) {
+                        len = static_cast<ssize_t>(ulen);
+                    }
                     // Check for resumption token from server
-                    if (len >= 97 && buf[0] == 0x03) {
-                        memcpy(&resumption_token, buf.data() + 1, 96);
+                    if (len >= 97 && rx_data[0] == 0x03) {
+                        memcpy(&resumption_token, rx_data + 1, 96);
                         has_resumption_token = true;
                         std::cout << "[AEGS v4] Resumption token received\n";
                         continue;
@@ -283,9 +295,9 @@ int main(int argc, char* argv[]) {
 
                     if (len < 56) continue;
 
-                    const uint8_t* hdr_iv = buf.data();
+                    const uint8_t* hdr_iv = rx_data;
                     uint8_t unmasked_hdr[16];
-                    if (!mask_unmask_header(buf.data() + 12, 16, mask_key, hdr_iv, unmasked_hdr)) continue;
+                    if (!mask_unmask_header(rx_data + 12, 16, mask_key, hdr_iv, unmasked_hdr)) continue;
 
                     if (std::memcmp(unmasked_hdr, raw_kid, 8) != 0) continue;
                     if (std::memcmp(unmasked_hdr + 12, VER_MAGIC.data(), 4) != 0) continue;
@@ -294,16 +306,16 @@ int main(int argc, char* argv[]) {
                     size_t aead_offset = 12 + 16 + junk_len;
                     if (len < aead_offset + 12 + TAG_LEN) continue;
 
-                    const uint8_t* aead_nonce = buf.data() + aead_offset;
+                    const uint8_t* aead_nonce = rx_data + aead_offset;
                     uint64_t rx_seq = 0;
                     std::memcpy(&rx_seq, aead_nonce, sizeof(uint64_t));
                     if (replay_filter.check_and_update(rx_seq)) continue;
 
-                    const uint8_t* ct = buf.data() + aead_offset + 12;
+                    const uint8_t* ct = rx_data + aead_offset + 12;
                     size_t ct_len = len - (aead_offset + 12);
 
                     size_t dlen = 0;
-                    if (chacha20_poly1305_decrypt(ct, ct_len, session_keys.recv_key, aead_nonce, pbuf.data(), dlen, buf.data(), aead_offset)) {
+                    if (chacha20_poly1305_decrypt(ct, ct_len, session_keys.recv_key, aead_nonce, pbuf.data(), dlen, rx_data, aead_offset)) {
                         transport_detector.record_success();
                         if (dlen < 2) continue;
                         uint16_t plen = (pbuf[0] << 8) | pbuf[1];
@@ -415,7 +427,7 @@ int main(int argc, char* argv[]) {
                     out_len += elen;
 
                     s_addr.sin_port = htons(hopper.current_port(session_keys.send_key));
-                    scratch.queue_tx(fd, s_addr, scratch.tx_buf, out_len);
+                    scratch.queue_tx_mimicry(fd, s_addr, scratch.tx_buf, out_len);
                     chaff_engine.mark_real_packet();
                 }
                 size_t sent = scratch.flush_tx();

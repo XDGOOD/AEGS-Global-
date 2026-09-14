@@ -46,6 +46,15 @@ public:
 
     static constexpr size_t kQuicHeaderSize = 24;
 
+    // Checks whether an incoming buffer contains a valid RFC 9000 QUIC mimicry header
+    static bool is_quic_mimicry(const uint8_t* buf, size_t len) noexcept;
+
+    // In-place zero-copy unwrap: advances pointer past QUIC header and reduces len
+    // Returns true if QUIC mimicry was detected and stripped, false otherwise.
+    static bool strip_quic_mimicry(const uint8_t*& buf, size_t& len) noexcept;
+    static bool strip_quic_mimicry(uint8_t*& buf, size_t& len) noexcept;
+
+
     explicit ProtocolMimicry(Mode mode = Mode::NONE, uint32_t quic_version = 0) noexcept;
 
     // Direct helper to wrap a buffer with an RFC 9000 QUIC Initial header with randomized

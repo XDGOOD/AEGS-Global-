@@ -47,6 +47,7 @@ struct SessionRouting {
     struct sockaddr_in client_addr{};
     bool               has_client = false;
     int                last_server_fd = -1;
+    bool               uses_mimicry = false; // RFC 9000 QUIC DPI camouflage active
 };
 
 // ---------------------------------------------------------------------------

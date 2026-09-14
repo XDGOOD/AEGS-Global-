@@ -41,7 +41,7 @@ size_t ProtocolMimicry::wrap_quic_initial(uint8_t*       buf,
     std::memmove(buf + kQuicHeaderSize, buf, data_len);
 
     uint8_t rand_bytes[18];
-    if (RAND_bytes(rand_bytes, sizeof(rand_bytes)) != 1) return false;
+    if (RAND_bytes(rand_bytes, sizeof(rand_bytes)) != 1) return data_len;
 
     // Dynamic Version Selection per RFC 9000 / RFC 9369
     uint32_t version = quic_version;
@@ -114,4 +114,42 @@ size_t ProtocolMimicry::wrap(uint8_t*       buf,
     }
 
     return wrap_quic_initial(buf, data_len, buf_capacity, session_seed, v);
+}
+
+
+// ---------------------------------------------------------------------------
+// is_quic_mimicry() & strip_quic_mimicry()
+// ---------------------------------------------------------------------------
+bool ProtocolMimicry::is_quic_mimicry(const uint8_t* buf, size_t len) noexcept {
+    if (!buf || len < kQuicHeaderSize + 56) return false;
+    uint8_t b0 = buf[0];
+    if ((b0 & 0x80) == 0) return false; // Must be Long Header
+    if (buf[5] != 0x08 || buf[14] != 0x08 || buf[23] != 0x00) return false;
+
+    uint32_t version = (static_cast<uint32_t>(buf[1]) << 24) |
+                       (static_cast<uint32_t>(buf[2]) << 16) |
+                       (static_cast<uint32_t>(buf[3]) << 8)  |
+                        static_cast<uint32_t>(buf[4]);
+
+    return (version == kQuicVersion1 || version == kQuicVersion2 ||
+            version == kQuicDraft29  || version == kQuicDraft32  ||
+            version == kQuicVerNeg);
+}
+
+bool ProtocolMimicry::strip_quic_mimicry(const uint8_t*& buf, size_t& len) noexcept {
+    if (is_quic_mimicry(buf, len)) {
+        buf += kQuicHeaderSize;
+        len -= kQuicHeaderSize;
+        return true;
+    }
+    return false;
+}
+
+bool ProtocolMimicry::strip_quic_mimicry(uint8_t*& buf, size_t& len) noexcept {
+    if (is_quic_mimicry(buf, len)) {
+        buf += kQuicHeaderSize;
+        len -= kQuicHeaderSize;
+        return true;
+    }
+    return false;
 }

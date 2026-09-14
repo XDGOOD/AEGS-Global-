@@ -10,6 +10,7 @@
 #include <vector>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include "protocol_mimicry.h"
 
 struct PacketScratch {
     static constexpr size_t MAX_PKT_SIZE = 65535;
@@ -51,6 +52,30 @@ struct PacketScratch {
         std::memcpy(slot.data, payload, len);
         slot.iov.iov_base = slot.data;
         slot.iov.iov_len = len;
+
+#ifdef __linux__
+        auto& m = batch_msgs[tx_count];
+        std::memset(&m, 0, sizeof(m));
+        m.msg_hdr.msg_name = &slot.addr;
+        m.msg_hdr.msg_namelen = sizeof(slot.addr);
+        m.msg_hdr.msg_iov = &slot.iov;
+        m.msg_hdr.msg_iovlen = 1;
+#endif
+
+        tx_count++;
+    }
+
+    void queue_tx_mimicry(int fd, const struct sockaddr_in& addr, const uint8_t* payload, size_t len, const uint8_t session_seed[2] = nullptr) noexcept {
+        if (tx_count >= MAX_BATCH || len + 24 > 2048) return;
+        auto& slot = tx_slots[tx_count];
+        slot.fd = fd;
+        slot.addr = addr;
+        slot.retries = 0;
+        std::memcpy(slot.data, payload, len);
+        size_t wrapped_len = ProtocolMimicry::wrap_quic_initial(slot.data, len, sizeof(slot.data), session_seed);
+        slot.len = wrapped_len;
+        slot.iov.iov_base = slot.data;
+        slot.iov.iov_len = wrapped_len;
 
 #ifdef __linux__
         auto& m = batch_msgs[tx_count];

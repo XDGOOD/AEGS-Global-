@@ -452,3 +452,34 @@ std::vector<uint8_t> HandshakeServer::build_resp(uint64_t key_id, uint32_t assig
 
     return resp;
 }
+
+
+// ==============================================================================
+// StatelessCookie Implementation
+// ==============================================================================
+void StatelessCookie::generate(const uint8_t secret[32], uint32_t client_ip, uint16_t client_port, uint64_t now_sec, uint8_t cookie_out[16]) noexcept {
+    uint64_t epoch = now_sec / 20;
+    uint8_t msg[14];
+    std::memcpy(msg, &client_ip, 4);
+    std::memcpy(msg + 4, &client_port, 2);
+    std::memcpy(msg + 6, &epoch, 8);
+
+    unsigned int md_len = 0;
+    uint8_t md[EVP_MAX_MD_SIZE];
+    HMAC(EVP_sha256(), secret, 32, msg, sizeof(msg), md, &md_len);
+    std::memcpy(cookie_out, md, COOKIE_LEN);
+}
+
+bool StatelessCookie::verify(const uint8_t secret[32], uint32_t client_ip, uint16_t client_port, uint64_t now_sec, const uint8_t cookie_in[16]) noexcept {
+    uint8_t expected[COOKIE_LEN];
+    // Check current epoch
+    generate(secret, client_ip, client_port, now_sec, expected);
+    if (CRYPTO_memcmp(cookie_in, expected, COOKIE_LEN) == 0) return true;
+
+    // Check previous epoch (grace window for packets in transit)
+    if (now_sec >= 20) {
+        generate(secret, client_ip, client_port, now_sec - 20, expected);
+        if (CRYPTO_memcmp(cookie_in, expected, COOKIE_LEN) == 0) return true;
+    }
+    return false;
+}

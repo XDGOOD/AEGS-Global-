@@ -36,6 +36,7 @@
 #include "nat_manager.h"
 #include "blackhole_responder.h"
 #include "traffic_shaper.h"
+#include "protocol_mimicry.h"
 #include "port_hopper.h"
 #include "session_resumption.h"
 #include "session.h"
@@ -422,6 +423,14 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
             if (ban_it != banned_ips.end() && now < ban_it->second) return;
         }
 
+        // DPI Mimicry Evasion: detect and strip RFC 9000 QUIC header if present
+        bool is_mimicked = false;
+        size_t ulen = static_cast<size_t>(len);
+        if (ProtocolMimicry::strip_quic_mimicry(pkt_data, ulen)) {
+            len = static_cast<ssize_t>(ulen);
+            is_mimicked = true;
+        }
+
         // =====================================================================
         // Opcode 0x04: Fast Resumption (0-RTT with per-resume derived traffic keys)
         // =====================================================================
@@ -636,6 +645,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 nr.client_addr = caddr;
                 nr.has_client = true;
                 nr.last_server_fd = fd;
+                nr.uses_mimicry = is_mimicked;
                 s->set_routing(nr);
 
                 // Register in O(1) fast-path cache
@@ -755,6 +765,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 nr.client_addr = caddr;
                 nr.has_client = true;
                 nr.last_server_fd = fd;
+                nr.uses_mimicry = is_mimicked;
                 s->set_routing(nr);
             }
             s->counters.last_activity.store(now, std::memory_order_relaxed);
@@ -967,7 +978,11 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                                 }
                             }
                             // FIX Phase 3: Queue to symmetric sendmmsg batch pipeline
-                            scratch.queue_tx(send_fd, client_addr, out_buf, out_len);
+                            if (routing->uses_mimicry) {
+                                scratch.queue_tx_mimicry(send_fd, client_addr, out_buf, out_len);
+                            } else {
+                                scratch.queue_tx(send_fd, client_addr, out_buf, out_len);
+                            }
                         }
                     }
                 }

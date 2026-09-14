@@ -27,6 +27,22 @@ struct SessionKeys {
 struct evp_pkey_st;
 typedef struct evp_pkey_st EVP_PKEY;
 
+
+// ==============================================================================
+// Stateless Handshake Cookie Generator & Validator (WireGuard / DTLS 1.3 style)
+// Defends server memory against UDP handshake spoofing & state exhaustion attacks
+// ==============================================================================
+class StatelessCookie {
+public:
+    static constexpr size_t COOKIE_LEN = 16;
+
+    // Generates a 16-byte HMAC-SHA256 cookie bound to client IP, port, and a 20-second time slice
+    static void generate(const uint8_t secret[32], uint32_t client_ip, uint16_t client_port, uint64_t now_sec, uint8_t cookie_out[16]) noexcept;
+
+    // Verifies a 16-byte cookie against current or previous 20-second time slice (tolerating 20s network/clock drift)
+    static bool verify(const uint8_t secret[32], uint32_t client_ip, uint16_t client_port, uint64_t now_sec, const uint8_t cookie_in[16]) noexcept;
+};
+
 class HandshakeClient {
 public:
     // FIX CRIT-1/CRIT-2: Takes master_key (per-user secret derived from token)

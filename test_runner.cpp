@@ -439,6 +439,33 @@ int main() {
     assert(std::memcmp(pkt_buf1, old_static_sig, 6) != 0 || std::memcmp(pkt_buf2, old_static_sig, 6) != 0);
     std::cout << "  [PASS] Protocol Mimicry: RFC 9000 Randomized CIDs & Dynamic Versions Verified" << std::endl;
 
+    // Verify ProtocolMimicry is_quic_mimicry and strip_quic_mimicry zero-copy unwrap
+    assert(ProtocolMimicry::is_quic_mimicry(pkt_buf1, w1));
+    assert(ProtocolMimicry::is_quic_mimicry(pkt_buf2, w2));
+    uint8_t non_mimic[100] = {0x01, 0x02, 0x03};
+    assert(!ProtocolMimicry::is_quic_mimicry(non_mimic, 100));
+
+    uint8_t* strip_ptr = pkt_buf1;
+    size_t strip_len = w1;
+    assert(ProtocolMimicry::strip_quic_mimicry(strip_ptr, strip_len));
+    assert(strip_len == 32);
+    assert(strip_ptr == pkt_buf1 + 24);
+
+    // Verify StatelessCookie generation and verification
+    uint8_t cookie_sec[32] = {0x42};
+    uint8_t cookie1[16];
+    uint32_t test_ip = 0x01020304;
+    uint16_t test_port = 54321;
+    uint64_t now_ts = 1700000000ULL;
+    StatelessCookie::generate(cookie_sec, test_ip, test_port, now_ts, cookie1);
+    assert(StatelessCookie::verify(cookie_sec, test_ip, test_port, now_ts, cookie1));
+    assert(StatelessCookie::verify(cookie_sec, test_ip, test_port, now_ts + 15, cookie1)); // Same 20s epoch
+    assert(StatelessCookie::verify(cookie_sec, test_ip, test_port, now_ts + 25, cookie1)); // Next epoch (within grace period)
+    assert(!StatelessCookie::verify(cookie_sec, test_ip + 1, test_port, now_ts, cookie1)); // Different IP fails
+    assert(!StatelessCookie::verify(cookie_sec, test_ip, test_port + 1, now_ts, cookie1)); // Different port fails
+    assert(!StatelessCookie::verify(cookie_sec, test_ip, test_port, now_ts + 100, cookie1)); // Expired epoch fails
+    std::cout << "  [PASS] StatelessCookie: Anti-DDoS HMAC-SHA256 Token Validation Verified" << std::endl;
+
     // 4. PortHopper window and server-side valid port verification
     PortHopper hopper_test(51820, 8, 30);
     uint8_t test_sess_key[32];
