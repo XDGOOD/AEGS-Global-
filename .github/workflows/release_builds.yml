@@ -1,0 +1,80 @@
+name: Build & Publish Release Binaries
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Build Linux x86_64 Carrier-Grade Release Binaries (-O3, LTO)
+  # --------------------------------------------------------------------------
+  build-linux-x86_64:
+    name: Build Linux x86_64 Release (LTO)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential cmake libssl-dev libsqlite3-dev tar gzip
+
+      - name: Configure CMake in Release Mode
+        run: |
+          cmake -B build_rel -DCMAKE_BUILD_TYPE=Release
+
+      - name: Compile High-Performance Binaries (-O3 + LTO)
+        run: |
+          cmake --build build_rel --target aegs_server aegs_client bench_hotpath bench_multicore -j$(nproc)
+
+      - name: Strip Debug Symbols
+        run: |
+          strip build_rel/aegs_server
+          strip build_rel/aegs_client
+
+      - name: Smoke-Test Compiled Binaries
+        run: |
+          ./build_rel/aegs_server --help || true
+          ./build_rel/aegs_client --help || true
+          ./build_rel/bench_hotpath
+
+      - name: Package Release Bundle
+        run: |
+          mkdir -p package/aegs-v5.0-linux-x86_64
+          cp build_rel/aegs_server package/aegs-v5.0-linux-x86_64/
+          cp build_rel/aegs_client package/aegs-v5.0-linux-x86_64/
+          cp install.sh manage.sh deploy_migrate.sh docker-compose.yml README.md LICENSE package/aegs-v5.0-linux-x86_64/ 2>/dev/null || true
+          chmod +x package/aegs-v5.0-linux-x86_64/*.sh package/aegs-v5.0-linux-x86_64/aegs_server package/aegs-v5.0-linux-x86_64/aegs_client
+          tar -czvf aegs-v5.0-linux-x86_64.tar.gz -C package aegs-v5.0-linux-x86_64
+          sha256sum aegs-v5.0-linux-x86_64.tar.gz > aegs-v5.0-linux-x86_64.tar.gz.sha256
+
+      - name: Upload Artifacts for Direct Download
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegs-v5.0-linux-x86_64
+          path: |
+            aegs-v5.0-linux-x86_64.tar.gz
+            aegs-v5.0-linux-x86_64.tar.gz.sha256
+
+      - name: Publish to GitHub Releases (Tags & Workflow Dispatch)
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            aegs-v5.0-linux-x86_64.tar.gz
+            aegs-v5.0-linux-x86_64.tar.gz.sha256
+          name: "AEGS-Global v5.0 Pantheon Release"
+          draft: false
+          prerelease: false
+          generate_release_notes: true

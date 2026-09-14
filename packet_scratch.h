@@ -1,7 +1,7 @@
 #pragma once
 // ==============================================================================
 // AEGS v5 "Pantheon" Global Edition -- Zero-Allocation Scratchpad & TX Batching
-// Pre-allocated TLS buffers eliminating heap churn and enabling sendmmsg() batching
+// Pre-allocated TLS buffers eliminating heap churn and enabling zero-copy sendmmsg()
 // ==============================================================================
 #include <cstdint>
 #include <cstddef>
@@ -29,10 +29,12 @@ struct PacketScratch {
         int fd = -1;
         uint8_t retries = 0; // Prevents head-of-line starvation under sustained congestion
         struct iovec iov;
-        struct mmsghdr msg;
     };
 
-    std::array<TxSlot, MAX_BATCH> tx_slots;
+    alignas(64) std::array<TxSlot, MAX_BATCH> tx_slots;
+#ifdef __linux__
+    alignas(64) std::array<struct mmsghdr, MAX_BATCH> batch_msgs;
+#endif
     size_t tx_count = 0;
 
     void reset_tx() noexcept {
@@ -50,17 +52,21 @@ struct PacketScratch {
         slot.iov.iov_base = slot.data;
         slot.iov.iov_len = len;
 
-        std::memset(&slot.msg, 0, sizeof(slot.msg));
-        slot.msg.msg_hdr.msg_name = &slot.addr;
-        slot.msg.msg_hdr.msg_namelen = sizeof(slot.addr);
-        slot.msg.msg_hdr.msg_iov = &slot.iov;
-        slot.msg.msg_hdr.msg_iovlen = 1;
+#ifdef __linux__
+        auto& m = batch_msgs[tx_count];
+        std::memset(&m, 0, sizeof(m));
+        m.msg_hdr.msg_name = &slot.addr;
+        m.msg_hdr.msg_namelen = sizeof(slot.addr);
+        m.msg_hdr.msg_iov = &slot.iov;
+        m.msg_hdr.msg_iovlen = 1;
+#endif
 
         tx_count++;
     }
 
     // Flush queued packets using sendmmsg (Linux) or sendto
     // Retains unsent packet slots on partial sendmmsg or socket congestion (EAGAIN/ENOBUFS)
+    // ZERO-COPY: passes &batch_msgs[cur] directly to sendmmsg without stack copies
     size_t flush_tx() noexcept {
         if (tx_count == 0) return 0;
         size_t sent_total = 0;
@@ -74,11 +80,7 @@ struct PacketScratch {
                 end++;
             }
             unsigned int batch_len = static_cast<unsigned int>(end - cur);
-            std::array<struct mmsghdr, MAX_BATCH> batch_msgs;
-            for (size_t i = 0; i < batch_len; ++i) {
-                batch_msgs[i] = tx_slots[cur + i].msg;
-            }
-            int sent = sendmmsg(cur_fd, batch_msgs.data(), batch_len, MSG_DONTWAIT);
+            int sent = sendmmsg(cur_fd, &batch_msgs[cur], batch_len, MSG_DONTWAIT);
             if (sent > 0) {
                 sent_total += static_cast<size_t>(sent);
                 cur += static_cast<size_t>(sent);
@@ -125,14 +127,18 @@ struct PacketScratch {
                     dst.fd = src.fd;
                     dst.addr = src.addr;
                     dst.len = src.len;
+                    dst.retries = src.retries;
                     std::memcpy(dst.data, src.data, src.len);
                     dst.iov.iov_base = dst.data;
                     dst.iov.iov_len = dst.len;
-                    std::memset(&dst.msg, 0, sizeof(dst.msg));
-                    dst.msg.msg_hdr.msg_name = &dst.addr;
-                    dst.msg.msg_hdr.msg_namelen = sizeof(dst.addr);
-                    dst.msg.msg_hdr.msg_iov = &dst.iov;
-                    dst.msg.msg_hdr.msg_iovlen = 1;
+#ifdef __linux__
+                    auto& m = batch_msgs[i];
+                    std::memset(&m, 0, sizeof(m));
+                    m.msg_hdr.msg_name = &dst.addr;
+                    m.msg_hdr.msg_namelen = sizeof(dst.addr);
+                    m.msg_hdr.msg_iov = &dst.iov;
+                    m.msg_hdr.msg_iovlen = 1;
+#endif
                 }
             }
             tx_count = unsent;

@@ -80,6 +80,7 @@ const size_t MAX_FAILED_RECORDS = 10000;
 const size_t MAX_BANNED_RECORDS = 10000;
 
 std::unordered_map<uint32_t, FailRecord> failed_attempts;
+std::atomic<size_t> g_failed_attempts_count{0};
 std::unordered_map<uint32_t, double> banned_ips;
 const int ban_levels[] = {0, 30, 300, 3600};
 std::mutex security_mu;
@@ -188,6 +189,7 @@ void cleanup_maps(double now, IpPool& ip_pool) {
         for (auto it = failed_attempts.begin(); it != failed_attempts.end(); ) {
             if (now - it->second.last_seen > FAIL_IDLE_TTL) it = failed_attempts.erase(it); else ++it;
         }
+        g_failed_attempts_count.store(failed_attempts.size(), std::memory_order_relaxed);
     }
 
     // 2. Purge rate limiters independently (ZERO security_mu held, eliminating deadlock cycles)
@@ -260,6 +262,7 @@ void record_fail(int fd, const struct sockaddr_in& caddr,
             if (now - rec.last_seen > 120.0) { rec.weight = 0; }
             rec.last_seen = now;
             rec.weight += weight;
+            g_failed_attempts_count.store(failed_attempts.size(), std::memory_order_relaxed);
             do_fallback = true;
 
             if (rec.weight >= 10.0) {
@@ -744,9 +747,12 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
             }
             s->counters.last_activity.store(now, std::memory_order_relaxed);
         }
-        {
+        // Fast path: bypass security_mu completely when failed_attempts table is empty (0 lock contention)
+        if (__builtin_expect(g_failed_attempts_count.load(std::memory_order_relaxed) > 0, 0)) {
             std::lock_guard<std::mutex> lock(security_mu);
-            failed_attempts.erase(ip_num);
+            if (failed_attempts.erase(ip_num) > 0) {
+                g_failed_attempts_count.store(failed_attempts.size(), std::memory_order_relaxed);
+            }
         }
 
         if (unmasked_hdr[10] & 0x80) {
@@ -806,6 +812,11 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                     int pkts = recvmmsg(fd, msgvec.data(), batch_size, MSG_DONTWAIT, nullptr);
                     if (pkts > 0) {
                         for (int p = 0; p < pkts; ++p) {
+#if defined(__GNUC__) || defined(__clang__)
+                            if (p + 1 < pkts) {
+                                __builtin_prefetch(slots[p + 1].buf.data(), 0, 1);
+                            }
+#endif
                             ssize_t plen = msgvec[p].msg_len;
                             process_udp_packet(fd, slots[p].addr, slots[p].buf.data(), plen, now);
                         }
@@ -932,9 +943,9 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                         std::memcpy(out_buf + out_len, aead_nonce, 12); out_len += 12;
 
                         size_t enc_len = 0;
-                        // FIX Blocker 3: Authenticate outer header as AAD in AEAD Poly1305
-                        if (chacha20_poly1305_encrypt(dec_buf, frame_len, enc_key, aead_nonce, enc_buf, enc_len, out_buf, aead_offset)) {
-                            std::memcpy(out_buf + out_len, enc_buf, enc_len); out_len += enc_len;
+                        // ZERO-COPY: Direct in-place encryption into out_buf (eliminates intermediate buffer copy)
+                        if (chacha20_poly1305_encrypt(dec_buf, frame_len, enc_key, aead_nonce, out_buf + out_len, enc_len, out_buf, aead_offset)) {
+                            out_len += enc_len;
                             // Proactively flush if batch is full to prevent dropping packets
                             if (scratch.tx_count >= PacketScratch::MAX_BATCH) {
                                 size_t sent = scratch.flush_tx();

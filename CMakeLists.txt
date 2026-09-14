@@ -8,6 +8,18 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -fstack-protector-strong -D_FORTIFY_SOURCE=2 -std=c++17")
+
+# Enable Link-Time Optimization (LTO / IPO) for max throughput in Release builds
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
+if(ipo_supported AND NOT ENABLE_ASAN AND NOT ENABLE_TSAN)
+    message(STATUS "Enabling Interprocedural Optimization (LTO)")
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -fno-semantic-interposition -fomit-frame-pointer")
+endif()
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie -Wl,-z,relro,-z,now")
 
 # ASan / UBSan sanitizer build option per Stage 21

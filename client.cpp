@@ -340,9 +340,9 @@ int main(int argc, char* argv[]) {
                 std::memcpy(out_buf.data() + out_len, aead_nonce, 12); out_len += 12;
 
                 size_t elen = 0;
-                // FIX Blocker 3: Authenticate outer header as AAD in AEAD Poly1305
-                if (!chacha20_poly1305_encrypt(pbuf.data(), frame_len, session_keys.send_key, aead_nonce, cbuf.data(), elen, out_buf.data(), aead_offset)) continue;
-                std::memcpy(out_buf.data() + out_len, cbuf.data(), elen); out_len += elen;
+                // ZERO-COPY: Direct in-place encryption into out_buf (eliminates intermediate buffer copy)
+                if (!chacha20_poly1305_encrypt(pbuf.data(), frame_len, session_keys.send_key, aead_nonce, out_buf.data() + out_len, elen, out_buf.data(), aead_offset)) continue;
+                out_len += elen;
 
                 s_addr.sin_port = htons(hopper.current_port(session_keys.send_key));
                 sendto(fd, out_buf.data(), out_len, 0, (struct sockaddr*)&s_addr, sizeof(s_addr));
@@ -392,9 +392,9 @@ int main(int argc, char* argv[]) {
                     std::memcpy(out_buf.data() + out_len, aead_nonce, 12); out_len += 12;
 
                     size_t elen = 0;
-                    // FIX Blocker 3: Authenticate outer header as AAD in AEAD Poly1305
-                    if (!chacha20_poly1305_encrypt(pbuf.data(), frame_len, session_keys.send_key, aead_nonce, cbuf.data(), elen, out_buf.data(), aead_offset)) continue;
-                    std::memcpy(out_buf.data() + out_len, cbuf.data(), elen); out_len += elen;
+                    // ZERO-COPY: Direct in-place encryption into out_buf (eliminates intermediate buffer copy)
+                    if (!chacha20_poly1305_encrypt(pbuf.data(), frame_len, session_keys.send_key, aead_nonce, out_buf.data() + out_len, elen, out_buf.data(), aead_offset)) continue;
+                    out_len += elen;
 
                     s_addr.sin_port = htons(hopper.current_port(session_keys.send_key));
                     ssize_t sret = sendto(fd, out_buf.data(), out_len, 0, (struct sockaddr*)&s_addr, sizeof(s_addr));
