@@ -455,16 +455,16 @@ int main() {
     // Verify StatelessCookie generation and verification
     uint8_t cookie_sec[32] = {0x42};
     uint8_t cookie1[16];
-    uint32_t test_ip = 0x01020304;
-    uint16_t test_port = 54321;
+    uint32_t cookie_test_ip = 0x01020304;
+    uint16_t cookie_test_port = 54321;
     uint64_t now_ts = 1700000000ULL;
-    StatelessCookie::generate(cookie_sec, test_ip, test_port, now_ts, cookie1);
-    assert(StatelessCookie::verify(cookie_sec, test_ip, test_port, now_ts, cookie1));
-    assert(StatelessCookie::verify(cookie_sec, test_ip, test_port, now_ts + 15, cookie1)); // Same 20s epoch
-    assert(StatelessCookie::verify(cookie_sec, test_ip, test_port, now_ts + 25, cookie1)); // Next epoch (within grace period)
-    assert(!StatelessCookie::verify(cookie_sec, test_ip + 1, test_port, now_ts, cookie1)); // Different IP fails
-    assert(!StatelessCookie::verify(cookie_sec, test_ip, test_port + 1, now_ts, cookie1)); // Different port fails
-    assert(!StatelessCookie::verify(cookie_sec, test_ip, test_port, now_ts + 100, cookie1)); // Expired epoch fails
+    StatelessCookie::generate(cookie_sec, cookie_test_ip, cookie_test_port, now_ts, cookie1);
+    assert(StatelessCookie::verify(cookie_sec, cookie_test_ip, cookie_test_port, now_ts, cookie1));
+    assert(StatelessCookie::verify(cookie_sec, cookie_test_ip, cookie_test_port, now_ts + 15, cookie1)); // Same 20s epoch
+    assert(StatelessCookie::verify(cookie_sec, cookie_test_ip, cookie_test_port, now_ts + 25, cookie1)); // Next epoch (within grace period)
+    assert(!StatelessCookie::verify(cookie_sec, cookie_test_ip + 1, cookie_test_port, now_ts, cookie1)); // Different IP fails
+    assert(!StatelessCookie::verify(cookie_sec, cookie_test_ip, cookie_test_port + 1, now_ts, cookie1)); // Different port fails
+    assert(!StatelessCookie::verify(cookie_sec, cookie_test_ip, cookie_test_port, now_ts + 100, cookie1)); // Expired epoch fails
     std::cout << "  [PASS] StatelessCookie: Anti-DDoS HMAC-SHA256 Token Validation Verified" << std::endl;
 
     // 4. PortHopper window and server-side valid port verification
