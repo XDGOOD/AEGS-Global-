@@ -9,8 +9,8 @@
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="AEGS"
-        android:roundIcon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.AEGS">
 
@@ -30,6 +30,11 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".OnboardingActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
         <service
             android:name=".AegsVpnService"
             android:permission="android.permission.BIND_VPN_SERVICE"
@@ -43,7 +48,7 @@
         <service
             android:name=".AegsTileService"
             android:icon="@mipmap/ic_launcher"
-            android:label="AEGS Titan"
+            android:label="AEGS VPN"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
             <intent-filter>

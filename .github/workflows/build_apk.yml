@@ -1,4 +1,4 @@
-name: Build Android APK (AEGS Titan Mobile)
+name: Build Android APK (AEGS VPN Mobile)
 
 on:
   push:
@@ -10,6 +10,9 @@ jobs:
   build-apk:
     name: Build AEGS Android APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -37,6 +40,7 @@ jobs:
         run: |
           mkdir -p output_apk
           find android/app/build/outputs/apk/ -name "*.apk" -exec cp {} output_apk/AEGS-v6.0-titan.apk \;
+          cp output_apk/AEGS-v6.0-titan.apk output_apk/AEGS-VPN.apk
           ls -la output_apk/
 
       - name: Upload APK Artifact
@@ -49,6 +53,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v6.0-titan
-          files: output_apk/AEGS-v6.0-titan.apk
+          files: |
+            output_apk/AEGS-v6.0-titan.apk
+            output_apk/AEGS-VPN.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
