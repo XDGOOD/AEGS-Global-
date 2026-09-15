@@ -26,6 +26,9 @@ public class MainActivity extends AppCompatActivity {
     private EditText mEtPort;
     private EditText mEtToken;
     private CheckBox mCbSplit;
+    private Button mBtnGithubCore;
+    private Button mBtnGithubGlobal;
+    private Button mBtnAuthor;
 
     private boolean mIsConnected = false;
 
@@ -44,6 +47,20 @@ public class MainActivity extends AppCompatActivity {
         mEtToken = findViewById(R.id.et_token);
         mCbSplit = findViewById(R.id.cb_split);
 
+        mBtnGithubCore = findViewById(R.id.btn_github_core);
+        mBtnGithubGlobal = findViewById(R.id.btn_github_global);
+        mBtnAuthor = findViewById(R.id.btn_author);
+
+        if (mBtnGithubCore != null) {
+            mBtnGithubCore.setOnClickListener(v -> openUrl("https://github.com/XDGOOD/net-packet-handler"));
+        }
+        if (mBtnGithubGlobal != null) {
+            mBtnGithubGlobal.setOnClickListener(v -> openUrl("https://github.com/XDGOOD/AEGS-Global-"));
+        }
+        if (mBtnAuthor != null) {
+            mBtnAuthor.setOnClickListener(v -> openUrl("https://github.com/XDGOOD"));
+        }
+
         mRgMode.setOnCheckedChangeListener((group, checkedId) -> {
             if (checkedId == R.id.rb_service) {
                 mLlCustomVps.setVisibility(View.GONE);
@@ -56,6 +73,15 @@ public class MainActivity extends AppCompatActivity {
 
         // Handle aegs:// deep-link
         handleIncomingIntent(getIntent());
+    }
+
+    private void openUrl(String url) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            startActivity(intent);
+        } catch (Exception e) {
+            Toast.makeText(this, "Не удалось открыть ссылку", Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override
@@ -99,36 +125,44 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == VPN_REQUEST_CODE && resultCode == RESULT_OK) {
-            startVpn();
+            connectVpn();
         }
     }
 
-    private void startVpn() {
+    private void connectVpn() {
         String ip = "185.196.8.10";
         int port = 50001;
-        String token = "aegs_secure_token_titan_v6";
+        String token = "client_default_token";
+        boolean split = mCbSplit.isChecked();
 
         if (mRgMode.getCheckedRadioButtonId() == R.id.rb_custom) {
-            ip = mEtIp.getText().toString().trim();
-            try {
-                port = Integer.parseInt(mEtPort.getText().toString().trim());
-            } catch (Exception ignored) {}
-            token = mEtToken.getText().toString().trim();
+            String ipInput = mEtIp.getText().toString().trim();
+            String portInput = mEtPort.getText().toString().trim();
+            String tokenInput = mEtToken.getText().toString().trim();
+
+            if (!ipInput.isEmpty()) ip = ipInput;
+            if (!portInput.isEmpty()) {
+                try {
+                    port = Integer.parseInt(portInput);
+                } catch (NumberFormatException ignored) {}
+            }
+            if (!tokenInput.isEmpty()) token = tokenInput;
         }
 
         Intent intent = new Intent(this, AegsVpnService.class);
         intent.putExtra("SERVER_IP", ip);
         intent.putExtra("SERVER_PORT", port);
         intent.putExtra("TOKEN", token);
-        intent.putExtra("SPLIT_TUNNEL", mCbSplit.isChecked());
+        intent.putExtra("SPLIT_TUNNEL", split);
+
         startService(intent);
 
         mIsConnected = true;
-        mTvStatus.setText("● Подключено (AEGS v6.5 Stealth)");
-        mTvStatus.setTextColor(0xFF00D26A);
-        mTvPing.setText("Пинг: 22 мс");
+        mTvStatus.setText("● Подключено (Защищено)");
+        mTvStatus.setTextColor(0xFF10B981);
+        mTvPing.setText("Пинг: 18 мс");
         mBtnConnect.setText("ОТКЛЮЧИТЬСЯ");
-        mBtnConnect.setBackgroundColor(0xFFDC3545);
+        mBtnConnect.setBackgroundColor(0xFFEF4444);
     }
 
     private void disconnectVpn() {
@@ -138,9 +172,9 @@ public class MainActivity extends AppCompatActivity {
 
         mIsConnected = false;
         mTvStatus.setText("● Отключено");
-        mTvStatus.setTextColor(0xFFF87171);
+        mTvStatus.setTextColor(0xFFEF4444);
         mTvPing.setText("Пинг: -- мс");
         mBtnConnect.setText("ПОДКЛЮЧИТЬСЯ");
-        mBtnConnect.setBackgroundColor(0xFF0D6EFD);
+        mBtnConnect.setBackgroundColor(0xFF2563EB);
     }
 }
