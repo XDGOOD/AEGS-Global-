@@ -1,0 +1,2 @@
+rootProject.name = 'aegs-android'
+include ':app'
