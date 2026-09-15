@@ -15,13 +15,24 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.util.Random;
+
 public class MainActivity extends AppCompatActivity {
     private static final int VPN_REQUEST_CODE = 0xAE65;
+
+    private static final String[] PHRASES = {
+            "Готов?", "Полетели?", "Врубай турбо!", "К взлёту готов?", "Время свободы",
+            "Твой ход!", "Защитим канал?", "Полный вперёд!", "Никаких замедлений!", "Чистый интернет!",
+            "Твой безопасный щит!", "Без цензуры и лагов!", "Один клик до свободы!", "Жми и лети!"
+    };
 
     private TextView mTvStatus;
     private TextView mTvPing;
     private TextView mTvSpeed;
-    private Button mBtnConnect;
+    private View mBtnConnectCircle;
+    private TextView mTvConnLabel;
+    private TextView mTvConnSub;
+
     private RadioGroup mRgMode;
     private View mLlCustomVps;
     private EditText mEtIp;
@@ -52,7 +63,10 @@ public class MainActivity extends AppCompatActivity {
         mTvStatus = findViewById(R.id.tv_status);
         mTvPing = findViewById(R.id.tv_ping);
         mTvSpeed = findViewById(R.id.tv_speed);
-        mBtnConnect = findViewById(R.id.btn_connect);
+        mBtnConnectCircle = findViewById(R.id.btn_connect_circle);
+        mTvConnLabel = findViewById(R.id.tv_conn_label);
+        mTvConnSub = findViewById(R.id.tv_conn_sub);
+
         mRgMode = findViewById(R.id.rg_mode);
         mLlCustomVps = findViewById(R.id.ll_custom_vps);
         mEtIp = findViewById(R.id.et_ip);
@@ -64,6 +78,15 @@ public class MainActivity extends AppCompatActivity {
         mBtnGithubCore = findViewById(R.id.btn_github_core);
         mBtnGithubGlobal = findViewById(R.id.btn_github_global);
         mBtnAuthor = findViewById(R.id.btn_author);
+
+        // Pick random initial phrase
+        pickRandomPhrase();
+
+        // Check if user chose VPS in onboarding
+        if (prefs.getBoolean("mode_vps", false)) {
+            mRgMode.check(R.id.rb_custom);
+            mLlCustomVps.setVisibility(View.VISIBLE);
+        }
 
         if (mBtnGuide != null) {
             mBtnGuide.setOnClickListener(v -> {
@@ -89,10 +112,17 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        mBtnConnect.setOnClickListener(v -> toggleConnection());
+        mBtnConnectCircle.setOnClickListener(v -> toggleConnection());
 
         // Handle aegs:// deep-link
         handleIncomingIntent(getIntent());
+    }
+
+    private void pickRandomPhrase() {
+        if (mTvConnSub != null) {
+            int idx = new Random().nextInt(PHRASES.length);
+            mTvConnSub.setText(PHRASES[idx]);
+        }
     }
 
     private void openUrl(String url) {
@@ -178,12 +208,14 @@ public class MainActivity extends AppCompatActivity {
         startService(intent);
 
         mIsConnected = true;
-        mTvStatus.setText("● Подключено (Защищено)");
+        mTvStatus.setText("● Подключено • Защищено");
         mTvStatus.setTextColor(0xFF10B981);
-        mTvPing.setText("Пинг: 18 мс");
-        if (mTvSpeed != null) mTvSpeed.setText("Скорость: 940 Мбит/с");
-        mBtnConnect.setText("ОТКЛЮЧИТЬСЯ");
-        mBtnConnect.setBackgroundColor(0xFFEF4444);
+        mTvPing.setText("Пинг до сервера: 18 мс");
+        if (mTvSpeed != null) mTvSpeed.setText("LTO TURBO 940 Мбит/с");
+
+        mTvConnLabel.setText("ОТКЛЮЧИТЬ");
+        mTvConnSub.setText("Защита активна");
+        mTvConnSub.setTextColor(0xFF10B981);
     }
 
     private void disconnectVpn() {
@@ -192,11 +224,12 @@ public class MainActivity extends AppCompatActivity {
         startService(intent);
 
         mIsConnected = false;
-        mTvStatus.setText("● Отключено");
-        mTvStatus.setTextColor(0xFFEF4444);
-        mTvPing.setText("Пинг: -- мс");
-        if (mTvSpeed != null) mTvSpeed.setText("Лимит: 940 Мбит/с");
-        mBtnConnect.setText("ПОДКЛЮЧИТЬСЯ");
-        mBtnConnect.setBackgroundColor(0xFF2563EB);
+        mTvStatus.setText("● Отключено • QUIC Stealth");
+        mTvStatus.setTextColor(0xFFF87171);
+        mTvPing.setText("Пинг до сервера: -- мс");
+
+        mTvConnLabel.setText("ПОДКЛЮЧИТЬ");
+        pickRandomPhrase();
+        mTvConnSub.setTextColor(0xFFF59E0B);
     }
 }

@@ -10,7 +10,7 @@ import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
-import android.view.animation.OvershootInterpolator;
+import android.view.animation.DecelerateInterpolator;
 
 import androidx.annotation.Nullable;
 
@@ -22,24 +22,31 @@ public class AnimShieldSpeedometerView extends View {
 
     private int mCurrentMode = MODE_WELCOME;
 
+    // Palette: Obsidian & Warm Amber
+    private static final int COLOR_AMBER = 0xFFF59E0B;
+    private static final int COLOR_AMBER_GLOW = 0x47F59E0B;
+    private static final int COLOR_ORANGE = 0xFFFB923C;
+    private static final int COLOR_OBSIDIAN_BODY = 0xFF1C1917;
+    private static final int COLOR_SHACKLE = 0xFFD4D4D8;
+    private static final int COLOR_TRACK = 0x14FFFFFF;
+    private static final int COLOR_TICK_INACTIVE = 0xFF334155;
+
     // Paints
-    private Paint mPaintBody;
-    private Paint mPaintShackle;
-    private Paint mPaintGlow;
-    private Paint mPaintGauge;
-    private Paint mPaintNeedle;
-    private Paint mPaintText;
-    private Paint mPaintSubText;
+    private final Paint mPaintStroke = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint mPaintFill = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint mPaintText = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint mPaintSubText = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     // Animators & Values
     private float mPulseProgress = 0f;
-    private float mShackleOffset = 0f;    // 0 = open, 1 = locked
-    private float mLockGlowAlpha = 0f;     // Glow on snap
-    private float mNeedleAngle = 0f;       // 0 to 1 ratio on arc
-    private float mSpeedDisplayVal = 0f;   // 0 to 940 Mbps
+    private float mShackleProgress = 1f; // 0 = open, 1 = locked
+    private float mLockGlow = 0f;        // Shockwave 0..1
+    private float mSpeedProgress = 0f;   // 0..1
+    private float mDisplayedSpeed = 0f;  // 0..940
 
     private ValueAnimator mPulseAnim;
     private ValueAnimator mLockAnim;
+    private ValueAnimator mGlowAnim;
     private ValueAnimator mSpeedAnim;
 
     public AnimShieldSpeedometerView(Context context) {
@@ -58,39 +65,11 @@ public class AnimShieldSpeedometerView extends View {
     }
 
     private void init() {
-        mPaintBody = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mPaintBody.setColor(0xFF2563EB); // AEGS Blue
-        mPaintBody.setStyle(Paint.Style.FILL);
-
-        mPaintShackle = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mPaintShackle.setColor(0xFFE2E8F0);
-        mPaintShackle.setStyle(Paint.Style.STROKE);
-        mPaintShackle.setStrokeWidth(14f);
-        mPaintShackle.setStrokeCap(Paint.Cap.ROUND);
-
-        mPaintGlow = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mPaintGlow.setColor(0xFF10B981); // Emerald green
-        mPaintGlow.setStyle(Paint.Style.STROKE);
-        mPaintGlow.setStrokeWidth(8f);
-
-        mPaintGauge = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mPaintGauge.setStyle(Paint.Style.STROKE);
-        mPaintGauge.setStrokeCap(Paint.Cap.ROUND);
-
-        mPaintNeedle = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mPaintNeedle.setColor(0xFF10B981);
-        mPaintNeedle.setStyle(Paint.Style.STROKE);
-        mPaintNeedle.setStrokeWidth(8f);
-        mPaintNeedle.setStrokeCap(Paint.Cap.ROUND);
-
-        mPaintText = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mPaintText.setColor(0xFFFFFFFF);
         mPaintText.setTextAlign(Paint.Align.CENTER);
         mPaintText.setFakeBoldText(true);
 
-        mPaintSubText = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mPaintSubText.setColor(0xFF94A3B8);
         mPaintSubText.setTextAlign(Paint.Align.CENTER);
+        mPaintSubText.setFakeBoldText(true);
 
         startPulseAnimation();
     }
@@ -105,6 +84,7 @@ public class AnimShieldSpeedometerView extends View {
         } else if (mode == MODE_SPEEDOMETER) {
             if (mPulseAnim != null) mPulseAnim.cancel();
             if (mLockAnim != null) mLockAnim.cancel();
+            if (mGlowAnim != null) mGlowAnim.cancel();
             startSpeedometerAnimation();
         }
         invalidate();
@@ -113,7 +93,7 @@ public class AnimShieldSpeedometerView extends View {
     private void startPulseAnimation() {
         if (mPulseAnim != null) mPulseAnim.cancel();
         mPulseAnim = ValueAnimator.ofFloat(0f, 1f);
-        mPulseAnim.setDuration(1800);
+        mPulseAnim.setDuration(1200);
         mPulseAnim.setRepeatCount(ValueAnimator.INFINITE);
         mPulseAnim.setRepeatMode(ValueAnimator.REVERSE);
         mPulseAnim.setInterpolator(new AccelerateDecelerateInterpolator());
@@ -126,34 +106,43 @@ public class AnimShieldSpeedometerView extends View {
 
     public void startLockAnimation() {
         if (mLockAnim != null) mLockAnim.cancel();
-        mShackleOffset = 0f;
-        mLockGlowAlpha = 0f;
+        if (mGlowAnim != null) mGlowAnim.cancel();
+        mShackleProgress = 0f;
+        mLockGlow = 0f;
 
         mLockAnim = ValueAnimator.ofFloat(0f, 1f);
-        mLockAnim.setDuration(900);
-        mLockAnim.setInterpolator(new OvershootInterpolator(1.2f));
+        mLockAnim.setDuration(700);
+        mLockAnim.setInterpolator(new DecelerateInterpolator(1.5f));
         mLockAnim.addUpdateListener(animation -> {
-            mShackleOffset = (float) animation.getAnimatedValue();
-            if (mShackleOffset > 0.8f) {
-                mLockGlowAlpha = (mShackleOffset - 0.8f) * 5f; // Glow to 1.0
-            }
+            mShackleProgress = (float) animation.getAnimatedValue();
             invalidate();
         });
         mLockAnim.start();
+
+        // Glow shockwave triggers right as lock snaps
+        postDelayed(() -> {
+            mGlowAnim = ValueAnimator.ofFloat(1f, 0f);
+            mGlowAnim.setDuration(600);
+            mGlowAnim.addUpdateListener(animation -> {
+                mLockGlow = (float) animation.getAnimatedValue();
+                invalidate();
+            });
+            mGlowAnim.start();
+        }, 550);
     }
 
     public void startSpeedometerAnimation() {
         if (mSpeedAnim != null) mSpeedAnim.cancel();
-        mNeedleAngle = 0f;
-        mSpeedDisplayVal = 0f;
+        mSpeedProgress = 0f;
+        mDisplayedSpeed = 0f;
 
         mSpeedAnim = ValueAnimator.ofFloat(0f, 1f);
-        mSpeedAnim.setDuration(1200);
-        mSpeedAnim.setInterpolator(new AccelerateDecelerateInterpolator());
+        mSpeedAnim.setDuration(1400);
+        mSpeedAnim.setInterpolator(new DecelerateInterpolator());
         mSpeedAnim.addUpdateListener(animation -> {
             float val = (float) animation.getAnimatedValue();
-            mNeedleAngle = val * 0.88f; // ~900 Mbps on gauge
-            mSpeedDisplayVal = val * 940f;
+            mSpeedProgress = val;
+            mDisplayedSpeed = val * 940f;
             invalidate();
         });
         mSpeedAnim.start();
@@ -163,115 +152,193 @@ public class AnimShieldSpeedometerView extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        float cx = getWidth() / 2f;
-        float cy = getHeight() / 2f;
-        float radius = Math.min(cx, cy) * 0.82f;
+        float w = getWidth();
+        float h = getHeight();
+        if (w <= 0 || h <= 0) return;
+
+        float cx = w / 2f;
+        float cy = h / 2f;
+
+        // Scale factor relative to 500x500 design viewport
+        float scale = Math.min(w, h) / 500f;
+
+        canvas.save();
+        canvas.translate(cx, cy);
+        canvas.scale(scale, scale);
 
         if (mCurrentMode == MODE_WELCOME) {
-            drawWelcomeMode(canvas, cx, cy, radius);
+            drawWelcomeEmblem(canvas);
         } else if (mCurrentMode == MODE_LOCK) {
-            drawLockMode(canvas, cx, cy, radius);
+            drawLockSnap(canvas);
         } else if (mCurrentMode == MODE_SPEEDOMETER) {
-            drawSpeedometerMode(canvas, cx, cy, radius);
-        }
-    }
-
-    private void drawWelcomeMode(Canvas canvas, float cx, float cy, float radius) {
-        // Glowing pulses
-        mPaintGlow.setColor(0xFF2563EB);
-        mPaintGlow.setStrokeWidth(4f + mPulseProgress * 8f);
-        mPaintGlow.setAlpha((int) ((1f - mPulseProgress) * 160));
-        canvas.drawCircle(cx, cy, radius * (0.85f + mPulseProgress * 0.22f), mPaintGlow);
-
-        // Core Shield
-        drawShield(canvas, cx, cy, radius * 0.7f, 0xFF2563EB);
-
-        // Inner glowing symbol 'A'
-        mPaintText.setTextSize(radius * 0.5f);
-        mPaintText.setColor(0xFFFFFFFF);
-        canvas.drawText("A", cx, cy + (radius * 0.18f), mPaintText);
-    }
-
-    private void drawLockMode(Canvas canvas, float cx, float cy, float radius) {
-        float bodyW = radius * 0.9f;
-        float bodyH = radius * 0.75f;
-        float shackleR = radius * 0.42f;
-
-        // Shackle movement (open -> snaps down)
-        float shackleY = cy - bodyH * 0.2f - (1f - mShackleOffset) * (radius * 0.25f);
-
-        // Shackle arc
-        RectF shackleRect = new RectF(cx - shackleR, shackleY - shackleR * 1.5f, cx + shackleR, shackleY + shackleR * 0.5f);
-        mPaintShackle.setColor(0xFFE2E8F0);
-        canvas.drawArc(shackleRect, 180, 180, false, mPaintShackle);
-
-        // Glow when locked
-        if (mLockGlowAlpha > 0f) {
-            mPaintGlow.setColor(0xFF10B981);
-            mPaintGlow.setStrokeWidth(12f);
-            mPaintGlow.setAlpha((int) (mLockGlowAlpha * 200));
-            RectF glowRect = new RectF(cx - bodyW / 2f - 8f, cy - 8f, cx + bodyW / 2f + 8f, cy + bodyH + 8f);
-            canvas.drawRoundRect(glowRect, 24f, 24f, mPaintGlow);
+            drawSpeedometerGauge(canvas);
         }
 
-        // Lock Body
-        mPaintBody.setColor(0xFF1E293B);
-        RectF bodyRect = new RectF(cx - bodyW / 2f, cy, cx + bodyW / 2f, cy + bodyH);
-        canvas.drawRoundRect(bodyRect, 20f, 20f, mPaintBody);
-
-        // Keyhole
-        Paint keyPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        keyPaint.setColor(mShackleOffset > 0.8f ? 0xFF10B981 : 0xFF64748B);
-        canvas.drawCircle(cx, cy + bodyH * 0.42f, radius * 0.12f, keyPaint);
-
-        Path keyPath = new Path();
-        keyPath.moveTo(cx - radius * 0.06f, cy + bodyH * 0.42f);
-        keyPath.lineTo(cx + radius * 0.06f, cy + bodyH * 0.42f);
-        keyPath.lineTo(cx + radius * 0.08f, cy + bodyH * 0.72f);
-        keyPath.lineTo(cx - radius * 0.08f, cy + bodyH * 0.72f);
-        keyPath.close();
-        canvas.drawPath(keyPath, keyPaint);
+        canvas.restore();
     }
 
-    private void drawSpeedometerMode(Canvas canvas, float cx, float cy, float radius) {
-        float arcRadius = radius * 0.85f;
-        RectF arcRect = new RectF(cx - arcRadius, cy - arcRadius, cx + arcRadius, cy + arcRadius);
+    private void drawWelcomeEmblem(Canvas canvas) {
+        float r = 118f;
+        float pulse = mPulseProgress;
 
-        // Background Track
-        mPaintGauge.setColor(0xFF1E293B);
-        mPaintGauge.setStrokeWidth(16f);
-        canvas.drawArc(arcRect, 135, 270, false, mPaintGauge);
+        // Outer pulsing ring
+        mPaintStroke.reset();
+        mPaintStroke.setAntiAlias(true);
+        mPaintStroke.setStyle(Paint.Style.STROKE);
+        mPaintStroke.setColor(COLOR_AMBER);
+        mPaintStroke.setAlpha((int) ((0.20f + pulse * 0.18f) * 255));
+        mPaintStroke.setStrokeWidth(3.5f);
+        canvas.drawCircle(0, 0, r + pulse * 10f, mPaintStroke);
 
-        // Active Speed Gradient Arc
-        mPaintGauge.setColor(0xFF10B981);
-        mPaintGauge.setStrokeWidth(16f);
-        canvas.drawArc(arcRect, 135, mNeedleAngle * 270f, false, mPaintGauge);
-
-        // Center Speed text
-        mPaintText.setTextSize(radius * 0.45f);
-        mPaintText.setColor(0xFFFFFFFF);
-        canvas.drawText(String.valueOf((int) mSpeedDisplayVal), cx, cy + radius * 0.05f, mPaintText);
-
-        mPaintSubText.setTextSize(radius * 0.16f);
-        mPaintSubText.setColor(0xFF10B981);
-        canvas.drawText("МБИТ / СЕК", cx, cy + radius * 0.28f, mPaintSubText);
-
-        // Center hub
-        mPaintBody.setColor(0xFF10B981);
-        canvas.drawCircle(cx, cy + radius * 0.48f, 10f, mPaintBody);
-    }
-
-    private void drawShield(Canvas canvas, float cx, float cy, float r, int color) {
+        // Shield contour
         Path path = new Path();
-        path.moveTo(cx, cy - r);
-        path.lineTo(cx + r * 0.85f, cy - r * 0.55f);
-        path.lineTo(cx + r * 0.85f, cy + r * 0.1f);
-        path.quadTo(cx + r * 0.85f, cy + r * 0.75f, cx, cy + r);
-        path.quadTo(cx - r * 0.85f, cy + r * 0.75f, cx - r * 0.85f, cy + r * 0.1f);
-        path.lineTo(cx - r * 0.85f, cy - r * 0.55f);
+        path.moveTo(0, -80);
+        path.quadTo(80, -80, 80, 0);
+        path.quadTo(80, 60, 0, 90);
+        path.quadTo(-80, 60, -80, 0);
+        path.quadTo(-80, -80, 0, -80);
         path.close();
 
-        mPaintBody.setColor(color);
-        canvas.drawPath(path, mPaintBody);
+        mPaintFill.reset();
+        mPaintFill.setAntiAlias(true);
+        mPaintFill.setStyle(Paint.Style.FILL);
+        mPaintFill.setColor(Color.argb((int)(0.08f * 255), 245, 158, 11));
+        canvas.drawPath(path, mPaintFill);
+
+        mPaintStroke.setColor(COLOR_AMBER);
+        mPaintStroke.setAlpha(255);
+        mPaintStroke.setStrokeWidth(4f);
+        mPaintStroke.setStrokeCap(Paint.Cap.ROUND);
+        mPaintStroke.setStrokeJoin(Paint.Join.ROUND);
+        canvas.drawPath(path, mPaintStroke);
+
+        // Center Title "AEGS"
+        mPaintText.setTextSize(44f);
+        mPaintText.setColor(0xFFFFFFFF);
+        canvas.drawText("AEGS", 0, -6, mPaintText);
+
+        // Badge "TITAN v6.0"
+        mPaintSubText.setTextSize(16f);
+        mPaintSubText.setColor(COLOR_AMBER);
+        canvas.drawText("TITAN v6.0", 0, 34, mPaintSubText);
+    }
+
+    private void drawLockSnap(Canvas canvas) {
+        // Drop distance: 48 units as in design prototype
+        float shackleDrop = 48f * mShackleProgress;
+
+        // Shackle Path: Semi-circle arc at top + two straight vertical legs going INTO lock body!
+        Path shacklePath = new Path();
+        RectF arcRect = new RectF(-46f, -110f + shackleDrop, 46f, -18f + shackleDrop);
+        // Top semi-circle from 180 (left) to 0 (right)
+        shacklePath.arcTo(arcRect, 180f, 180f, false);
+        // Right vertical leg down into body
+        shacklePath.lineTo(46f, 6f);
+        // Left vertical leg down into body
+        shacklePath.moveTo(-46f, -64f + shackleDrop);
+        shacklePath.lineTo(-46f, 6f);
+
+        mPaintStroke.reset();
+        mPaintStroke.setAntiAlias(true);
+        mPaintStroke.setStyle(Paint.Style.STROKE);
+        mPaintStroke.setColor(COLOR_SHACKLE);
+        mPaintStroke.setStrokeWidth(15f);
+        mPaintStroke.setStrokeCap(Paint.Cap.ROUND);
+        canvas.drawPath(shacklePath, mPaintStroke);
+
+        // Lock Body: Rounded Rectangle 144 x 115, corner 22
+        RectF bodyRect = new RectF(-72f, -8f, 72f, 107f);
+        mPaintFill.reset();
+        mPaintFill.setAntiAlias(true);
+        mPaintFill.setStyle(Paint.Style.FILL);
+        mPaintFill.setColor(COLOR_OBSIDIAN_BODY);
+        canvas.drawRoundRect(bodyRect, 22f, 22f, mPaintFill);
+
+        // Lock Body Amber Border
+        mPaintStroke.setColor(COLOR_AMBER);
+        mPaintStroke.setStrokeWidth(3.5f);
+        canvas.drawRoundRect(bodyRect, 22f, 22f, mPaintStroke);
+
+        // Amber Keyhole Circle
+        mPaintFill.setColor(COLOR_AMBER);
+        canvas.drawCircle(0, 34f, 11f, mPaintFill);
+
+        // Amber Keyhole Trapezoid
+        Path keySlot = new Path();
+        keySlot.moveTo(-6f, 38f);
+        keySlot.lineTo(-9f, 68f);
+        keySlot.lineTo(9f, 68f);
+        keySlot.lineTo(6f, 38f);
+        keySlot.close();
+        canvas.drawPath(keySlot, mPaintFill);
+
+        // Shockwave glow on snap
+        if (mLockGlow > 0f) {
+            mPaintStroke.setColor(COLOR_AMBER);
+            mPaintStroke.setStrokeWidth(5f * mLockGlow);
+            mPaintStroke.setAlpha((int) (mLockGlow * 0.45f * 255));
+            canvas.drawCircle(0, 50f, 110f * (1f - mLockGlow * 0.5f), mPaintStroke);
+        }
+    }
+
+    private void drawSpeedometerGauge(Canvas canvas) {
+        float r = 135f;
+        RectF arcRect = new RectF(-r, -r, r, r);
+
+        // Inactive background track (135 deg to 405 deg)
+        mPaintStroke.reset();
+        mPaintStroke.setAntiAlias(true);
+        mPaintStroke.setStyle(Paint.Style.STROKE);
+        mPaintStroke.setStrokeCap(Paint.Cap.ROUND);
+        mPaintStroke.setColor(COLOR_TRACK);
+        mPaintStroke.setStrokeWidth(18f);
+        canvas.drawArc(arcRect, 135f, 270f, false, mPaintStroke);
+
+        // Active Amber Sweep Arc
+        mPaintStroke.setColor(COLOR_AMBER);
+        float sweep = 270f * mSpeedProgress;
+        canvas.drawArc(arcRect, 135f, sweep, false, mPaintStroke);
+
+        // 10 radial tick marks
+        for (int i = 0; i <= 9; i++) {
+            float angleDeg = 135f + (i * (270f / 9f));
+            double rad = Math.toRadians(angleDeg);
+            float x1 = (float) (Math.cos(rad) * (r - 22f));
+            float y1 = (float) (Math.sin(rad) * (r - 22f));
+            float x2 = (float) (Math.cos(rad) * (r - 10f));
+            float y2 = (float) (Math.sin(rad) * (r - 10f));
+
+            boolean isActive = (i / 9f) <= mSpeedProgress;
+            mPaintStroke.setColor(isActive ? COLOR_AMBER : COLOR_TICK_INACTIVE);
+            mPaintStroke.setStrokeWidth(3f);
+            canvas.drawLine(x1, y1, x2, y2, mPaintStroke);
+        }
+
+        // Pointer Needle
+        double needleRad = Math.toRadians(135f + sweep);
+        float nx = (float) (Math.cos(needleRad) * (r - 14f));
+        float ny = (float) (Math.sin(needleRad) * (r - 14f));
+        mPaintStroke.setColor(COLOR_AMBER);
+        mPaintStroke.setStrokeWidth(7f);
+        canvas.drawLine(0, 0, nx, ny, mPaintStroke);
+
+        // Center hub
+        mPaintFill.reset();
+        mPaintFill.setAntiAlias(true);
+        mPaintFill.setStyle(Paint.Style.FILL);
+        mPaintFill.setColor(COLOR_AMBER);
+        canvas.drawCircle(0, 0, 14f, mPaintFill);
+        mPaintFill.setColor(0xFFFFFFFF);
+        canvas.drawCircle(0, 0, 6f, mPaintFill);
+
+        // Speed numeric text
+        mPaintText.setTextSize(42f);
+        mPaintText.setColor(0xFFFFFFFF);
+        canvas.drawText(String.valueOf(Math.round(mDisplayedSpeed)), 0, 55f, mPaintText);
+
+        // Speed subtitle
+        mPaintSubText.setTextSize(15f);
+        mPaintSubText.setColor(COLOR_AMBER);
+        canvas.drawText("Мбит/с (LTO Turbo)", 0, 82f, mPaintSubText);
     }
 }

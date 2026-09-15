@@ -1,276 +1,357 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0F1117"
-    android:fillViewport="true">
+    android:background="#0D0D10">
 
-    <LinearLayout
+    <!-- Ambient Floating Translucent Amber Circles -->
+    <com.aegs.titan.WaveCirclesBackgroundView
+        android:id="@+id/bg_wave_circles"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
+        android:layout_height="match_parent" />
 
-        <!-- App Header with Icon & Title & Guide Button -->
-        <RelativeLayout
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp">
+            android:orientation="vertical"
+            android:padding="20dp">
 
-            <LinearLayout
-                android:layout_width="wrap_content"
+            <!-- Top Header Bar -->
+            <RelativeLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <ImageView
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:src="@drawable/app_icon"
-                    android:layout_marginEnd="14dp" />
+                android:layout_marginBottom="14dp">
 
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
 
-                    <TextView
+                    <ImageView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:src="@drawable/app_icon"
+                        android:layout_marginEnd="12dp" />
+
+                    <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="AEGS VPN"
-                        android:textColor="#FFFFFF"
-                        android:textSize="22sp"
-                        android:textStyle="bold" />
+                        android:orientation="vertical">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="v6.0 Titan • RFC 9000 QUIC Stealth"
-                        android:textColor="#10B981"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="AEGS VPN"
+                                android:textColor="#FFFBEB"
+                                android:textSize="20sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="TITAN"
+                                android:textColor="#F59E0B"
+                                android:textSize="10sp"
+                                android:textStyle="bold"
+                                android:background="#1FF59E0B"
+                                android:paddingLeft="6dp"
+                                android:paddingRight="6dp"
+                                android:paddingTop="2dp"
+                                android:paddingBottom="2dp"
+                                android:layout_marginStart="8dp" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="v6.0 • RFC 9000 QUIC Stealth"
+                            android:textColor="#F59E0B"
+                            android:textSize="11.5sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
                 </LinearLayout>
-            </LinearLayout>
 
-            <Button
-                android:id="@+id/btn_guide"
-                android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:text="✨ Гид"
-                android:textColor="#94A3B8"
-                android:textSize="12sp"
-                android:background="#191D28" />
-        </RelativeLayout>
-
-        <!-- Status & Telemetry Card -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="#191D28"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp">
-
-            <RelativeLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <TextView
-                    android:id="@+id/tv_status"
+                <Button
+                    android:id="@+id/btn_guide"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="● Отключено"
-                    android:textColor="#EF4444"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tv_speed"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="36dp"
                     android:layout_alignParentEnd="true"
-                    android:text="Лимит: 940 Мбит/с"
-                    android:textColor="#10B981"
+                    android:layout_centerVertical="true"
+                    android:text="✨ Гид"
+                    android:textColor="#F59E0B"
                     android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    android:background="@drawable/card_obsidian" />
             </RelativeLayout>
 
+            <!-- Status Pill Badge -->
             <TextView
-                android:id="@+id/tv_ping"
+                android:id="@+id/tv_status"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Пинг: -- мс"
-                android:textColor="#94A3B8"
-                android:textSize="13sp"
-                android:layout_marginTop="6dp" />
-        </LinearLayout>
-
-        <!-- Split Tunneling Card -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="#191D28"
-            android:padding="14dp"
-            android:layout_marginBottom="16dp">
-
-            <CheckBox
-                android:id="@+id/cb_split"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Умный обход (Split-Tunneling)"
-                android:textColor="#10B981"
-                android:textSize="14sp"
+                android:layout_gravity="center_horizontal"
+                android:text="● Отключено • QUIC Stealth"
+                android:textColor="#F87171"
+                android:textSize="12.5sp"
                 android:textStyle="bold"
-                android:checked="true" />
+                android:background="#1C1917"
+                android:paddingLeft="16dp"
+                android:paddingRight="16dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
+                android:layout_marginBottom="16dp" />
 
-            <TextView
+            <!-- Big Circular Connect Button -->
+            <LinearLayout
+                android:id="@+id/btn_connect_circle"
+                android:layout_width="152dp"
+                android:layout_height="152dp"
+                android:layout_gravity="center_horizontal"
+                android:background="@drawable/btn_connect_circle"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:layout_marginBottom="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🛡️"
+                    android:textSize="26sp" />
+
+                <TextView
+                    android:id="@+id/tv_conn_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ПОДКЛЮЧИТЬ"
+                    android:textColor="#FFFBEB"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="4dp" />
+
+                <TextView
+                    android:id="@+id/tv_conn_sub"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Готов?"
+                    android:textColor="#F59E0B"
+                    android:textSize="11.5sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="2dp" />
+            </LinearLayout>
+
+            <!-- Telemetry Card -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Банки (Сбер, Т-Банк, ВТБ), Госуслуги, Ozon, WB работают напрямую без капчи и замедлений."
-                android:textColor="#94A3B8"
-                android:textSize="12sp"
-                android:layout_marginTop="2dp" />
-        </LinearLayout>
+                android:background="@drawable/card_obsidian"
+                android:orientation="vertical"
+                android:padding="14dp"
+                android:layout_marginBottom="12dp">
 
-        <!-- Connection Mode selector -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="РЕЖИМ ПОДКЛЮЧЕНИЯ"
-            android:textColor="#94A3B8"
-            android:textSize="12sp"
-            android:layout_marginBottom="8dp" />
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
 
-        <RadioGroup
-            android:id="@+id/rg_mode"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="16dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="ТЕЛЕМЕТРИЯ КАНАЛА"
+                        android:textColor="#A8A29E"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.05" />
 
-            <RadioButton
-                android:id="@+id/rb_service"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Кластер AEGS"
-                android:textColor="#FFFFFF"
-                android:checked="true" />
+                    <TextView
+                        android:id="@+id/tv_speed"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:text="LTO TURBO 940 Мбит/с"
+                        android:textColor="#F59E0B"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                </RelativeLayout>
 
-            <RadioButton
-                android:id="@+id/rb_custom"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Свой VPS"
-                android:textColor="#FFFFFF" />
-        </RadioGroup>
+                <TextView
+                    android:id="@+id/tv_ping"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Пинг до сервера: -- мс"
+                    android:textColor="#FFFBEB"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="6dp" />
+            </LinearLayout>
 
-        <!-- Custom VPS inputs -->
-        <LinearLayout
-            android:id="@+id/ll_custom_vps"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone"
-            android:layout_marginBottom="16dp">
-
-            <EditText
-                android:id="@+id/et_ip"
+            <!-- Split Tunneling Card -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="IP адрес VPS сервера"
-                android:textColor="#FFFFFF"
-                android:textColorHint="#64748B"
-                android:background="#191D28"
-                android:padding="12dp"
-                android:layout_marginBottom="8dp" />
+                android:background="@drawable/card_obsidian"
+                android:orientation="vertical"
+                android:padding="14dp"
+                android:layout_marginBottom="12dp">
 
-            <EditText
-                android:id="@+id/et_port"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="Порт (по умолчанию 50001)"
-                android:text="50001"
-                android:textColor="#FFFFFF"
-                android:textColorHint="#64748B"
-                android:background="#191D28"
-                android:padding="12dp"
-                android:inputType="number"
-                android:layout_marginBottom="8dp" />
+                <CheckBox
+                    android:id="@+id/cb_split"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Умный обход (Split-Tunneling)"
+                    android:textColor="#F59E0B"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:checked="true" />
 
-            <EditText
-                android:id="@+id/et_token"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="Секретный токен (Ключ)"
-                android:textColor="#FFFFFF"
-                android:textColorHint="#64748B"
-                android:background="#191D28"
-                android:padding="12dp" />
-        </LinearLayout>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Банки РФ (Сбер, Т-Банк, ВТБ, Альфа), Госуслуги, Ozon, WB работают напрямую без капчи."
+                    android:textColor="#A8A29E"
+                    android:textSize="12sp"
+                    android:layout_marginTop="2dp" />
+            </LinearLayout>
 
-        <!-- Connect Button -->
-        <Button
-            android:id="@+id/btn_connect"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:text="ПОДКЛЮЧИТЬСЯ"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:background="#2563EB"
-            android:layout_marginBottom="20dp" />
-
-        <!-- Protocol & Project Links Card -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="#191D28"
-            android:padding="14dp">
-
+            <!-- Mode Selector -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="ПРОЕКТ И РАЗРАБОТЧИКИ"
-                android:textColor="#94A3B8"
+                android:text="РЕЖИМ ПОДКЛЮЧЕНИЯ"
+                android:textColor="#A8A29E"
                 android:textSize="11sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="8dp" />
 
-            <Button
-                android:id="@+id/btn_github_core"
+            <RadioGroup
+                android:id="@+id/rg_mode"
                 android:layout_width="match_parent"
-                android:layout_height="38dp"
-                android:text="Ядро протокола: net-packet-handler"
-                android:textColor="#60A5FA"
-                android:textSize="12sp"
-                android:background="#232936"
-                android:layout_marginBottom="6dp" />
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="12dp">
 
-            <Button
-                android:id="@+id/btn_github_global"
-                android:layout_width="match_parent"
-                android:layout_height="38dp"
-                android:text="Кластер и инфраструктура: AEGS-Global-"
-                android:textColor="#60A5FA"
-                android:textSize="12sp"
-                android:background="#232936"
-                android:layout_marginBottom="6dp" />
+                <RadioButton
+                    android:id="@+id/rb_service"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Кластер AEGS"
+                    android:textColor="#FFFBEB"
+                    android:checked="true" />
 
-            <Button
-                android:id="@+id/btn_author"
+                <RadioButton
+                    android:id="@+id/rb_custom"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Свой VPS"
+                    android:textColor="#FFFBEB" />
+            </RadioGroup>
+
+            <!-- Custom VPS inputs -->
+            <LinearLayout
+                android:id="@+id/ll_custom_vps"
                 android:layout_width="match_parent"
-                android:layout_height="38dp"
-                android:text="Автор и разработчик: XDGOOD"
-                android:textColor="#34D399"
-                android:textSize="12sp"
-                android:background="#232936" />
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:layout_marginBottom="14dp">
+
+                <EditText
+                    android:id="@+id/et_ip"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="IP адрес VPS сервера"
+                    android:textColor="#FFFBEB"
+                    android:textColorHint="#71717A"
+                    android:background="@drawable/card_obsidian"
+                    android:padding="12dp"
+                    android:layout_marginBottom="8dp" />
+
+                <EditText
+                    android:id="@+id/et_port"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Порт (по умолчанию 50001)"
+                    android:text="50001"
+                    android:textColor="#FFFBEB"
+                    android:textColorHint="#71717A"
+                    android:background="@drawable/card_obsidian"
+                    android:padding="12dp"
+                    android:inputType="number"
+                    android:layout_marginBottom="8dp" />
+
+                <EditText
+                    android:id="@+id/et_token"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Секретный токен (Ключ)"
+                    android:textColor="#FFFBEB"
+                    android:textColorHint="#71717A"
+                    android:background="@drawable/card_obsidian"
+                    android:padding="12dp" />
+            </LinearLayout>
+
+            <!-- Project & Authors Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/card_obsidian"
+                android:orientation="vertical"
+                android:padding="14dp"
+                android:layout_marginTop="4dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ПРОЕКТ И РАЗРАБОТЧИКИ"
+                    android:textColor="#F59E0B"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <Button
+                    android:id="@+id/btn_github_core"
+                    android:layout_width="match_parent"
+                    android:layout_height="38dp"
+                    android:text="Ядро протокола: net-packet-handler"
+                    android:textColor="#FFFBEB"
+                    android:textSize="12sp"
+                    android:background="#241E1C"
+                    android:layout_marginBottom="6dp" />
+
+                <Button
+                    android:id="@+id/btn_github_global"
+                    android:layout_width="match_parent"
+                    android:layout_height="38dp"
+                    android:text="Кластер и инфраструктура: AEGS-Global-"
+                    android:textColor="#FFFBEB"
+                    android:textSize="12sp"
+                    android:background="#241E1C"
+                    android:layout_marginBottom="6dp" />
+
+                <Button
+                    android:id="@+id/btn_author"
+                    android:layout_width="match_parent"
+                    android:layout_height="38dp"
+                    android:text="Автор и разработчик: XDGOOD"
+                    android:textColor="#F59E0B"
+                    android:textSize="12sp"
+                    android:background="#241E1C" />
+            </LinearLayout>
+
         </LinearLayout>
-
-    </LinearLayout>
-</ScrollView>
+    </ScrollView>
+</FrameLayout>
