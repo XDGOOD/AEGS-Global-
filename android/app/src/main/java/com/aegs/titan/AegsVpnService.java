@@ -5,6 +5,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.VpnService;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
@@ -27,9 +28,22 @@ public class AegsVpnService extends VpnService implements Runnable {
     private ParcelFileDescriptor mInterface;
     private volatile boolean mRunning = false;
 
-    private String mServerIp = "185.196.220.14";
+    private String mServerIp = "185.196.8.10";
     private int mServerPort = 50001;
     private String mToken = "default";
+    private boolean mSplitTunnel = true;
+
+    private static final String[] BYPASS_PACKAGES = {
+            "ru.sberbankmobile",
+            "com.idamob.tinkoff.android",
+            "ru.vtb24.mobilebanking",
+            "ru.alfabank.mobile.android",
+            "ru.gosuslugi.net",
+            "ru.yandex.searchplugin",
+            "com.vkontakte.android",
+            "ru.ozon.app.android",
+            "com.wildberries.ru"
+    };
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -42,10 +56,11 @@ public class AegsVpnService extends VpnService implements Runnable {
             mServerIp = intent.getStringExtra("SERVER_IP");
             mServerPort = intent.getIntExtra("SERVER_PORT", 50001);
             mToken = intent.getStringExtra("TOKEN");
+            mSplitTunnel = intent.getBooleanExtra("SPLIT_TUNNEL", true);
         }
 
         createNotificationChannel();
-        Notification notif = buildNotification("Подключено • RFC 9000 QUIC Stealth");
+        Notification notif = buildNotification(mSplitTunnel ? "Защищено • Умный обход (Банки напрямую)" : "Защищено • Весь трафик");
         startForeground(NOTIF_ID, notif);
 
         if (mThread == null || !mThread.isAlive()) {
@@ -76,7 +91,7 @@ public class AegsVpnService extends VpnService implements Runnable {
         Intent intent = new Intent(this, MainActivity.class);
         PendingIntent pi = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("AEGS Titan v6.0")
+                .setContentTitle("AEGS Titan v6.5")
                 .setContentText(text)
                 .setSmallIcon(android.R.drawable.ic_lock_lock)
                 .setContentIntent(pi)
@@ -94,6 +109,17 @@ public class AegsVpnService extends VpnService implements Runnable {
             builder.addDnsServer("8.8.8.8");
             builder.addRoute("0.0.0.0", 0);
             builder.setMtu(1400);
+
+            // Apply Split Tunneling exclusions
+            if (mSplitTunnel && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                PackageManager pm = getPackageManager();
+                for (String pkg : BYPASS_PACKAGES) {
+                    try {
+                        pm.getPackageInfo(pkg, 0);
+                        builder.addDisallowedApplication(pkg);
+                    } catch (PackageManager.NameNotFoundException ignored) {}
+                }
+            }
 
             mInterface = builder.establish();
             if (mInterface == null) {

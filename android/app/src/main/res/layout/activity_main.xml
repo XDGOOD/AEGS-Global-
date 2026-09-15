@@ -23,10 +23,10 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="v6.0 • RFC 9000 QUIC Stealth"
+            android:text="v6.5 • RFC 9000 QUIC Stealth"
             android:textColor="#00D26A"
             android:textSize="12sp"
-            android:layout_marginBottom="24dp" />
+            android:layout_marginBottom="20dp" />
 
         <!-- Status Card -->
         <LinearLayout
@@ -35,7 +35,7 @@
             android:orientation="vertical"
             android:background="#1A1F2C"
             android:padding="16dp"
-            android:layout_marginBottom="20dp">
+            android:layout_marginBottom="16dp">
 
             <TextView
                 android:id="@+id/tv_status"
@@ -54,6 +54,34 @@
                 android:textColor="#8E99B0"
                 android:textSize="13sp"
                 android:layout_marginTop="4dp" />
+        </LinearLayout>
+
+        <!-- Split Tunneling Card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#1A1F2C"
+            android:padding="14dp"
+            android:layout_marginBottom="16dp">
+
+            <CheckBox
+                android:id="@+id/cb_split"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Умный обход (Split-Tunneling)"
+                android:textColor="#00D26A"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:checked="true" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Банки (Сбер, Т-Банк, ВТБ), Госуслуги и российские сервисы работают напрямую без капчи."
+                android:textColor="#8E99B0"
+                android:textSize="12sp"
+                android:layout_marginTop="2dp" />
         </LinearLayout>
 
         <!-- Mode selector -->

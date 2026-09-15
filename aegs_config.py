@@ -7,6 +7,7 @@ Supports:
 1. "Our Service" (Official AEGS High-Speed Stealth Network)
 2. "Custom VPS / Servers" (User-provided VPS endpoints)
 3. Cross-platform export: Windows, Linux, Android, iOS (aegs:// URI & WG-compatible configs)
+4. Split-Tunneling & Domestic Service Bypass (Banks, Gosuslugi, Local Services)
 """
 
 import os
@@ -18,6 +19,12 @@ from typing import List, Optional, Dict, Any
 
 DEFAULT_CONFIG_PATH = os.path.expanduser(r"~/.aegs_profiles.json")
 
+DEFAULT_BYPASS_DOMAINS = [
+    "sberbank.ru", "sber.ru", "tbank.ru", "tinkoff.ru", "vtb.ru",
+    "gosuslugi.ru", "ya.ru", "yandex.ru", "vk.com", "kinopoisk.ru",
+    "ozon.ru", "wildberries.ru", "avito.ru", "nalog.gov.ru", "mos.ru"
+]
+
 @dataclass
 class AegsProfile:
     name: str
@@ -27,10 +34,12 @@ class AegsProfile:
     token: str = "default_token_aegs_v6"
     key_id: str = "aegs_client_01"
     mimicry: bool = True               # RFC 9000 QUIC Camouflage
+    split_tunnel: bool = True          # Smart Split-Tunneling for local services
     mode: str = "service"              # "service" (Our Cloud) or "custom" (User VPS)
     is_active: bool = False
     assigned_ip: str = "10.8.0.2"
     dns: str = "1.1.1.1, 8.8.8.8"
+    bypass_domains: str = ", ".join(DEFAULT_BYPASS_DOMAINS)
     notes: str = ""
 
     def to_uri(self) -> str:
@@ -44,6 +53,7 @@ class AegsProfile:
             "t": self.token,
             "k": self.key_id,
             "m": 1 if self.mimicry else 0,
+            "st": 1 if self.split_tunnel else 0,
             "dns": self.dns
         }
         encoded = base64.urlsafe_b64encode(json.dumps(data).encode("utf-8")).decode("ascii").rstrip("=")
@@ -55,7 +65,6 @@ class AegsProfile:
         if not uri.startswith("aegs://"):
             raise ValueError("Invalid AEGS URI format (must start with aegs://)")
         raw = uri[7:]
-        # Fix padding
         padded = raw + "=" * (-len(raw) % 4)
         data = json.loads(base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8"))
         return cls(
@@ -66,6 +75,7 @@ class AegsProfile:
             token=data.get("t", ""),
             key_id=data.get("k", ""),
             mimicry=bool(data.get("m", 1)),
+            split_tunnel=bool(data.get("st", 1)),
             mode="custom"
         )
 
@@ -78,6 +88,8 @@ Name = {self.name}
 AssignedIP = {self.assigned_ip}/24
 DNS = {self.dns}
 Mimicry = {"RFC9000_QUIC_INITIAL" if self.mimicry else "OFF"}
+SplitTunneling = {"ENABLED" if self.split_tunnel else "DISABLED"}
+BypassList = {self.bypass_domains}
 
 [Server]
 Endpoint = {self.server_ip}:{self.port}
@@ -103,7 +115,7 @@ class ProfileStorage:
                     return
             except Exception:
                 pass
-        # Default starter profiles: Our Service + Template for Custom VPS
+        # Default starter profiles
         self.profiles = [
             AegsProfile(
                 name="AEGS Cloud — Быстрый сервер (Анти-Блокировка)",
@@ -113,6 +125,7 @@ class ProfileStorage:
                 token="aegs_secure_token_titan_v6",
                 key_id="user_key_01",
                 mimicry=True,
+                split_tunnel=True,
                 mode="service",
                 is_active=True,
                 notes="Официальный высокоскоростной сервер AEGS с обходом ТСПУ/DPI"
@@ -125,6 +138,7 @@ class ProfileStorage:
                 token="my_vps_secret_token",
                 key_id="my_vps_key",
                 mimicry=True,
+                split_tunnel=True,
                 mode="custom",
                 is_active=False,
                 notes="Пользовательский сервер (введите IP и токен своего VPS)"

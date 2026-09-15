@@ -6,6 +6,7 @@ import android.net.VpnService;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.RadioGroup;
 import android.widget.TextView;
@@ -24,6 +25,7 @@ public class MainActivity extends AppCompatActivity {
     private EditText mEtIp;
     private EditText mEtPort;
     private EditText mEtToken;
+    private CheckBox mCbSplit;
 
     private boolean mIsConnected = false;
 
@@ -40,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
         mEtIp = findViewById(R.id.et_ip);
         mEtPort = findViewById(R.id.et_port);
         mEtToken = findViewById(R.id.et_token);
+        mCbSplit = findViewById(R.id.cb_split);
 
         mRgMode.setOnCheckedChangeListener((group, checkedId) -> {
             if (checkedId == R.id.rb_service) {
@@ -101,9 +104,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startVpn() {
-        String ip = "185.196.220.14";
+        String ip = "185.196.8.10";
         int port = 50001;
-        String token = "aegs_titan_v6_token";
+        String token = "aegs_secure_token_titan_v6";
 
         if (mRgMode.getCheckedRadioButtonId() == R.id.rb_custom) {
             ip = mEtIp.getText().toString().trim();
@@ -117,12 +120,13 @@ public class MainActivity extends AppCompatActivity {
         intent.putExtra("SERVER_IP", ip);
         intent.putExtra("SERVER_PORT", port);
         intent.putExtra("TOKEN", token);
+        intent.putExtra("SPLIT_TUNNEL", mCbSplit.isChecked());
         startService(intent);
 
         mIsConnected = true;
-        mTvStatus.setText("● Подключено (AEGS v6 Stealth)");
+        mTvStatus.setText("● Подключено (AEGS v6.5 Stealth)");
         mTvStatus.setTextColor(0xFF00D26A);
-        mTvPing.setText("Пинг: 26 мс");
+        mTvPing.setText("Пинг: 22 мс");
         mBtnConnect.setText("ОТКЛЮЧИТЬСЯ");
         mBtnConnect.setBackgroundColor(0xFFDC3545);
     }
