@@ -9,11 +9,13 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 
 import java.util.Random;
 
@@ -29,9 +31,11 @@ public class MainActivity extends AppCompatActivity {
     private TextView mTvStatus;
     private TextView mTvPing;
     private TextView mTvSpeed;
+    private TextView mTvProtoBadge;
     private View mBtnConnectCircle;
     private TextView mTvConnLabel;
     private TextView mTvConnSub;
+    private ImageView mBtnSettings;
 
     private RadioGroup mRgMode;
     private View mLlCustomVps;
@@ -45,14 +49,17 @@ public class MainActivity extends AppCompatActivity {
     private Button mBtnAuthor;
 
     private boolean mIsConnected = false;
+    private SharedPreferences mPrefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
         super.onCreate(savedInstanceState);
 
+        mPrefs = getSharedPreferences("aegs_prefs", MODE_PRIVATE);
+
         // Check if onboarding is needed
-        SharedPreferences prefs = getSharedPreferences("aegs_prefs", MODE_PRIVATE);
-        if (!prefs.getBoolean("onboarding_done", false)) {
+        if (!mPrefs.getBoolean("onboarding_done", false)) {
             startActivity(new Intent(this, OnboardingActivity.class));
             finish();
             return;
@@ -63,9 +70,11 @@ public class MainActivity extends AppCompatActivity {
         mTvStatus = findViewById(R.id.tv_status);
         mTvPing = findViewById(R.id.tv_ping);
         mTvSpeed = findViewById(R.id.tv_speed);
+        mTvProtoBadge = findViewById(R.id.tv_proto_badge);
         mBtnConnectCircle = findViewById(R.id.btn_connect_circle);
         mTvConnLabel = findViewById(R.id.tv_conn_label);
         mTvConnSub = findViewById(R.id.tv_conn_sub);
+        mBtnSettings = findViewById(R.id.btn_settings);
 
         mRgMode = findViewById(R.id.rg_mode);
         mLlCustomVps = findViewById(R.id.ll_custom_vps);
@@ -79,11 +88,11 @@ public class MainActivity extends AppCompatActivity {
         mBtnGithubGlobal = findViewById(R.id.btn_github_global);
         mBtnAuthor = findViewById(R.id.btn_author);
 
-        // Pick random initial phrase
         pickRandomPhrase();
+        updateProtoBadge();
 
         // Check if user chose VPS in onboarding
-        if (prefs.getBoolean("mode_vps", false)) {
+        if (mPrefs.getBoolean("mode_vps", false)) {
             mRgMode.check(R.id.rb_custom);
             mLlCustomVps.setVisibility(View.VISIBLE);
         }
@@ -91,6 +100,12 @@ public class MainActivity extends AppCompatActivity {
         if (mBtnGuide != null) {
             mBtnGuide.setOnClickListener(v -> {
                 startActivity(new Intent(this, OnboardingActivity.class));
+            });
+        }
+
+        if (mBtnSettings != null) {
+            mBtnSettings.setOnClickListener(v -> {
+                startActivity(new Intent(this, SettingsActivity.class));
             });
         }
 
@@ -114,8 +129,33 @@ public class MainActivity extends AppCompatActivity {
 
         mBtnConnectCircle.setOnClickListener(v -> toggleConnection());
 
-        // Handle aegs:// deep-link
         handleIncomingIntent(getIntent());
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateProtoBadge();
+    }
+
+    private void updateProtoBadge() {
+        if (mTvProtoBadge == null) return;
+        int mode = mPrefs.getInt(SettingsActivity.KEY_PROTOCOL_MODE, 0);
+        switch (mode) {
+            case SettingsActivity.PROTO_FAST_RESUME:
+                mTvProtoBadge.setText("v6.0 • Fast 0-RTT Resumption");
+                break;
+            case SettingsActivity.PROTO_ILLUSION:
+                mTvProtoBadge.setText("v6.0 • Illusion STUN (RFC 5389)");
+                break;
+            case SettingsActivity.PROTO_TCP_FALLBACK:
+                mTvProtoBadge.setText("v6.0 • TCP/TLS 1.3 Fallback");
+                break;
+            case SettingsActivity.PROTO_STEALTH_QUIC:
+            default:
+                mTvProtoBadge.setText("v6.0 • RFC 9000 QUIC Stealth");
+                break;
+        }
     }
 
     private void pickRandomPhrase() {
@@ -183,7 +223,9 @@ public class MainActivity extends AppCompatActivity {
         String ip = "185.196.8.10";
         int port = 50001;
         String token = "client_default_token";
-        boolean split = mCbSplit.isChecked();
+        boolean split = mCbSplit != null && mCbSplit.isChecked();
+        int proto = mPrefs.getInt(SettingsActivity.KEY_PROTOCOL_MODE, 0);
+        boolean chaff = mPrefs.getBoolean(SettingsActivity.KEY_ADAPTIVE_CHAFF, true);
 
         if (mRgMode.getCheckedRadioButtonId() == R.id.rb_custom) {
             String ipInput = mEtIp.getText().toString().trim();
@@ -204,6 +246,8 @@ public class MainActivity extends AppCompatActivity {
         intent.putExtra("SERVER_PORT", port);
         intent.putExtra("TOKEN", token);
         intent.putExtra("SPLIT_TUNNEL", split);
+        intent.putExtra("PROTOCOL_MODE", proto);
+        intent.putExtra("ADAPTIVE_CHAFF", chaff);
 
         startService(intent);
 

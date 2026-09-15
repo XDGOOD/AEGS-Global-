@@ -481,14 +481,19 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
 
             auto cur_r = s->get_routing();
             uint32_t assigned = (cur_r && cur_r->assigned_ip) ? cur_r->assigned_ip : resumed_ip;
+            uint64_t new_ep = make_endpoint_key(ip_num, caddr.sin_port);
+            uint64_t old_ep = (cur_r && cur_r->has_client)
+                ? make_endpoint_key(ntohl(cur_r->client_addr.sin_addr.s_addr), cur_r->client_addr.sin_port)
+                : 0;
             SessionRouting sr;
             sr.client_addr = caddr;
             sr.has_client = true;
             sr.last_server_fd = fd;
             sr.assigned_ip = assigned;
+            sr.uses_mimicry = is_mimicked;
             s->set_routing(sr);
 
-            update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s.get());
+            g_sessions.migrate_endpoint(old_ep, new_ep, s.get());
             if (assigned) {
                 g_sessions.map_ip(assigned, s.get());
             }
@@ -564,14 +569,19 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
 
             auto cur_r = s->get_routing();
             uint32_t assigned = (cur_r && cur_r->assigned_ip) ? cur_r->assigned_ip : resumed_ip;
+            uint64_t new_ep = make_endpoint_key(ip_num, caddr.sin_port);
+            uint64_t old_ep = (cur_r && cur_r->has_client)
+                ? make_endpoint_key(ntohl(cur_r->client_addr.sin_addr.s_addr), cur_r->client_addr.sin_port)
+                : 0;
             SessionRouting sr;
             sr.client_addr = caddr;
             sr.has_client = true;
             sr.last_server_fd = fd;
             sr.assigned_ip = assigned;
+            sr.uses_mimicry = is_mimicked;
             s->set_routing(sr);
 
-            update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s.get());
+            g_sessions.migrate_endpoint(old_ep, new_ep, s.get());
             if (assigned) {
                 g_sessions.map_ip(assigned, s.get());
             }
@@ -640,6 +650,11 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 sc.v3_handshake_done = true;
                 s->set_crypto(sc);
 
+                uint64_t new_ep = make_endpoint_key(ip_num, caddr.sin_port);
+                auto cur_r = s->get_routing();
+                uint64_t old_ep = (cur_r && cur_r->has_client)
+                    ? make_endpoint_key(ntohl(cur_r->client_addr.sin_addr.s_addr), cur_r->client_addr.sin_port)
+                    : 0;
                 SessionRouting nr;
                 nr.assigned_ip = new_ip;
                 nr.client_addr = caddr;
@@ -649,7 +664,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 s->set_routing(nr);
 
                 // Register in O(1) fast-path cache
-                update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s.get());
+                g_sessions.migrate_endpoint(old_ep, new_ep, s.get());
                 metrics.handshake_ok.fetch_add(1, std::memory_order_relaxed);
                 sendto(fd, resp.data(), resp.size(), 0, (struct sockaddr*)&caddr, sizeof(caddr));
                 AegsLog::info("[HS] Client ", inet_ntoa(caddr.sin_addr), " assigned ", IpPool::to_string(new_ip));
@@ -707,10 +722,6 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 }
                 return false;
             });
-            if (matched_sess) {
-                metrics.roaming_hits.fetch_add(1, std::memory_order_relaxed);
-                update_endpoint_cache(ep_key, matched_sess.get());
-            }
         }
 
         if (!matched_sess || !matched_crypto) { record_fail(fd, caddr, pkt_data, (size_t)len, ip_num, now, 1.0); return; }
@@ -753,20 +764,21 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
         }
         metrics.decrypt_ok.fetch_add(1, std::memory_order_relaxed);
 
-        // Authentication passed! Securely update roaming endpoint & cache via lock-free RCU.
+        // Authentication passed! Securely update roaming endpoint & cache via atomic RCU migration.
         // Generation check (Problem #4 fix): ensure session hasn't resumed or rotated while packet was in flight.
         if (s.is_valid()) {
             auto cur_r = s->get_routing();
-            if (!cur_r || !cur_r->has_client ||
+            bool addr_changed = (!cur_r || !cur_r->has_client ||
                 cur_r->client_addr.sin_addr.s_addr != caddr.sin_addr.s_addr ||
                 cur_r->client_addr.sin_port != caddr.sin_port ||
-                cur_r->last_server_fd != fd) {
-                SessionRouting nr = cur_r ? *cur_r : SessionRouting{};
-                nr.client_addr = caddr;
-                nr.has_client = true;
-                nr.last_server_fd = fd;
-                nr.uses_mimicry = is_mimicked;
-                s->set_routing(nr);
+                cur_r->last_server_fd != fd ||
+                cur_r->uses_mimicry != is_mimicked);
+            if (addr_changed) {
+                uint64_t old_ep = (cur_r && cur_r->has_client)
+                    ? make_endpoint_key(ntohl(cur_r->client_addr.sin_addr.s_addr), cur_r->client_addr.sin_port)
+                    : 0;
+                g_sessions.migrate_session_endpoint(s.get(), old_ep, ep_key, caddr, fd, is_mimicked);
+                metrics.roaming_hits.fetch_add(1, std::memory_order_relaxed);
             }
             s->counters.last_activity.store(now, std::memory_order_relaxed);
         }

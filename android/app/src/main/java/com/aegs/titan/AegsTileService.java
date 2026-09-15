@@ -1,7 +1,7 @@
 package com.aegs.titan;
 
 import android.content.Intent;
-import android.graphics.drawable.Icon;
+import android.content.SharedPreferences;
 import android.net.VpnService;
 import android.os.Build;
 import android.service.quicksettings.Tile;
@@ -35,10 +35,19 @@ public class AegsTileService extends TileService {
                 appIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivityAndCollapse(appIntent);
             } else {
+                SharedPreferences prefs = getSharedPreferences("aegs_prefs", MODE_PRIVATE);
+                String host = prefs.getString("server_ip", "185.196.8.10");
+                int port = prefs.getInt("server_port", 50001);
+                String token = prefs.getString("token", "aegs_secure_token_titan_v6");
+                int proto = prefs.getInt("protocol_mode", 0);
+                boolean chaff = prefs.getBoolean("adaptive_chaff", true);
+
                 Intent intent = new Intent(this, AegsVpnService.class);
-                intent.putExtra("SERVER_IP", "185.196.8.10");
-                intent.putExtra("SERVER_PORT", 50001);
-                intent.putExtra("TOKEN", "aegs_secure_token_titan_v6");
+                intent.putExtra("SERVER_IP", host);
+                intent.putExtra("SERVER_PORT", port);
+                intent.putExtra("TOKEN", token);
+                intent.putExtra("PROTOCOL_MODE", proto);
+                intent.putExtra("ADAPTIVE_CHAFF", chaff);
                 startService(intent);
                 sIsConnected = true;
                 updateTile();
@@ -56,7 +65,7 @@ public class AegsTileService extends TileService {
         Tile tile = getQsTile();
         if (tile != null) {
             tile.setState(sIsConnected ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
-            tile.setLabel(sIsConnected ? "AEGS: Вкл" : "AEGS VPN");
+            tile.setLabel(sIsConnected ? "AEGS: ON" : "AEGS VPN");
             tile.updateTile();
         }
     }

@@ -415,6 +415,10 @@ class AegsServer:
                 print(f" {Colors.RED}[{self.get_time_str()}][TAMPER_DROP] Ошибка Poly1305 AAD: пакет поврежден/подделан на проводе от {addr[0]}!{Colors.RESET}")
                 return
 
+            # Roaming & Session Migration: update client address upon authenticated packet
+            if self.client_addr != addr:
+                self.client_addr = addr
+
             if is_chaff:
                 print(f" {Colors.DIM}[{self.get_time_str()}][CHAFF] Принят фоновый шум от {addr[0]} ({len(data)} B){Colors.RESET}")
                 return

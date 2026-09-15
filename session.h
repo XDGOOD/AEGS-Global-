@@ -136,6 +136,22 @@ struct Session {
         return r ? r->has_client : false;
     }
 
+    struct sockaddr_in client_addr() const noexcept {
+        auto r = get_routing();
+        return r ? r->client_addr : sockaddr_in{};
+    }
+
+    void update_client_endpoint(const struct sockaddr_in& caddr, int fd, bool mimicry) {
+        std::lock_guard<std::mutex> lk(routing_mu_);
+        auto cur = routing_snap_;
+        auto next = cur ? std::make_shared<SessionRouting>(*cur) : std::make_shared<SessionRouting>();
+        next->client_addr = caddr;
+        next->has_client = true;
+        next->last_server_fd = fd;
+        next->uses_mimicry = mimicry;
+        std::atomic_store(&routing_snap_, std::shared_ptr<const SessionRouting>(next));
+    }
+
     bool enter_reader() noexcept {
         if (is_recycling_.load(std::memory_order_acquire)) {
             return false;

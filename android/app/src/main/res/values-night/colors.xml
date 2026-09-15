@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Obsidian Palette (Night / Dark) -->
+    <color name="obsidian_bg">#090A0D</color>
+    <color name="obsidian_surface">#12141B</color>
+    <color name="obsidian_surface_elevated">#191C25</color>
+    <color name="obsidian_surface_glass">#D912141B</color>
+    <color name="obsidian_card_stroke">#252936</color>
+    <color name="obsidian_border">#303545</color>
+
+    <!-- Amber Palette -->
+    <color name="amber_primary">#FFB300</color>
+    <color name="amber_dark">#FF8F00</color>
+    <color name="amber_light">#FFE082</color>
+    <color name="amber_accent">#FFA000</color>
+    <color name="amber_glow">#33FFB300</color>
+    <color name="amber_glow_strong">#55FFB300</color>
+    <color name="amber_ripple">#4DFFB300</color>
+
+    <!-- Text & Content -->
+    <color name="text_primary">#F5F6F9</color>
+    <color name="text_secondary">#9CA4B3</color>
+    <color name="text_tertiary">#666E7F</color>
+    <color name="text_on_amber">#090A0D</color>
+
+    <!-- Status -->
+    <color name="status_connected">#00E676</color>
+    <color name="status_connected_glow">#3300E676</color>
+    <color name="status_connecting">#FFB300</color>
+    <color name="status_disconnected">#FF5252</color>
+    <color name="status_disconnected_glow">#33FF5252</color>
+
+    <!-- Translucent Elements -->
+    <color name="icon_translucent">#B3FFFFFF</color>
+    <color name="card_glass_tint">#26FFB300</color>
+</resources>

@@ -1,11 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Base Application Theme with System Day/Night Adaptation -->
     <style name="Theme.AEGS" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Primary Amber Brand Color -->
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryVariant">@color/primary_dark</item>
         <item name="colorOnPrimary">@color/btn_text</item>
+
+        <!-- Secondary Accent -->
         <item name="colorSecondary">@color/secondary</item>
+        <item name="colorSecondaryVariant">@color/primary_dark</item>
+        <item name="colorOnSecondary">@color/btn_text</item>
+
+        <!-- System UI Bar Colors -->
         <item name="android:statusBarColor">@color/bg_main</item>
         <item name="android:navigationBarColor">@color/bg_main</item>
         <item name="android:windowBackground">@color/bg_main</item>
+
+        <!-- Rounded Corner Defaults -->
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.RoundedSmall</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.RoundedMedium</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.RoundedLarge</item>
+    </style>
+
+    <style name="ShapeAppearance.RoundedSmall" parent="ShapeAppearance.MaterialComponents.SmallComponent">
+        <item name="cornerSize">12dp</item>
+    </style>
+    <style name="ShapeAppearance.RoundedMedium" parent="ShapeAppearance.MaterialComponents.MediumComponent">
+        <item name="cornerSize">20dp</item>
+    </style>
+    <style name="ShapeAppearance.RoundedLarge" parent="ShapeAppearance.MaterialComponents.LargeComponent">
+        <item name="cornerSize">28dp</item>
     </style>
 </resources>

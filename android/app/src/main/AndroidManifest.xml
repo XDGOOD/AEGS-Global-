@@ -35,6 +35,12 @@
             android:exported="false"
             android:screenOrientation="portrait" />
 
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:label="Настройки"
+            android:parentActivityName=".MainActivity" />
+
         <service
             android:name=".AegsVpnService"
             android:permission="android.permission.BIND_VPN_SERVICE"
