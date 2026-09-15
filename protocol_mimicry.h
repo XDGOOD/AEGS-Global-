@@ -1,6 +1,6 @@
 #pragma once
 // ==============================================================================
-// AEGS v4 "Pantheon" -- Protocol Mimicry (Component 3: DPI bypass)
+// AEGS v6 "Titan" -- Protocol Mimicry (Component 3: DPI bypass)
 // ==============================================================================
 // Wraps outbound UDP packets with a dynamic QUIC Initial or Version Negotiation
 // header so that stateless DPI engines classify the flow as benign QUIC traffic.

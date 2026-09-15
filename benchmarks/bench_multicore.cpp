@@ -1,5 +1,5 @@
 // ==============================================================================
-// AEGS v5 "Pantheon" Global Edition -- Multicore Scaling & Capacity Benchmark
+// AEGS v6 "Titan" Global Edition -- Multicore Scaling & Capacity Benchmark
 // Evaluates worker thread scaling (1, 2, 4, 8 workers) and session table scaling
 // (1k, 10k, 50k, 100k sessions) with latency percentiles and contention metrics.
 // ==============================================================================

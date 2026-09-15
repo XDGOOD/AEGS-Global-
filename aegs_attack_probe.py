@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ==============================================================================
-AEGS v4 "Pantheon" -- Live Connection Attack & Resilience Tester
+AEGS v6 "Titan" -- Live Connection Attack & Resilience Tester
 ==============================================================================
 Launches active security attacks against a LIVE running AEGS v4 server/connection
 to verify that every defense mechanism works in real network conditions:
@@ -296,7 +296,7 @@ class LiveAttackTester:
         print("=" * 78 + f"{Colors.RESET}\n")
 
 def main():
-    parser = argparse.ArgumentParser(description="AEGS v4 Pantheon - Live Connection Attack Tester")
+    parser = argparse.ArgumentParser(description="AEGS v6 Titan - Live Connection Attack Tester")
     parser.add_argument("--host", default="45.152.193.211", help="IP адрес целевого сервера")
     parser.add_argument("--port", type=int, default=50001, help="Базовый UDP порт сервера")
     parser.add_argument("--token", default="aegs-super-secret-user-token-for-auditing-2026", help="Секретный токен пользователя")

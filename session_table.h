@@ -1,6 +1,6 @@
 #pragma once
 // ==============================================================================
-// AEGS v5 "Pantheon" Global Edition -- 64-Shard Partitioned Session Table
+// AEGS v6 "Titan" Global Edition -- 64-Shard Partitioned Session Table
 // Features:
 // 1. 64 independent shards for KeyID and Endpoint lookups
 // 2. Lock-free Copy-On-Write (COW/RCU) Route Table for TUN /32 IP lookups

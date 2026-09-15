@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ==============================================================================
-# AEGS v5 "Pantheon" Global Edition -- Long-Term Soak Test Runner (Stage 27)
+# AEGS v6 "Titan" Global Edition -- Long-Term Soak Test Runner (Stage 27)
 # Tests sustained 1,000+ session stability, roaming, re-keys, disconnects,
 # memory RSS drift, and packet loss over 1h - 72h continuous execution.
 # ==============================================================================

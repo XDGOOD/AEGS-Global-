@@ -78,7 +78,7 @@ def banner():
   / /| | / __/  / / _ / / / /| | / / /_/ / __ `/ __ \/ __/ __ \/ _ \/ __ \/ __ \
  / ___ |/ /___ / /_/ // /_/ / | |/ / ____/ /_/ / / / / /_/ / / /  __/ /_/ / / / /
 /_/  |_/_____/ \____(_)____/  |___/_/    \__,_/_/ /_/\__/_/ /_/\___/\____/_/ /_/ 
-    AEGS v4 "Pantheon" — Zero-DPI Anti-ML Obfuscated UDP Tunnel (127.0.0.1:51821)
+    AEGS v6 "Titan" — Zero-DPI Anti-ML Obfuscated UDP Tunnel (127.0.0.1:51821)
 """)
     print(f"{Colors.RESET}")
 
@@ -425,7 +425,7 @@ def run_python_proxy(server_host: str, token: str, local_port: int = DEFAULT_LOC
     sock.bind(("127.0.0.1", local_port))
     sock.setblocking(False)
 
-    print(f"{Colors.GREEN}[OK] Python AEGS v4 Pantheon Proxy Active on 127.0.0.1:{local_port}{Colors.RESET}")
+    print(f"{Colors.GREEN}[OK] Python AEGS v6 Titan Proxy Active on 127.0.0.1:{local_port}{Colors.RESET}")
     print(f"     - Remote Server: {server_host} ({server_ip}:{DEFAULT_SERVER_PORT})")
     print(f"     - Key ID:        {kid_hex}")
     print(f"     - WireGuard:     Set Endpoint = 127.0.0.1:{local_port}")

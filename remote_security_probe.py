@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ==============================================================================
-AEGS v4 "Pantheon" -- Remote Security & Connectivity Probe Tool
+AEGS v6 "Titan" -- Remote Security & Connectivity Probe Tool
 ==============================================================================
 Designed for a SEPARATE COMPUTER WITHOUT LOCAL NETWORK (e.g. over 4G/WAN/Internet).
 Connects to the AEGS server running on this laptop/server via public IP/hostname.
@@ -120,7 +120,7 @@ class RemoteSecurityProbe:
     def run_audit(self):
         print(f"{Colors.CYAN}{Colors.BOLD}")
         print("=" * 78)
-        print(f" AEGS v4 'Pantheon' -- Remote Security & Probe Auditor (WAN / Internet)")
+        print(f" AEGS v6 'Titan' -- Remote Security & Probe Auditor (WAN / Internet)")
         print(f" Target Endpoint: {self.host}:{self.port}")
         print(f" User KeyID:      {self.kid_hex}")
         print("=" * 78 + f"{Colors.RESET}\n")
@@ -393,7 +393,7 @@ class RemoteSecurityProbe:
     def run_server(self):
         print(f"{Colors.CYAN}{Colors.BOLD}")
         print("=" * 78)
-        print(" AEGS v4 'Pantheon' -- Security Probe Server Listener")
+        print(" AEGS v6 'Titan' -- Security Probe Server Listener")
         print(f" Listening on: 0.0.0.0:{self.port} (UDP)")
         print(f" User KeyID:   {self.kid_hex}")
         print(" Waiting for incoming probe & attack verification packets from remote PC...")
@@ -526,7 +526,7 @@ class RemoteSecurityProbe:
         print(f"{Colors.GREEN}✓ Дистанционный лог сохранен в файл: {report_file}{Colors.RESET}\n")
 
 def main():
-    parser = argparse.ArgumentParser(description="AEGS v4 Pantheon - Remote Security & Probe Tool")
+    parser = argparse.ArgumentParser(description="AEGS v6 Titan - Remote Security & Probe Tool")
     parser.add_argument("--host", default="0.0.0.0", help="IP адрес сервера (для клиента - адрес ноутбука, для сервера - 0.0.0.0)")
     parser.add_argument("--port", type=int, default=50001, help="Базовый UDP порт сервера (по умолчанию: 50001)")
     parser.add_argument("--token", default="aegs-super-secret-user-token-for-auditing-2026", help="Секретный токен пользователя AEGS")

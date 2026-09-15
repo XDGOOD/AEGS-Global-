@@ -1,6 +1,6 @@
 #pragma once
 // ==============================================================================
-// AEGS v5 "Pantheon" Global Edition -- Safe Direct Process Execution Helper
+// AEGS v6 "Titan" Global Edition -- Safe Direct Process Execution Helper
 // Eliminates std::system() and subshell (/bin/sh -c) invocation in privileged code
 // ==============================================================================
 

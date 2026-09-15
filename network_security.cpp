@@ -1,6 +1,6 @@
 #include "safe_exec.h"
 // ==============================================================================
-// AEGS v4 "Pantheon" -- Network Security & Reliability Suite Implementation
+// AEGS v6 "Titan" -- Network Security & Reliability Suite Implementation
 // ==============================================================================
 
 #include "network_security.h"

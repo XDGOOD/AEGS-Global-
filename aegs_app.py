@@ -68,7 +68,7 @@ class AegsApp(tk.Tk):
         header = ttk.Frame(self, style="Dark.TFrame")
         header.pack(fill="x", padx=20, pady=(15, 8))
         
-        lbl_title = ttk.Label(header, text="AEGS TITAN", style="Header.TLabel")
+        lbl_title = ttk.Label(header, text="AEGS VPN", style="Header.TLabel")
         lbl_title.pack(side="left")
         
         self.lbl_proto = ttk.Label(header, text="v6.5 • RFC 9000 QUIC Stealth", background="#12141A", foreground="#00D26A", font=("Segoe UI", 9, "bold"))

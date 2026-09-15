@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ==============================================================================
-AEGS v4 "Pantheon" -- Pure Native Protocol Client (Full System Auto-Tunnel)
+AEGS v6 "Titan" -- Pure Native Protocol Client (Full System Auto-Tunnel)
 ==============================================================================
 100% PURE AEGS v4 PROTOCOL (Zero Third-Party Protocols)
 
@@ -552,7 +552,7 @@ class AegsClient:
                 pass
 
 def main():
-    parser = argparse.ArgumentParser(description="AEGS v4 Pantheon - Pure Native Protocol Client")
+    parser = argparse.ArgumentParser(description="AEGS v6 Titan - Pure Native Protocol Client")
     parser.add_argument("--server", default="45.152.193.211", help="IP адрес сервера (вашего ноутбука)")
     parser.add_argument("--port", type=int, default=50001, help="Базовый UDP порт (по умолчанию: 50001)")
     parser.add_argument("--socks-port", type=int, default=1080, help="Локальный порт шлюза (по умолчанию: 1080)")

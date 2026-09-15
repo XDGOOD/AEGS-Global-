@@ -1,6 +1,6 @@
 #pragma once
 // ==============================================================================
-// AEGS v5 "Pantheon" -- AIMD Adaptive Backpressure & Congestion Controller
+// AEGS v6 "Titan" -- AIMD Adaptive Backpressure & Congestion Controller
 // (Stage 12 & 13 of Target Roadmap)
 // ==============================================================================
 // Features:

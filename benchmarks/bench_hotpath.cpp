@@ -1,5 +1,5 @@
 // ==============================================================================
-// AEGS v5 "Pantheon" Global Edition -- Stage 26 Benchmark Suite
+// AEGS v6 "Titan" Global Edition -- Stage 26 Benchmark Suite
 // Measures hot-path throughput, lookup latency, and crypto operations per second
 // ==============================================================================
 #include <iostream>

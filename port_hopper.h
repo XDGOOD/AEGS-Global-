@@ -1,6 +1,6 @@
 #pragma once
 // ==============================================================================
-// AEGS v4 "Pantheon" -- Port Hopping (Component 3: DPI bypass)
+// AEGS v6 "Titan" -- Port Hopping (Component 3: DPI bypass)
 // ==============================================================================
 // Server listens on N ports simultaneously. Client deterministically predicts
 // the active port via HMAC-SHA256(session_key, floor(now/interval)).

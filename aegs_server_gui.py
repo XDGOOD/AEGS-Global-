@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ==============================================================================
-AEGS v4 Pantheon -- Визуальный графический монитор сервера (GUI)
+AEGS v6 Titan -- Визуальный графический монитор сервера (GUI)
 ==============================================================================
 Наглядное окно для Windows:
 - Отображает статус сервера (ОНЛАЙН / ОФФЛАЙН)
@@ -33,7 +33,7 @@ from aegs_server import AegsServer
 class AegsServerGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("AEGS v4 Pantheon - Панель управления сервером")
+        self.root.title("AEGS v6 Titan - Панель управления сервером")
         self.root.geometry("860x620")
         self.root.minsize(700, 500)
 
@@ -141,7 +141,7 @@ class AegsServerGUI:
                 ip = c["addr"][0]
                 port = str(c["addr"][1])
                 t = c["connected_at"]
-                proto = "AEGS v4 Pantheon (X25519+ChaCha20)"
+                proto = "AEGS v6 Titan (X25519+ChaCha20)"
                 st = "АКТИВЕН"
                 if ip in existing:
                     pass

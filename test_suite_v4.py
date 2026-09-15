@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AEGS v4 "Pantheon" -- Complete 11-Pillar Test & Verification Suite
+AEGS v6 "Titan" -- Complete 11-Pillar Test & Verification Suite
 Runs directly in Python 3.12 using the cryptography engine.
 Validates all cryptographic, anti-DPI, and performance components:
   Pillar 1: Multi-Context HKDF-SHA256 & 200k PBKDF2 Key Derivation

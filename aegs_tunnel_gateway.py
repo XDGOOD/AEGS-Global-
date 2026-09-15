@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ==============================================================================
-AEGS v4 "Pantheon" -- Pure Native Protocol Tunnel Gateway
+AEGS v6 "Titan" -- Pure Native Protocol Tunnel Gateway
 ==============================================================================
 100% PURE AEGS v4 PROTOCOL (Zero WireGuard, Zero VLESS, Zero Third-Party).
 
@@ -104,7 +104,7 @@ class AegsServer:
     def start(self):
         print(f"{Colors.CYAN}{Colors.BOLD}")
         print("=" * 78)
-        print(" AEGS v4 'Pantheon' -- Native Protocol Server Gateway")
+        print(" AEGS v6 'Titan' -- Native Protocol Server Gateway")
         print(f" Listening on UDP 0.0.0.0:{self.port}")
         print(f" KeyID: {self.kid_hex} (100% Pure AEGS v4 Protocol Active)")
         print("=" * 78 + f"{Colors.RESET}\n")
@@ -300,7 +300,7 @@ class AegsClient:
     def start(self):
         print(f"{Colors.CYAN}{Colors.BOLD}")
         print("=" * 78)
-        print(" AEGS v4 'Pantheon' -- Native Protocol Client & Local SOCKS5 Gateway")
+        print(" AEGS v6 'Titan' -- Native Protocol Client & Local SOCKS5 Gateway")
         print(f" Connecting to Server: {self.server_host}:{self.server_port}")
         print(f" Local SOCKS5 Proxy:  127.0.0.1:{self.socks_port}")
         print(" 100% PURE AEGS v4 PROTOCOL ENCRYPTION ACTIVE")
@@ -481,7 +481,7 @@ class AegsClient:
                 pass
 
 def main():
-    parser = argparse.ArgumentParser(description="AEGS v4 Pantheon - Pure Native Protocol Tunnel Gateway")
+    parser = argparse.ArgumentParser(description="AEGS v6 Titan - Pure Native Protocol Tunnel Gateway")
     parser.add_argument("--mode", choices=["client", "server"], required=True, help="Режим: server (на вашем ноутбуке) или client (у друга)")
     parser.add_argument("--server", default="45.152.193.211", help="IP адрес сервера (вашего ноутбука)")
     parser.add_argument("--port", type=int, default=50001, help="Базовый UDP порт AEGS v4")

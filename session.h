@@ -1,6 +1,6 @@
 #pragma once
 // ==============================================================================
-// AEGS v5 "Pantheon" Global Edition -- Decomposed Session Model
+// AEGS v6 "Titan" Global Edition -- Decomposed Session Model
 // Architecture:
 // 1. SessionIdentity: Immutable identity parameters (KeyID, SessionID, Generation)
 // 2. SessionCrypto: Immutable RCU snapshot (MasterKey, MaskKey, SessionKeys, Handshake)

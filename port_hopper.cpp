@@ -1,5 +1,5 @@
 // ==============================================================================
-// AEGS v4 "Pantheon" -- Port Hopping Implementation
+// AEGS v6 "Titan" -- Port Hopping Implementation
 // ==============================================================================
 // HMAC-SHA256 is computed with stack-only buffers; no heap alloc in hot path.
 // OpenSSL HMAC_CTX is stack-allocated via HMAC() one-shot API to avoid

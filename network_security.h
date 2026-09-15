@@ -1,6 +1,6 @@
 #pragma once
 // ==============================================================================
-// AEGS v4 "Pantheon" -- Network Security & Reliability Suite
+// AEGS v6 "Titan" -- Network Security & Reliability Suite
 // - Component 1: KillSwitch (Hardware/Firewall-level Traffic Leak Prevention)
 // - Component 2: DnsLeakProtector (Port 53 Lockdown & Resolver Shield)
 // - Component 3: TransportFailureDetector (Loss monitoring for TCP fallback)

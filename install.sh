@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# AEGS v5 "Pantheon" Global Edition -- Carrier-Grade Server Installer
+# AEGS v6 "Titan" Global Edition -- Carrier-Grade Server Installer
 # Automated dependencies, kernel sysctl tuning (10Gbps), and systemd service
 # ==============================================================================
 set -euo pipefail

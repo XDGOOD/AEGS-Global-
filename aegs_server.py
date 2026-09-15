@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ==============================================================================
-AEGS v4 "Pantheon" -- Pure Native Protocol Server with Live Connection Monitor
+AEGS v6 "Titan" -- Pure Native Protocol Server with Live Connection Monitor
 ==============================================================================
 100% PURE AEGS v4 PROTOCOL (Zero Third-Party Protocols)
 
@@ -508,7 +508,7 @@ class AegsServer:
             pass
 
 def main():
-    parser = argparse.ArgumentParser(description="AEGS v4 Pantheon - Pure Native Protocol Server")
+    parser = argparse.ArgumentParser(description="AEGS v6 Titan - Pure Native Protocol Server")
     parser.add_argument("--port", type=int, default=50001, help="Базовый UDP порт (по умолчанию: 50001)")
     parser.add_argument("--port-count", type=int, default=5, help="Количество портов для Port Hopping (по умолчанию: 5)")
     parser.add_argument("--token", default="aegs-super-secret-user-token-for-auditing-2026", help="Секретный токен пользователя")

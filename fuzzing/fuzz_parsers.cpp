@@ -1,5 +1,5 @@
 // ==============================================================================
-// AEGS v5 "Pantheon" -- Protocol Parser Fuzz Target (Stage 23)
+// AEGS v6 "Titan" -- Protocol Parser Fuzz Target (Stage 23)
 // Fuzzes:
 // 1. Handshake INIT & RESP parsers
 // 2. Fast Resumption (0x04) & Full PFS Resumption (0x05) parsers

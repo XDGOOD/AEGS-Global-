@@ -1,5 +1,5 @@
 // ==============================================================================
-// AEGS v4 "Pantheon" -- Cryptographic Blackhole Responder Implementation
+// AEGS v6 "Titan" -- Cryptographic Blackhole Responder Implementation
 // ==============================================================================
 // Each response strategy constructs a standards-compliant QUIC packet using
 // entropy extracted from the probe itself (DCID, SCID bytes).  This makes

@@ -1,6 +1,6 @@
 #!/bin/sh
 # ==============================================================================
-# 📡 AEGS v4 "Pantheon" -- Home Router Auto-Setup (OpenWrt & Keenetic)
+# 📡 AEGS v6 "Titan" -- Home Router Auto-Setup (OpenWrt & Keenetic)
 # Turns your home Wi-Fi router into a stealth zero-DPI gateway.
 # All connected phones, TVs, laptops automatically bypass censorship & blocks!
 # ==============================================================================

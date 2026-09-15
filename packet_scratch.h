@@ -1,6 +1,6 @@
 #pragma once
 // ==============================================================================
-// AEGS v5 "Pantheon" Global Edition -- Zero-Allocation Scratchpad & TX Batching
+// AEGS v6 "Titan" Global Edition -- Zero-Allocation Scratchpad & TX Batching
 // Pre-allocated TLS buffers eliminating heap churn and enabling zero-copy sendmmsg()
 // ==============================================================================
 #include <cstdint>

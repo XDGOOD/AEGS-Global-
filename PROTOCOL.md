@@ -1,8 +1,8 @@
-# AEGS v4 Pantheon Protocol Specification
+# AEGS v6 Titan Protocol Specification
 
 ## 1. Introduction
 - Problem: stateful DPI systems (ТСПУ, GFW, Cloudflare Magic Firewall) identify VPN protocols by static signatures and flow behavior
-- Solution: AEGS v4 — transport protocol with per-packet randomized wire format, header masking, and behavioral evasion
+- Solution: AEGS v6 Titan — transport protocol with per-packet randomized wire format, header masking, and behavioral evasion
 - Scope: UDP transport, IPv4 tunneling, multi-user
 
 ## 2. Terminology
@@ -112,7 +112,7 @@ Sliding window per RFC 6479 (2048 packets window):
 - Assignment: during HANDSHAKE_RESP, in EncryptedConfig field
 - Release: on session idle timeout (180 seconds)
 
-## 8. DPI Evasion Properties (AEGS v4 Pantheon)
+## 8. DPI Evasion Properties (AEGS v6 Titan)
 
 ### 8.1 State-Machine Pre-Bypass ("AEGS Illusion")
 Before sending `HANDSHAKE_INIT`, the client transmits decoy packets mimicking standard STUN Binding Requests (RFC 5389) or QUIC Initial packets (RFC 9000).
@@ -133,7 +133,7 @@ During idle periods, client generates chaff packets. Chaff packets use the stand
 When receiving invalid probe packets, server responds with realistic QUIC packets derived from probe entropy (0.0x amplification on small UDP probes, Version Negotiation, Retry, Connection Close).
 
 ## 9. Port Hopping (Active Transport Evasion)
-AEGS v4 rotates active UDP ports every `hop_interval` seconds using HMAC-SHA256:
+AEGS v6 Titan rotates active UDP ports every `hop_interval` seconds using HMAC-SHA256:
 ```
 epoch = floor(time() / hop_interval)
 hmac = HMAC-SHA256(session_key, epoch_be64)
@@ -168,7 +168,7 @@ Blocks all unencrypted port 53 traffic across external physical adapters, enforc
 - Header authentication: Outer header authenticated via Poly1305 AAD
 
 ## 13. Comparison with Related Protocols
-| Feature | WireGuard | AmneziaWG 3.1 | XTLS-Reality | AEGS v4 Pantheon |
+| Feature | WireGuard | AmneziaWG 3.1 | XTLS-Reality | AEGS v6 Titan |
 |---|---|---|---|---|
 | Static handshake signature | Yes | Masked | N/A (TCP) | Masked + Illusion decoys |
 | Padding | None | Uniform random (Jc) | None | Bimodal semantic (anti-ML) |

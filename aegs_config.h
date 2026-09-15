@@ -1,6 +1,6 @@
 #pragma once
 // ==============================================================================
-// AEGS v5 "Pantheon" Global Edition -- Central Configuration & Profiles
+// AEGS v6 "Titan" Global Edition -- Central Configuration & Profiles
 // ==============================================================================
 #include <cstdint>
 #include <string>

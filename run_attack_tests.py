@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ==============================================================================
-AEGS v4 "Pantheon" -- Local Attack Simulation & Defense Verification Harness
+AEGS v6 "Titan" -- Local Attack Simulation & Defense Verification Harness
 ==============================================================================
 Designed to run on the local host (laptop/server) with near-zero CPU footprint.
 Validates all critical security blockers identified in scripts/предложение.txt:
@@ -140,7 +140,7 @@ class AttackTestSuite:
     def run_all(self):
         print(f"{Colors.CYAN}{Colors.BOLD}")
         print("=" * 78)
-        print(" AEGS v4 'Pantheon' -- Local Attack Simulation & Defense Verification Harness")
+        print(" AEGS v6 'Titan' -- Local Attack Simulation & Defense Verification Harness")
         print(" Testing all critical blockers from предложение.txt on local machine")
         print("=" * 78 + f"{Colors.RESET}\n")
 
@@ -463,7 +463,7 @@ class AttackTestSuite:
 
         report_path = "ATTACK_TEST_REPORT.md"
         with open(report_path, "w", encoding="utf-8") as f:
-            f.write("# AEGS v4 'Pantheon' -- Отчет об атаках и безопасности\n\n")
+            f.write("# AEGS v6 'Titan' -- Отчет об атаках и безопасности\n\n")
             f.write(f"**Дата аудита:** {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write(f"**Результат:** **{passed}/{total} тестов пройдено (100% PASS)**\n\n")
             f.write("## Резюме решения проблем из `предложение.txt`:\n\n")

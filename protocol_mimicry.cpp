@@ -1,5 +1,5 @@
 // ==============================================================================
-// AEGS v4 "Pantheon" -- Protocol Mimicry Implementation
+// AEGS v6 "Titan" -- Protocol Mimicry Implementation
 // ==============================================================================
 // wrap_quic_initial() performs a single memmove to make room for the 24-byte
 // RFC 9000 header — no heap allocation occurs.
