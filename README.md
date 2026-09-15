@@ -1,3 +1,10 @@
+# AEGS v6 "Titan" — Global Enterprise Edition
+
+## 📱 [СКАЧАТЬ AEGS ДЛЯ ANDROID (APK)](https://github.com/XDGOOD/AEGS-Global-/releases/download/v6.0-titan/AEGS-v6.0-titan.apk)
+> 🚀 **Нативный Android APK (5.18 МБ):** [AEGS-v6.0-titan.apk](https://github.com/XDGOOD/AEGS-Global-/releases/download/v6.0-titan/AEGS-v6.0-titan.apk)  
+> Также доступен напрямую в репозитории: [`releases/AEGS-v6.0-titan.apk`](releases/AEGS-v6.0-titan.apk)
+
+---
 # AEGS v5 "Pantheon" - Global Enterprise Edition 🌐
 
 [![CI](https://github.com/XDGOOD/AEGS-Global-/actions/workflows/sanitizers_ci.yml/badge.svg)](https://github.com/XDGOOD/AEGS-Global-/actions/workflows/sanitizers_ci.yml)

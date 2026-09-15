@@ -26,4 +26,6 @@ test_run_*/
 *.txt
 !CMakeLists.txt
 
-*.apk
+
+!releases/*.apk
+!AEGS-v6.0-titan.apk
