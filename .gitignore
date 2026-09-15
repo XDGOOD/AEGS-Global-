@@ -25,3 +25,5 @@ __pycache__/
 test_run_*/
 *.txt
 !CMakeLists.txt
+
+*.apk
