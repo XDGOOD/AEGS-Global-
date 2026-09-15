@@ -1,7 +1,11 @@
 <resources>
     <style name="Theme.AEGS" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">#0D6EFD</item>
-        <item name="android:statusBarColor">#12141A</item>
-        <item name="android:windowBackground">#12141A</item>
+        <item name="colorPrimary">#2563EB</item>
+        <item name="colorPrimaryVariant">#1D4ED8</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#10B981</item>
+        <item name="android:statusBarColor">#0F1117</item>
+        <item name="android:navigationBarColor">#0F1117</item>
+        <item name="android:windowBackground">#0F1117</item>
     </style>
 </resources>

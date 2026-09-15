@@ -1,6 +1,7 @@
 package com.aegs.titan;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.net.VpnService;
 import android.os.Bundle;
@@ -19,6 +20,7 @@ public class MainActivity extends AppCompatActivity {
 
     private TextView mTvStatus;
     private TextView mTvPing;
+    private TextView mTvSpeed;
     private Button mBtnConnect;
     private RadioGroup mRgMode;
     private View mLlCustomVps;
@@ -26,6 +28,7 @@ public class MainActivity extends AppCompatActivity {
     private EditText mEtPort;
     private EditText mEtToken;
     private CheckBox mCbSplit;
+    private Button mBtnGuide;
     private Button mBtnGithubCore;
     private Button mBtnGithubGlobal;
     private Button mBtnAuthor;
@@ -35,10 +38,20 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Check if onboarding is needed
+        SharedPreferences prefs = getSharedPreferences("aegs_prefs", MODE_PRIVATE);
+        if (!prefs.getBoolean("onboarding_done", false)) {
+            startActivity(new Intent(this, OnboardingActivity.class));
+            finish();
+            return;
+        }
+
         setContentView(R.layout.activity_main);
 
         mTvStatus = findViewById(R.id.tv_status);
         mTvPing = findViewById(R.id.tv_ping);
+        mTvSpeed = findViewById(R.id.tv_speed);
         mBtnConnect = findViewById(R.id.btn_connect);
         mRgMode = findViewById(R.id.rg_mode);
         mLlCustomVps = findViewById(R.id.ll_custom_vps);
@@ -46,10 +59,17 @@ public class MainActivity extends AppCompatActivity {
         mEtPort = findViewById(R.id.et_port);
         mEtToken = findViewById(R.id.et_token);
         mCbSplit = findViewById(R.id.cb_split);
+        mBtnGuide = findViewById(R.id.btn_guide);
 
         mBtnGithubCore = findViewById(R.id.btn_github_core);
         mBtnGithubGlobal = findViewById(R.id.btn_github_global);
         mBtnAuthor = findViewById(R.id.btn_author);
+
+        if (mBtnGuide != null) {
+            mBtnGuide.setOnClickListener(v -> {
+                startActivity(new Intent(this, OnboardingActivity.class));
+            });
+        }
 
         if (mBtnGithubCore != null) {
             mBtnGithubCore.setOnClickListener(v -> openUrl("https://github.com/XDGOOD/net-packet-handler"));
@@ -161,6 +181,7 @@ public class MainActivity extends AppCompatActivity {
         mTvStatus.setText("● Подключено (Защищено)");
         mTvStatus.setTextColor(0xFF10B981);
         mTvPing.setText("Пинг: 18 мс");
+        if (mTvSpeed != null) mTvSpeed.setText("Скорость: 940 Мбит/с");
         mBtnConnect.setText("ОТКЛЮЧИТЬСЯ");
         mBtnConnect.setBackgroundColor(0xFFEF4444);
     }
@@ -174,6 +195,7 @@ public class MainActivity extends AppCompatActivity {
         mTvStatus.setText("● Отключено");
         mTvStatus.setTextColor(0xFFEF4444);
         mTvPing.setText("Пинг: -- мс");
+        if (mTvSpeed != null) mTvSpeed.setText("Лимит: 940 Мбит/с");
         mBtnConnect.setText("ПОДКЛЮЧИТЬСЯ");
         mBtnConnect.setBackgroundColor(0xFF2563EB);
     }

@@ -30,6 +30,11 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".OnboardingActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
         <service
             android:name=".AegsVpnService"
             android:permission="android.permission.BIND_VPN_SERVICE"
