@@ -296,6 +296,73 @@ uint16_t generate_junk_len() {
     return 0;
 }
 
+// =========================================================================
+// Option 3: Chrome 128+ TLS 1.3 Reality ECH Camouflage Helper
+// =========================================================================
+static std::vector<uint8_t> wrap_reality_ech_response(const uint8_t* payload, size_t payload_len) {
+    std::vector<uint8_t> out;
+    out.reserve(payload_len + 96);
+    out.push_back(0x16); // TLS Record Handshake
+    out.push_back(0x03); out.push_back(0x01); // Version 0x0301
+    
+    // Placeholder for Record Length (offset 3, 4)
+    out.push_back(0); out.push_back(0);
+    
+    // ServerHello / Handshake header (0x02, 3-byte len)
+    out.push_back(0x02);
+    out.push_back(0); out.push_back(0); out.push_back(0);
+    
+    // Legacy Version 0x0303 (TLS 1.2)
+    out.push_back(0x03); out.push_back(0x03);
+    
+    // 32-byte server random
+    for (int i = 0; i < 32; ++i) out.push_back(0x5a);
+    // Legacy session id (32 bytes)
+    out.push_back(32);
+    for (int i = 0; i < 32; ++i) out.push_back(0x5a);
+    
+    // Cipher suite (TLS_CHACHA20_POLY1305_SHA256 = 0x1303)
+    out.push_back(0x13); out.push_back(0x03);
+    // Compression null
+    out.push_back(0x00);
+    
+    // Total extensions length placeholder
+    size_t ext_len_pos = out.size();
+    out.push_back(0); out.push_back(0);
+    size_t ext_start = out.size();
+    
+    // Supported Versions extension (0x002b) -> TLS 1.3 (0x0304)
+    out.push_back(0x00); out.push_back(0x2b);
+    out.push_back(0x00); out.push_back(0x02);
+    out.push_back(0x03); out.push_back(0x04);
+    
+    // ECH extension (0xfe0d) encapsulating AEGS Handshake Response
+    out.push_back(0xfe); out.push_back(0x0d);
+    uint16_t ech_ext_len = static_cast<uint16_t>(payload_len + 4);
+    out.push_back(static_cast<uint8_t>(ech_ext_len >> 8));
+    out.push_back(static_cast<uint8_t>(ech_ext_len & 0xff));
+    out.push_back('A'); out.push_back('E'); out.push_back('G'); out.push_back('1');
+    out.insert(out.end(), payload, payload + payload_len);
+    
+    // Fix total extensions length
+    uint16_t total_ext = static_cast<uint16_t>(out.size() - ext_start);
+    out[ext_len_pos] = static_cast<uint8_t>(total_ext >> 8);
+    out[ext_len_pos + 1] = static_cast<uint8_t>(total_ext & 0xff);
+    
+    // Fix Handshake length (at offset 6, 7, 8)
+    uint32_t hs_len = static_cast<uint32_t>(out.size() - 9);
+    out[6] = static_cast<uint8_t>((hs_len >> 16) & 0xff);
+    out[7] = static_cast<uint8_t>((hs_len >> 8) & 0xff);
+    out[8] = static_cast<uint8_t>(hs_len & 0xff);
+    
+    // Fix Record length (at offset 3, 4)
+    uint16_t rec_len = static_cast<uint16_t>(out.size() - 5);
+    out[3] = static_cast<uint8_t>(rec_len >> 8);
+    out[4] = static_cast<uint8_t>(rec_len & 0xff);
+    
+    return out;
+}
+
 // Worker thread event loop
 void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                  const std::vector<uint16_t>& ports, TunInterface& tun,
@@ -429,6 +496,37 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
         if (ProtocolMimicry::strip_quic_mimicry(pkt_data, ulen)) {
             len = static_cast<ssize_t>(ulen);
             is_mimicked = true;
+        }
+
+        // Option 3: Chrome 128+ Reality ECH Camouflage (open SNI www.cloudflare.com, ECH 0xfe0d)
+        bool is_reality_ech = false;
+        if (len >= 45 && pkt_data[0] == 0x16 && pkt_data[1] == 0x03) {
+            for (size_t i = 43; i + 8 <= static_cast<size_t>(len); ++i) {
+                if (pkt_data[i] == 0xfe && pkt_data[i + 1] == 0x0d) {
+                    uint16_t ext_len = (static_cast<uint16_t>(pkt_data[i + 2]) << 8) | pkt_data[i + 3];
+                    size_t ext_end = std::min(static_cast<size_t>(len), i + 4 + ext_len);
+                    for (size_t j = i + 4; j + 4 <= ext_end; ++j) {
+                        if (pkt_data[j] == 'A' && pkt_data[j + 1] == 'E' && pkt_data[j + 2] == 'G' && pkt_data[j + 3] == '1') {
+                            size_t payload_offset = j + 4;
+                            size_t payload_len = ext_end - payload_offset;
+                            if (payload_len > 0) {
+                                std::memmove(pkt_data, pkt_data + payload_offset, payload_len);
+                                len = static_cast<ssize_t>(payload_len);
+                                is_reality_ech = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (is_reality_ech) break;
+                }
+            }
+            if (!is_reality_ech) {
+                // Active censor probe detected without valid AEGS token: deflect with TLS 1.3 Alert
+                AegsLog::warn("[REALITY] Probe detected without valid AEGS token from ", inet_ntoa(caddr.sin_addr));
+                uint8_t alert[7] = {0x15, 0x03, 0x03, 0x00, 0x02, 0x02, 0x28}; // TLS Handshake Failure alert
+                sendto(fd, reinterpret_cast<const char*>(alert), sizeof(alert), 0, (struct sockaddr*)&caddr, sizeof(caddr));
+                return;
+            }
         }
 
         // =====================================================================
@@ -666,7 +764,12 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 // Register in O(1) fast-path cache
                 g_sessions.migrate_endpoint(old_ep, new_ep, s.get());
                 metrics.handshake_ok.fetch_add(1, std::memory_order_relaxed);
-                sendto(fd, resp.data(), resp.size(), 0, (struct sockaddr*)&caddr, sizeof(caddr));
+                if (is_reality_ech) {
+                    std::vector<uint8_t> ech_resp = wrap_reality_ech_response(resp.data(), resp.size());
+                    sendto(fd, reinterpret_cast<const char*>(ech_resp.data()), ech_resp.size(), 0, (struct sockaddr*)&caddr, sizeof(caddr));
+                } else {
+                    sendto(fd, resp.data(), resp.size(), 0, (struct sockaddr*)&caddr, sizeof(caddr));
+                }
                 AegsLog::info("[HS] Client ", inet_ntoa(caddr.sin_addr), " assigned ", IpPool::to_string(new_ip));
                 
                 ResumptionToken rtok;

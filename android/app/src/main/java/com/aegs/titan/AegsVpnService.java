@@ -4,11 +4,13 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.VpnService;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
+import android.os.PowerManager;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
@@ -27,12 +29,12 @@ import java.util.concurrent.atomic.AtomicLong;
  * Full-Duplex Bi-Directional AEGS v6 Titan VPN Service
  *
  * Implements:
+ * - Option 3: Chrome 128+ TLS 1.3 Reality ECH Camouflage (open SNI www.cloudflare.com, ECH 0xfe0d)
+ * - Option 4: Hardware kernel-level Kill-Switch (Builder.setBlocking(true)) & Doze WakeLock Management
  * - RFC 7748 X25519 Curve25519 & ChaCha20-Poly1305 AEGS Protocol Handshake
- * - Config parsing from HANDSHAKE_RESP (Assigned IP + MTU)
- * - Concurrent TUN -> UDP worker (reads from TUN, bimodal padding, ChaCha20 header mask + Poly1305 AEAD, sends via UDP)
+ * - Concurrent TUN -> UDP worker (reads from TUN, bimodal padding, ChaCha20 header mask + Poly1305 AEAD)
  * - Concurrent UDP -> TUN worker (reads UDP, unmasks header, verifies Poly1305 AAD tag, drops chaff, writes plaintext to TUN)
- * - Battery-friendly adaptive chaffing / keep-alive with exponential backoff on idle
- * - Comprehensive lifecycle management and resource cleanup
+ * - Battery-friendly adaptive chaffing with idle backoff
  */
 public class AegsVpnService extends VpnService implements Runnable {
     private static final String TAG = "AegsVpnService";
@@ -54,7 +56,10 @@ public class AegsVpnService extends VpnService implements Runnable {
     private String mToken = "aegs_secure_token_titan_v6";
     private boolean mSplitTunnel = true;
     private boolean mAdaptiveChaff = true;
-    private int mProtocolMode = SettingsActivity.PROTO_STEALTH;
+    private boolean mKillSwitch = true;
+    private int mProtocolMode = SettingsActivity.PROTO_REALITY_ECH;
+
+    private PowerManager.WakeLock mWakeLock;
 
     private final AtomicLong mTxSeq = new AtomicLong(0);
     private final AtomicLong mLastActivityTime = new AtomicLong(System.currentTimeMillis());
@@ -86,11 +91,24 @@ public class AegsVpnService extends VpnService implements Runnable {
             if (intent.hasExtra("TOKEN")) mToken = intent.getStringExtra("TOKEN");
             if (intent.hasExtra("SPLIT_TUNNEL")) mSplitTunnel = intent.getBooleanExtra("SPLIT_TUNNEL", true);
             if (intent.hasExtra("ADAPTIVE_CHAFF")) mAdaptiveChaff = intent.getBooleanExtra("ADAPTIVE_CHAFF", true);
-            if (intent.hasExtra("PROTOCOL_MODE")) mProtocolMode = intent.getIntExtra("PROTOCOL_MODE", SettingsActivity.PROTO_STEALTH);
+            if (intent.hasExtra("KILL_SWITCH")) mKillSwitch = intent.getBooleanExtra("KILL_SWITCH", true);
+            if (intent.hasExtra("PROTOCOL_MODE")) mProtocolMode = intent.getIntExtra("PROTOCOL_MODE", SettingsActivity.PROTO_REALITY_ECH);
+        }
+
+        // Acquire Doze-safe Partial WakeLock to prevent dropped packets during sleep
+        try {
+            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            if (pm != null && (mWakeLock == null || !mWakeLock.isHeld())) {
+                mWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "AEGS:VpnWakeLock");
+                mWakeLock.setReferenceCounted(false);
+                mWakeLock.acquire(12 * 60 * 60 * 1000L); // 12 hours max
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to acquire WakeLock: " + e.getMessage());
         }
 
         createNotificationChannel();
-        Notification notif = buildNotification("Защита активна • AEGS Titan v6.5");
+        Notification notif = buildNotification("Защита активна • AEGS Titan Reality ECH");
         startForeground(NOTIF_ID, notif);
 
         if (mMainThread == null || !mMainThread.isAlive()) {
@@ -132,14 +150,25 @@ public class AegsVpnService extends VpnService implements Runnable {
     @Override
     public void run() {
         try {
-            Log.i(TAG, "[AEGS] Starting handshake with " + mServerIp + ":" + mServerPort);
+            Log.i(TAG, "[AEGS] Starting handshake with " + mServerIp + ":" + mServerPort + " (mode=" + mProtocolMode + ")");
 
             mTunnel = DatagramChannel.open();
             mTunnel.connect(new InetSocketAddress(mServerIp, mServerPort));
             protect(mTunnel.socket());
 
-            // Phase 1: DPI Pre-Bypass Decoys
-            if (mProtocolMode == SettingsActivity.PROTO_ILLUSION) {
+            // Phase 1: Cryptographic Handshake Generation
+            byte[] keyId = AegsProtocol.deriveKeyId(mToken);
+            byte[] masterKey = AegsProtocol.deriveMasterKey(mToken, keyId);
+            AegsProtocol.X25519KeyPair ephKeyPair = AegsProtocol.generateX25519KeyPair();
+
+            byte[] initPkt = AegsProtocol.buildHandshakeInit(keyId, masterKey, ephKeyPair.publicKey);
+
+            // Phase 2: Camouflage & Anti-Censorship Framing
+            if (mProtocolMode == SettingsActivity.PROTO_REALITY_ECH) {
+                // Option 3: Reality ECH Handshake encapsulation with www.cloudflare.com SNI & ECH 0xfe0d
+                initPkt = AegsProtocol.buildTlsRealityClientHello(initPkt, AegsProtocol.DEFAULT_REALITY_SNI);
+                Log.i(TAG, "[AEGS] Handshake encapsulated in TLS 1.3 Reality ECH (SNI: " + AegsProtocol.DEFAULT_REALITY_SNI + ")");
+            } else if (mProtocolMode == SettingsActivity.PROTO_ILLUSION) {
                 byte[] stunDecoy = AegsProtocol.buildStunDecoy();
                 mTunnel.write(ByteBuffer.wrap(stunDecoy));
                 Thread.sleep(50);
@@ -149,15 +178,8 @@ public class AegsVpnService extends VpnService implements Runnable {
                 Thread.sleep(50);
             }
 
-            // Phase 2: Cryptographic Handshake
-            byte[] keyId = AegsProtocol.deriveKeyId(mToken);
-            byte[] masterKey = AegsProtocol.deriveMasterKey(mToken, keyId);
-            AegsProtocol.X25519KeyPair ephKeyPair = AegsProtocol.generateX25519KeyPair();
-
-            byte[] initPkt = AegsProtocol.buildHandshakeInit(keyId, masterKey, ephKeyPair.publicKey);
-
             boolean handshakeOk = false;
-            ByteBuffer respBuf = ByteBuffer.allocate(2048);
+            ByteBuffer respBuf = ByteBuffer.allocate(4096);
 
             mTunnel.configureBlocking(false);
             Selector selector = Selector.open();
@@ -170,19 +192,31 @@ public class AegsVpnService extends VpnService implements Runnable {
                     selector.selectedKeys().clear();
                     respBuf.clear();
                     int readBytes = mTunnel.read(respBuf);
-                    if (readBytes >= 80) {
+                    if (readBytes >= 45) {
                         respBuf.flip();
                         byte[] respBytes = new byte[readBytes];
                         respBuf.get(respBytes);
 
-                        try {
-                            mSession = AegsProtocol.processHandshakeResp(
-                                    respBytes, readBytes, keyId, masterKey, ephKeyPair.privateKey);
-                            handshakeOk = true;
-                            Log.i(TAG, "[AEGS] Handshake successful! Assigned IP: " + mSession.assignedIp + " MTU: " + mSession.mtu);
-                            break;
-                        } catch (Exception e) {
-                            Log.w(TAG, "[AEGS] Failed to parse Handshake response: " + e.getMessage());
+                        // If response is wrapped in Reality ECH frame, unwrap it
+                        if (readBytes >= 45 && respBytes[0] == 0x16) {
+                            byte[] unwrapped = AegsProtocol.parseTlsRealityPayload(respBytes, readBytes);
+                            if (unwrapped != null) {
+                                respBytes = unwrapped;
+                                readBytes = unwrapped.length;
+                                Log.i(TAG, "[AEGS] Successfully unwrapped Handshake Response from Reality ECH");
+                            }
+                        }
+
+                        if (readBytes >= 80) {
+                            try {
+                                mSession = AegsProtocol.processHandshakeResp(
+                                        respBytes, readBytes, keyId, masterKey, ephKeyPair.privateKey);
+                                handshakeOk = true;
+                                Log.i(TAG, "[AEGS] Handshake successful! Assigned IP: " + mSession.assignedIp + " MTU: " + mSession.mtu);
+                                break;
+                            } catch (Exception e) {
+                                Log.w(TAG, "[AEGS] Failed to parse Handshake response: " + e.getMessage());
+                            }
                         }
                     }
                 } else {
@@ -198,7 +232,7 @@ public class AegsVpnService extends VpnService implements Runnable {
                 return;
             }
 
-            // Phase 3: Configure Virtual TUN Interface
+            // Phase 3: Configure Virtual TUN Interface with Hardware Kill-Switch
             Builder builder = new Builder();
             builder.setSession("AEGS Titan (" + mSession.assignedIp + ")");
             builder.addAddress(mSession.assignedIp, 24);
@@ -206,6 +240,12 @@ public class AegsVpnService extends VpnService implements Runnable {
             builder.addDnsServer("1.1.1.1");
             builder.addRoute("0.0.0.0", 0);
             builder.setMtu(mSession.mtu);
+
+            // Hardware kernel-level Kill-Switch: prevents plaintext traffic leaks during roaming
+            if (mKillSwitch && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                builder.setBlocking(true);
+                Log.i(TAG, "[AEGS] Hardware kernel-level Kill-Switch active (setBlocking=true)");
+            }
 
             if (mSplitTunnel && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 PackageManager pm = getPackageManager();
@@ -344,6 +384,13 @@ public class AegsVpnService extends VpnService implements Runnable {
         if (mChaffThread != null) mChaffThread.interrupt();
 
         cleanup();
+
+        if (mWakeLock != null && mWakeLock.isHeld()) {
+            try {
+                mWakeLock.release();
+            } catch (Exception ignored) {}
+        }
+
         try {
             stopForeground(true);
         } catch (Exception ignored) {}

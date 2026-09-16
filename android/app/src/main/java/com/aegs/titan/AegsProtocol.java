@@ -692,6 +692,137 @@ public final class AegsProtocol {
         return sb.toString();
     }
 
+    // =========================================================================
+    // TLS 1.3 Reality Camouflage Engine with Encrypted Client Hello (ECH)
+    // =========================================================================
+    public static final String DEFAULT_REALITY_SNI = "www.cloudflare.com";
+
+    public static byte[] buildTlsRealityClientHello(byte[] innerAegsPayload, String sni) {
+        if (sni == null || sni.isEmpty()) sni = DEFAULT_REALITY_SNI;
+        try {
+            java.io.ByteArrayOutputStream ext = new java.io.ByteArrayOutputStream();
+
+            // 1. SNI extension (0x0000)
+            byte[] sniBytes = sni.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            ext.write(0x00); ext.write(0x00);
+            int sniExtLen = sniBytes.length + 5;
+            ext.write((sniExtLen >> 8) & 0xFF); ext.write(sniExtLen & 0xFF);
+            int serverNameListLen = sniBytes.length + 3;
+            ext.write((serverNameListLen >> 8) & 0xFF); ext.write(serverNameListLen & 0xFF);
+            ext.write(0x00);
+            ext.write((sniBytes.length >> 8) & 0xFF); ext.write(sniBytes.length & 0xFF);
+            ext.write(sniBytes);
+
+            // 2. Supported Groups (0x000a) with X25519 (0x001d), secp256r1 (0x0017)
+            ext.write(0x00); ext.write(0x0a);
+            ext.write(0x00); ext.write(0x06);
+            ext.write(0x00); ext.write(0x04);
+            ext.write(0x00); ext.write(0x1d);
+            ext.write(0x00); ext.write(0x17);
+
+            // 3. ALPN extension (0x0010) with "h2"
+            byte[] alpnBytes = "h2".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            ext.write(0x00); ext.write(0x10);
+            int alpnExtLen = alpnBytes.length + 3;
+            ext.write((alpnExtLen >> 8) & 0xFF); ext.write(alpnExtLen & 0xFF);
+            int alpnListLen = alpnBytes.length + 1;
+            ext.write((alpnListLen >> 8) & 0xFF); ext.write(alpnListLen & 0xFF);
+            ext.write(alpnBytes.length & 0xFF);
+            ext.write(alpnBytes);
+
+            // 4. Supported Versions extension (0x002b) with TLS 1.3 (0x0304)
+            ext.write(0x00); ext.write(0x2b);
+            ext.write(0x00); ext.write(0x03);
+            ext.write(0x02);
+            ext.write(0x03); ext.write(0x04);
+
+            // 5. Encrypted Client Hello (ECH, 0xfe0d) encapsulating AEGS Handshake / Frame!
+            ext.write(0xfe); ext.write(0x0d);
+            byte[] magic = new byte[]{'A', 'E', 'G', '1'};
+            int echDataLen = 6 + magic.length + innerAegsPayload.length;
+            ext.write((echDataLen >> 8) & 0xFF); ext.write(echDataLen & 0xFF);
+            ext.write(0x00);
+            ext.write(0x00); ext.write(0x20);
+            ext.write(0x00); ext.write(0x01);
+            ext.write(0x01);
+            ext.write(magic);
+            ext.write(innerAegsPayload);
+
+            byte[] extBytes = ext.toByteArray();
+
+            // Assemble ClientHello Body
+            java.io.ByteArrayOutputStream ch = new java.io.ByteArrayOutputStream();
+            ch.write(0x03); ch.write(0x03); // Legacy version TLS 1.2
+
+            byte[] random = new byte[32];
+            new java.security.SecureRandom().nextBytes(random);
+            ch.write(random);
+
+            byte[] sessionId = new byte[32];
+            new java.security.SecureRandom().nextBytes(sessionId);
+            ch.write(sessionId.length & 0xFF);
+            ch.write(sessionId);
+
+            // Cipher Suites: GREASE + TLS 1.3 suites
+            int[] ciphers = new int[]{0x1a1a, 0x1301, 0x1302, 0x1303, 0xc02b, 0xc02f};
+            ch.write(0x00); ch.write(ciphers.length * 2);
+            for (int c : ciphers) {
+                ch.write((c >> 8) & 0xFF); ch.write(c & 0xFF);
+            }
+
+            // Compression (null)
+            ch.write(0x01); ch.write(0x00);
+
+            // Total extensions
+            ch.write((extBytes.length >> 8) & 0xFF); ch.write(extBytes.length & 0xFF);
+            ch.write(extBytes);
+
+            byte[] chBody = ch.toByteArray();
+
+            // Handshake Header (Type 0x01, Length 24-bit)
+            java.io.ByteArrayOutputStream hs = new java.io.ByteArrayOutputStream();
+            hs.write(0x01);
+            hs.write((chBody.length >> 16) & 0xFF);
+            hs.write((chBody.length >> 8) & 0xFF);
+            hs.write(chBody.length & 0xFF);
+            hs.write(chBody);
+
+            byte[] hsBytes = hs.toByteArray();
+
+            // TLS Record Layer (0x16 Handshake, Version 0x0301, Length 16-bit)
+            java.io.ByteArrayOutputStream record = new java.io.ByteArrayOutputStream();
+            record.write(0x16);
+            record.write(0x03); record.write(0x01);
+            record.write((hsBytes.length >> 8) & 0xFF);
+            record.write(hsBytes.length & 0xFF);
+            record.write(hsBytes);
+
+            return record.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("Reality ECH build error", e);
+        }
+    }
+
+    public static byte[] parseTlsRealityPayload(byte[] packet, int len) {
+        if (len < 45 || packet[0] != 0x16) return null;
+        for (int i = 5; i + 10 <= len; i++) {
+            if ((packet[i] & 0xFF) == 0xFE && (packet[i + 1] & 0xFF) == 0x0D) {
+                int extLen = ((packet[i + 2] & 0xFF) << 8) | (packet[i + 3] & 0xFF);
+                int extEnd = Math.min(len, i + 4 + extLen);
+                for (int j = i + 4; j + 4 <= extEnd; j++) {
+                    if (packet[j] == 'A' && packet[j + 1] == 'E' && packet[j + 2] == 'G' && packet[j + 3] == '1') {
+                        int payloadStart = j + 4;
+                        int payloadLen = extEnd - payloadStart;
+                        if (payloadLen > 0) {
+                            return java.util.Arrays.copyOfRange(packet, payloadStart, payloadStart + payloadLen);
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     private static byte[] manualPbkdf2HmacSha256(byte[] password, byte[] salt, int iterations, int dkLen) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");

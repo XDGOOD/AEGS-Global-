@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -9,108 +9,122 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="24dp"
+        android:paddingBottom="36dp">
 
-        <!-- Top Header -->
-        <LinearLayout
+        <!-- Top Header Bar -->
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
             android:layout_marginBottom="24dp">
 
             <ImageView
                 android:id="@+id/btn_back"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:padding="8dp"
-                android:src="@android:drawable/ic_menu_revert"
-                android:contentDescription="Назад"
+                android:layout_width="42dp"
+                android:layout_height="42dp"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:background="@drawable/bg_card_obsidian"
+                android:src="@drawable/ic_settings"
                 android:tint="@color/amber_primary"
-                android:background="@drawable/bg_card_obsidian" />
+                android:padding="11dp"
+                android:alpha="0.9"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Назад" />
 
             <TextView
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="16dp"
-                android:text="Настройки"
-                android:textColor="@color/text_primary"
-                android:textSize="22sp"
-                android:textStyle="bold" />
-        </LinearLayout>
+                android:layout_centerInParent="true"
+                android:text="Настройки Titan"
+                android:textColor="@color/amber_primary"
+                android:textSize="19sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.03" />
+        </RelativeLayout>
 
-        <!-- Protocol Selection Card -->
+        <!-- Protocol Selection Section -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="РЕЖИМ ПРОТОКОЛА"
+            android:text="РЕЖИМ ПРОТОКОЛА И МАСКИРОВКИ"
             android:textColor="@color/amber_primary"
             android:textSize="12sp"
             android:textStyle="bold"
             android:letterSpacing="0.08"
             android:layout_marginBottom="8dp" />
 
-        <LinearLayout
+        <RadioGroup
+            android:id="@+id/rg_protocol"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
             android:background="@drawable/bg_card_obsidian"
             android:padding="16dp"
             android:layout_marginBottom="20dp">
 
-            <RadioGroup
-                android:id="@+id/rg_protocol"
+            <RadioButton
+                android:id="@+id/rb_proto_reality_ech"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:text="Chrome 128+ Reality ECH [Рекомендуется]\nМаскировка ClientHello под www.cloudflare.com, ECH 0xfe0d"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:buttonTint="@color/amber_primary"
+                android:lineSpacingExtra="3dp"
+                android:layout_marginBottom="12dp" />
 
-                <RadioButton
-                    android:id="@+id/rb_proto_stealth"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="AEGS v6 Titan Stealth (QUIC RFC 9000 + Bimodal)\nОбход ТСПУ/DPI, бимодальный шейпинг фреймов"
-                    android:textColor="@color/text_primary"
-                    android:textSize="14sp"
-                    android:checked="true"
-                    android:buttonTint="@color/amber_primary"
-                    android:layout_marginBottom="12dp" />
+            <RadioButton
+                android:id="@+id/rb_proto_stealth"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="AEGS v6 Titan Stealth (QUIC RFC 9000 + Bimodal)\nОбход ТСПУ/DPI, бимодальный шейпинг фреймов"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:buttonTint="@color/amber_primary"
+                android:lineSpacingExtra="3dp"
+                android:layout_marginBottom="12dp" />
 
-                <RadioButton
-                    android:id="@+id/rb_proto_fast_resume"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="AEGS Fast 0-RTT (Resumption Token)\nМгновенный реконнект без вычисления Curve25519"
-                    android:textColor="@color/text_primary"
-                    android:textSize="14sp"
-                    android:buttonTint="@color/amber_primary"
-                    android:layout_marginBottom="12dp" />
+            <RadioButton
+                android:id="@+id/rb_proto_fast_resume"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="AEGS Fast 0-RTT (Resumption Token)\nМгновенный реконнект без вычисления Curve25519"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:buttonTint="@color/amber_primary"
+                android:lineSpacingExtra="3dp"
+                android:layout_marginBottom="12dp" />
 
-                <RadioButton
-                    android:id="@+id/rb_proto_illusion"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="AEGS Illusion STUN (RFC 5389 Decoys)\nМаскировка под доверенный WebRTC/STUN трафик"
-                    android:textColor="@color/text_primary"
-                    android:textSize="14sp"
-                    android:buttonTint="@color/amber_primary"
-                    android:layout_marginBottom="12dp" />
+            <RadioButton
+                android:id="@+id/rb_proto_illusion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="AEGS Illusion STUN (RFC 5389 Decoys)\nМаскировка под доверенный WebRTC/STUN трафик"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:buttonTint="@color/amber_primary"
+                android:lineSpacingExtra="3dp"
+                android:layout_marginBottom="12dp" />
 
-                <RadioButton
-                    android:id="@+id/rb_proto_tcp_fallback"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="AEGS TCP/TLS 1.3 Fallback (Port 443)\nАварийный туннель при 100% блокировке UDP"
-                    android:textColor="@color/text_primary"
-                    android:textSize="14sp"
-                    android:buttonTint="@color/amber_primary" />
-            </RadioGroup>
-        </LinearLayout>
+            <RadioButton
+                android:id="@+id/rb_proto_tcp_fallback"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="AEGS TCP/TLS 1.3 Fallback (Port 443)\nАварийный туннель при 100% блокировке UDP"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:buttonTint="@color/amber_primary"
+                android:lineSpacingExtra="3dp" />
+        </RadioGroup>
 
-        <!-- Power & Optimization Card -->
+        <!-- Security & Optimization Section -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="ОПТИМИЗАЦИЯ И МАРШРУТИЗАЦИЯ"
+            android:text="БЕЗОПАСНОСТЬ И ОПТИМИЗАЦИЯ"
             android:textColor="@color/amber_primary"
             android:textSize="12sp"
             android:textStyle="bold"
@@ -125,6 +139,63 @@
             android:padding="16dp"
             android:layout_marginBottom="20dp">
 
+            <!-- Hardware Kill-Switch -->
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/sw_killswitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Аппаратный Kill-Switch (Android 10+)"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:checked="true"
+                android:thumbTint="@color/amber_primary"
+                android:trackTint="@color/amber_glow_strong" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Блокирует утечки реального IP на уровне ядра Linux (VpnService.Builder.setBlocking) при переключении Wi-Fi / LTE."
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="14dp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/obsidian_card_stroke"
+                android:layout_marginBottom="14dp" />
+
+            <!-- Dynamic System Theme Auto-Adjust -->
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/sw_dynamic_theme"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Авто-подстройка темы под систему"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:checked="true"
+                android:thumbTint="@color/amber_primary"
+                android:trackTint="@color/amber_glow_strong" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Адаптирует обсидиановые и янтарные акценты под системную темную/светлую тему телефона (Material You)."
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="14dp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/obsidian_card_stroke"
+                android:layout_marginBottom="14dp" />
+
+            <!-- Adaptive Chaffing -->
             <androidx.appcompat.widget.SwitchCompat
                 android:id="@+id/sw_adaptive_chaff"
                 android:layout_width="match_parent"
@@ -140,7 +211,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Автоматически увеличивает интервалы фиктивного трафика при неактивном экране для сохранения аккумулятора"
+                android:text="Автоматически увеличивает интервалы фиктивного трафика при неактивном экране для сохранения аккумулятора."
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:layout_marginTop="4dp"
@@ -152,6 +223,7 @@
                 android:background="@color/obsidian_card_stroke"
                 android:layout_marginBottom="14dp" />
 
+            <!-- Split Tunneling -->
             <androidx.appcompat.widget.SwitchCompat
                 android:id="@+id/sw_split_tunnel"
                 android:layout_width="match_parent"
@@ -167,13 +239,13 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Банковские приложения (Сбер, Т-Банк, ВТБ), Госуслуги и маркетплейсы направляются напрямую без VPN"
+                android:text="Банковские приложения (Сбер, Т-Банк, ВТБ), Госуслуги и маркетплейсы направляются напрямую без VPN."
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:layout_marginTop="4dp" />
         </LinearLayout>
 
-        <!-- Authors & GitHub Section -->
+        <!-- Authors & GitHub Section (Strictly in Settings!) -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -199,15 +271,57 @@
                 android:textColor="@color/text_secondary"
                 android:textSize="13sp" />
 
-            <TextView
-                android:layout_width="wrap_content"
+            <!-- Author Card Button -->
+            <LinearLayout
+                android:id="@+id/btn_link_author"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="XDGOOD"
-                android:textColor="@color/amber_primary"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:layout_marginTop="2dp"
-                android:layout_marginBottom="16dp" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_input_rounded"
+                android:padding="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="12dp">
+
+                <TextView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:text="🛡️"
+                    android:textSize="18sp"
+                    android:gravity="center" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="10dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="XDGOOD"
+                        android:textColor="@color/amber_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="github.com/XDGOOD"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="↗"
+                    android:textColor="@color/amber_primary"
+                    android:textSize="16sp" />
+            </LinearLayout>
 
             <!-- GitHub Core Link Button -->
             <LinearLayout
@@ -227,6 +341,7 @@
                     android:layout_height="24dp"
                     android:src="@drawable/ic_github"
                     android:tint="@color/amber_primary"
+                    android:alpha="0.85"
                     android:contentDescription="GitHub" />
 
                 <LinearLayout
@@ -277,6 +392,7 @@
                     android:layout_height="24dp"
                     android:src="@drawable/ic_github"
                     android:tint="@color/amber_primary"
+                    android:alpha="0.85"
                     android:contentDescription="GitHub" />
 
                 <LinearLayout

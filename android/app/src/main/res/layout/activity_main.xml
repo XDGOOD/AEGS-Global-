@@ -19,7 +19,10 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="20dp">
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="20dp"
+            android:paddingBottom="28dp">
 
             <!-- Top Header Bar -->
             <RelativeLayout
@@ -77,7 +80,7 @@
                             android:id="@+id/tv_proto_badge"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="v6.0 • RFC 9000 QUIC Stealth"
+                            android:text="v6.5 • Chrome 128+ Reality ECH"
                             android:textColor="#F59E0B"
                             android:textSize="11.5sp"
                             android:textStyle="bold" />
@@ -113,6 +116,8 @@
                         android:background="@drawable/card_obsidian"
                         android:padding="8dp"
                         android:tint="#B3FFB300"
+                        android:clickable="true"
+                        android:focusable="true"
                         android:contentDescription="Настройки" />
                 </LinearLayout>
             </RelativeLayout>
@@ -123,7 +128,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:text="● Отключено • QUIC Stealth"
+                android:text="● Отключено • Готов к защите"
                 android:textColor="#F87171"
                 android:textSize="12.5sp"
                 android:textStyle="bold"
@@ -174,7 +179,7 @@
                     android:layout_marginTop="2dp" />
             </LinearLayout>
 
-            <!-- Telemetry Card -->
+            <!-- Telemetry & Live Bezier Metrics Graph Card -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -216,6 +221,13 @@
                     android:textSize="13sp"
                     android:textStyle="bold"
                     android:layout_marginTop="6dp" />
+
+                <!-- Live Obsidian & Amber Bezier Latency / Jitter Graph -->
+                <com.aegs.titan.LiveMetricsGraphView
+                    android:id="@+id/metrics_graph"
+                    android:layout_width="match_parent"
+                    android:layout_height="110dp"
+                    android:layout_marginTop="10dp" />
             </LinearLayout>
 
             <!-- Split Tunneling Card -->
@@ -325,52 +337,61 @@
                     android:padding="12dp" />
             </LinearLayout>
 
-            <!-- Project & Authors Card -->
+            <!-- Prominent Settings Section Card (Unmissable!) -->
             <LinearLayout
+                android:id="@+id/card_open_settings"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/card_obsidian"
-                android:orientation="vertical"
-                android:padding="14dp"
-                android:layout_marginTop="4dp">
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="16dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="12dp">
+
+                <ImageView
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@drawable/ic_settings"
+                    android:background="@drawable/btn_connect_circle"
+                    android:tint="#F59E0B"
+                    android:alpha="0.9"
+                    android:padding="9dp"
+                    android:contentDescription="Настройки" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="14dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⚙️ Раздел с настройками"
+                        android:textColor="#FFFBEB"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Reality ECH, Kill-Switch, Режимы обхода, Авторы"
+                        android:textColor="#A8A29E"
+                        android:textSize="12sp"
+                        android:layout_marginTop="2dp" />
+                </LinearLayout>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="ПРОЕКТ И РАЗРАБОТЧИКИ"
+                    android:text="➔"
                     android:textColor="#F59E0B"
-                    android:textSize="11sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
-
-                <Button
-                    android:id="@+id/btn_github_core"
-                    android:layout_width="match_parent"
-                    android:layout_height="38dp"
-                    android:text="Ядро протокола: net-packet-handler"
-                    android:textColor="#FFFBEB"
-                    android:textSize="12sp"
-                    android:background="#241E1C"
-                    android:layout_marginBottom="6dp" />
-
-                <Button
-                    android:id="@+id/btn_github_global"
-                    android:layout_width="match_parent"
-                    android:layout_height="38dp"
-                    android:text="Кластер и инфраструктура: AEGS-Global-"
-                    android:textColor="#FFFBEB"
-                    android:textSize="12sp"
-                    android:background="#241E1C"
-                    android:layout_marginBottom="6dp" />
-
-                <Button
-                    android:id="@+id/btn_author"
-                    android:layout_width="match_parent"
-                    android:layout_height="38dp"
-                    android:text="Автор и разработчик: XDGOOD"
-                    android:textColor="#F59E0B"
-                    android:textSize="12sp"
-                    android:background="#241E1C" />
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
             </LinearLayout>
 
         </LinearLayout>
