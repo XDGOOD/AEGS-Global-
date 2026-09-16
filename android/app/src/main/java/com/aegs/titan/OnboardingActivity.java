@@ -8,6 +8,7 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class OnboardingActivity extends AppCompatActivity {
@@ -68,6 +69,19 @@ public class OnboardingActivity extends AppCompatActivity {
         mBtnNext.setOnClickListener(v -> advanceStep());
         mBtnSkip.setOnClickListener(v -> finishOnboarding());
 
+        // Handle Back button: step back if on step 1-3, else finish
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (mCurrentStep > 0) {
+                    mCurrentStep--;
+                    updateStepDisplay();
+                } else {
+                    finishOnboarding();
+                }
+            }
+        });
+
         updateStepDisplay();
     }
 
@@ -101,7 +115,7 @@ public class OnboardingActivity extends AppCompatActivity {
             mAnimView.setMode(AnimShieldSpeedometerView.MODE_LOCK);
 
             mTvTitle.setText("Абсолютная безопасность");
-            mTvSubtitle.setText("Шифрование ChaCha20-Poly1305 и маскировка RFC 9000 QUIC. Замок защёлкнут — трафик неотличим от HTTPS.");
+            mTvSubtitle.setText("Шифрование ChaCha20-Poly1305 и маскировка Chrome 128+ Reality ECH. Трафик неотличим от HTTPS.");
             mBtnNext.setText("ДАЛЕЕ");
 
             setDotState(mDot0, false);
@@ -114,7 +128,7 @@ public class OnboardingActivity extends AppCompatActivity {
             mLlSourceSelector.setVisibility(View.GONE);
             mAnimView.setMode(AnimShieldSpeedometerView.MODE_SPEEDOMETER);
 
-            mTvTitle.setText("Скорость до 900+ Мбит/с");
+            mTvTitle.setText("Скорость до 940+ Мбит/с");
             mTvSubtitle.setText("Аппаратное zero-copy ядро. Мгновенная загрузка 4K видео на YouTube и минимальный пинг в играх.");
             mBtnNext.setText("ДАЛЕЕ");
 
@@ -128,7 +142,7 @@ public class OnboardingActivity extends AppCompatActivity {
             mLlSourceSelector.setVisibility(View.VISIBLE);
 
             mTvTitle.setText("Выберите способ подключения");
-            mTvSubtitle.setText("Используйте встроенный защищенный кластер или настройте подключение к своему VPS.");
+            mTvSubtitle.setText("Используйте встроенный защищенный кластер AEGS или настройте подключение к своему VPS.");
             mBtnNext.setText("ЗАПУСТИТЬ AEGS  🚀");
 
             setDotState(mDot0, false);
@@ -146,14 +160,18 @@ public class OnboardingActivity extends AppCompatActivity {
     }
 
     private void finishOnboarding() {
-        SharedPreferences prefs = getSharedPreferences("aegs_prefs", MODE_PRIVATE);
+        SharedPreferences prefs = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE);
         prefs.edit()
+                .putBoolean("onboarding_complete", true)
                 .putBoolean("onboarding_done", true)
                 .putBoolean("mode_vps", mSelectedVps)
                 .apply();
 
-        Intent intent = new Intent(this, MainActivity.class);
-        startActivity(intent);
+        if (isTaskRoot()) {
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        }
         finish();
     }
 }

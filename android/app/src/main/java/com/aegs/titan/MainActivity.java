@@ -6,6 +6,10 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.net.VpnService;
 import android.os.Bundle;
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
+import android.view.animation.AccelerateDecelerateInterpolator;
+
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
@@ -55,6 +59,43 @@ public class MainActivity extends AppCompatActivity {
     private ImageView mBtnSettings;
 
     private boolean mIsConnected = false;
+    private ObjectAnimator mPulseAnimX;
+    private ObjectAnimator mPulseAnimY;
+
+    private void startButtonPulse() {
+        stopButtonPulse();
+        if (mBtnConnectCircle == null) return;
+        mPulseAnimX = ObjectAnimator.ofFloat(mBtnConnectCircle, "scaleX", 1.0f, 1.04f);
+        mPulseAnimX.setDuration(1100);
+        mPulseAnimX.setRepeatCount(ValueAnimator.INFINITE);
+        mPulseAnimX.setRepeatMode(ValueAnimator.REVERSE);
+        mPulseAnimX.setInterpolator(new AccelerateDecelerateInterpolator());
+
+        mPulseAnimY = ObjectAnimator.ofFloat(mBtnConnectCircle, "scaleY", 1.0f, 1.04f);
+        mPulseAnimY.setDuration(1100);
+        mPulseAnimY.setRepeatCount(ValueAnimator.INFINITE);
+        mPulseAnimY.setRepeatMode(ValueAnimator.REVERSE);
+        mPulseAnimY.setInterpolator(new AccelerateDecelerateInterpolator());
+
+        mPulseAnimX.start();
+        mPulseAnimY.start();
+    }
+
+    private void stopButtonPulse() {
+        if (mPulseAnimX != null) {
+            mPulseAnimX.cancel();
+            mPulseAnimX = null;
+        }
+        if (mPulseAnimY != null) {
+            mPulseAnimY.cancel();
+            mPulseAnimY = null;
+        }
+        if (mBtnConnectCircle != null) {
+            mBtnConnectCircle.setScaleX(1.0f);
+            mBtnConnectCircle.setScaleY(1.0f);
+        }
+    }
+
     private SharedPreferences mPrefs;
 
     private final Handler mPingHandler = new Handler(Looper.getMainLooper());
@@ -89,7 +130,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // Onboarding first launch check
-        if (!mPrefs.getBoolean("onboarding_complete", false)) {
+        if (!mPrefs.getBoolean("onboarding_complete", false) && !mPrefs.getBoolean("onboarding_done", false)) {
             startActivity(new Intent(this, OnboardingActivity.class));
             finish();
             return;
@@ -162,6 +203,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         mPingHandler.removeCallbacks(mPingRunnable);
+        stopButtonPulse();
     }
 
     private void updateProtoBadge() {
@@ -290,6 +332,7 @@ public class MainActivity extends AppCompatActivity {
 
         mPingHandler.removeCallbacks(mPingRunnable);
         mPingHandler.postDelayed(mPingRunnable, 1000);
+        startButtonPulse();
     }
 
     private void disconnectVpn() {

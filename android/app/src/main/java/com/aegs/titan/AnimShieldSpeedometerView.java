@@ -341,4 +341,12 @@ public class AnimShieldSpeedometerView extends View {
         mPaintSubText.setColor(COLOR_AMBER);
         canvas.drawText("Мбит/с (LTO Turbo)", 0, 82f, mPaintSubText);
     }
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        if (mPulseAnim != null) mPulseAnim.cancel();
+        if (mLockAnim != null) mLockAnim.cancel();
+        if (mGlowAnim != null) mGlowAnim.cancel();
+        if (mSpeedAnim != null) mSpeedAnim.cancel();
+    }
 }
