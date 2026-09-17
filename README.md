@@ -12,7 +12,7 @@
 [![Deadlocks](https://img.shields.io/badge/Deadlocks-0-brightgreen.svg)](#)
 [![Language](https://img.shields.io/badge/Language-C%2B%2B17%20%2F%20C%2B%2B20-blue.svg)](#)
 [![Architecture](https://img.shields.io/badge/Architecture-Sharded%20Data--Plane-critical.svg)](#)
-[![License](https://img.shields.io/badge/License-MIT-purple.svg)](#)
+[![License: Non-Commercial](https://img.shields.io/badge/License-Non--Commercial-red.svg)](LICENSE)
 
 > **Carrier-Grade, Multi-Core, Sharded UDP Tunnel Protocol (AEGS v6 Titan)**  
 > Разработано с разделением плоскостей управления и передачи данных (Control/Data planes), 64 независимыми шардами состояния, Copy-on-Write неблокирующей таблицей маршрутизации TUN и маскировкой RFC 9000 QUIC Stealth.
@@ -100,5 +100,8 @@ cmake --build build -j$(nproc)
 ./build/aegs_server --port 50001 --token "my_secure_token"
 ```
 
-## 📄 Лицензия
-Распространяется под лицензией MIT. Автор и разработчик: [XDGOOD](https://github.com/XDGOOD).
+## 📄 Лицензия и правовой статус
+Распространяется под **AEGS Non-Commercial Community License v1.0**.
+- ✅ **Разрешено бесплатно:** личное использование, домашние лаборатории, академические исследования, аудит безопасности и некоммерческие тесты.
+- 🚫 **Строго запрещено:** любое коммерческое использование, перепродажа протокола или клиента, развертывание платных VPN/прокси-сервисов, встраивание в коммерческое оборудование/прошивки (роутеры) или закрытые коммерческие продукты без предварительного письменного согласования с автором.
+- 💼 **Коммерческое лицензирование:** для коммерческого использования, интеграций и корпоративных лицензий обращайтесь напрямую к автору: [XDGOOD](https://github.com/XDGOOD).

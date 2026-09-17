@@ -1,21 +1,86 @@
-MIT License
+AEGS PROTOCOL & SOFTWARE NON-COMMERCIAL COMMUNITY LICENSE (v1.0)
+Copyright (c) 2026 XDGOOD (https://github.com/XDGOOD). All rights reserved.
 
-Copyright (c) 2026 XDGOOD
+===============================================================================
+ПРЕДУПРЕЖДЕНИЕ: ДАННАЯ ЛИЦЕНЗИЯ СТРОГО ЗАПРЕЩАЕТ ЛЮБОЕ КОММЕРЧЕСКОЕ 
+ИСПОЛЬЗОВАНИЕ, ПРОДАЖУ, МОНЕТИЗАЦИЮ И ПЛАТНОЕ РАСПРОСТРАНЕНИЕ ПРОТОКОЛА 
+И ПРОГРАММНОГО ОБЕСПЕЧЕНИЯ AEGS БЕЗ ПИСЬМЕННОГО СОГЛАСИЯ АВТОРА (XDGOOD).
+===============================================================================
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+1. DEFINITIONS / ОПРЕДЕЛЕНИЯ
+"Software" refers to the AEGS protocol specifications, cryptographic algorithms, 
+source code, client and server applications, mobile clients (Android/Titan), 
+documentation, and all associated materials authored or maintained by XDGOOD.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+"Author" and "Licensor" refers exclusively to XDGOOD (https://github.com/XDGOOD).
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+"Commercial Use" means any use, deployment, or integration that is intended for or 
+directed toward commercial advantage, monetary compensation, revenue generation, 
+or business profit. This includes, but is not limited to:
+  (a) Selling, leasing, renting, or sublicensing the Software or any part thereof;
+  (b) Providing paid VPN services, commercial proxy networks, subscription tunnels, 
+      or monetized traffic routing services utilizing the Software or AEGS protocol;
+  (c) Integrating the Software into commercial hardware (e.g., routers, servers), 
+      operating systems, proprietary applications, or enterprise appliances sold for a fee;
+  (d) Using the Software within a commercial enterprise or corporation for revenue-generating 
+      business activities, commercial infrastructure, or internal commercial networks;
+  (e) Bundling the Software with paid products, advertisements, paywalls, or sponsored software.
+
+"Non-Commercial Use" means personal, educational, non-profit academic research, 
+evaluation, and personal non-monetized testing or home lab usage without any direct or 
+indirect commercial compensation or revenue.
+
+2. GRANT OF NON-COMMERCIAL LICENSE / РАЗРЕШЕНИЕ НА НЕКОММЕРЧЕСКОЕ ИСПОЛЬЗОВАНИЕ
+Subject to the terms of this License, the Author hereby grants to any person obtaining a copy 
+of the Software a free, worldwide, non-exclusive, non-transferable license to:
+  (a) Run, compile, and use the Software strictly for Non-Commercial Use;
+  (b) Study, inspect, and evaluate the source code and protocol mechanisms;
+  (c) Modify, adapt, and build upon the Software solely for personal, research, or 
+      educational Non-Commercial Use, provided all derivative works comply with Section 4.
+
+3. STRICT COMMERCIAL PROHIBITION / СТРОГИЙ ЗАПРЕТ КОММЕРЧЕСКОГО ИСПОЛЬЗОВАНИЯ
+UNDER NO CIRCUMSTANCES MAY ANY INDIVIDUAL, COMPANY, ORGANIZATION, OR ENTITY:
+  (a) SELL, RESELL, OR COMMERCIALLY DISTRIBUTE THIS SOFTWARE, ITS SOURCE CODE, 
+      COMPILED BINARIES, PROTOCOL SPECIFICATION, OR DERIVATIVES;
+  (b) USE THIS SOFTWARE OR THE AEGS PROTOCOL IN ANY COMMERCIAL OR MONETIZED SERVICE 
+      (INCLUDING PAID VPNS, PROXIES, OR SAAS);
+  (c) EXPLOIT THE SOFTWARE FOR DIRECT OR INDIRECT MONETARY OR COMMERCIAL BENEFIT,
+WITHOUT PRIOR FORMAL WRITTEN AUTHORIZATION AND A SIGNED COMMERCIAL LICENSE 
+DIRECTLY FROM THE AUTHOR (XDGOOD).
+
+Any unauthorized commercial use or sale constitutes an intentional and willful 
+violation of copyright law and intellectual property rights under international 
+copyright conventions (Berne Convention, WIPO Copyright Treaty), Part IV of the 
+Civil Code of the Russian Federation (Articles 1229, 1235, 1270, 1301), and the 
+United States Copyright Act (Title 17 U.S.C.).
+
+4. DERIVATIVE WORKS AND COPYLEFT / ПРОИЗВОДНЫЕ РАБОТЫ
+Any modifications, forks, enhancements, ports to other languages or platforms, or 
+derivative works based on the Software or the AEGS protocol:
+  (a) Must remain under this exact same License;
+  (b) Must prominently display this License and full copyright attribution to XDGOOD;
+  (c) Are strictly subject to the same Non-Commercial restrictions and CANNOT be 
+      re-licensed under MIT, Apache, BSD, GPL, or proprietary licenses to circumvent 
+      the commercial prohibition.
+
+5. COMMERCIAL LICENSING INQUIRIES / КОММЕРЧЕСКОЕ ЛИЦЕНЗИРОВАНИЕ
+For commercial licensing, enterprise deployment rights, OEM router hardware bundling, 
+telecom/ISP integration, or custom commercial terms, you must contact the Author directly:
+  Author: XDGOOD
+  GitHub: https://github.com/XDGOOD
+  Project: https://github.com/XDGOOD/AEGS-Global-
+
+No commercial rights are granted or implied by access to this repository or source code.
+
+6. TERMINATION / ПРЕКРАЩЕНИЕ ДЕЙСТВИЯ ПРАВ
+Any violation of this License automatically and immediately terminates all rights 
+granted herein without prior notice. Upon termination, you must immediately cease all 
+use, distribution, and operation of the Software and destroy all copies in your possession.
+
+7. DISCLAIMER OF WARRANTY AND LIMITATION OF LIABILITY
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A 
+PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR (XDGOOD) 
+BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
+TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE 
+USE OR OTHER DEALINGS IN THE SOFTWARE.
