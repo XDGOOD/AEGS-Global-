@@ -59,6 +59,11 @@ public class AegsVpnService extends VpnService implements Runnable {
     private boolean mKillSwitch = true;
     private int mProtocolMode = SettingsActivity.PROTO_REALITY_ECH;
 
+    private boolean mIsPaused = false;
+    private long mPauseUntilMs = 0;
+    private android.os.Handler mPauseHandler;
+    private Runnable mPauseRunnable;
+
     private PowerManager.WakeLock mWakeLock;
 
     private final AtomicLong mTxSeq = new AtomicLong(0);
@@ -85,6 +90,14 @@ public class AegsVpnService extends VpnService implements Runnable {
             if ("STOP".equals(action)) {
                 stopVpn();
                 return START_NOT_STICKY;
+            }
+            if ("PAUSE_5MIN".equals(action)) {
+                setFiveMinutePause(true);
+                return START_STICKY;
+            }
+            if ("RESUME".equals(action)) {
+                setFiveMinutePause(false);
+                return START_STICKY;
             }
             if (intent.hasExtra("SERVER_IP")) mServerIp = intent.getStringExtra("SERVER_IP");
             if (intent.hasExtra("SERVER_PORT")) mServerPort = intent.getIntExtra("SERVER_PORT", 50001);
@@ -135,16 +148,62 @@ public class AegsVpnService extends VpnService implements Runnable {
         }
     }
 
+    private void setFiveMinutePause(boolean pause) {
+        mIsPaused = pause;
+        if (mPauseHandler == null) {
+            mPauseHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        }
+        if (mPauseRunnable != null) {
+            mPauseHandler.removeCallbacks(mPauseRunnable);
+            mPauseRunnable = null;
+        }
+
+        if (pause) {
+            mPauseUntilMs = System.currentTimeMillis() + 300_000L; // 5 mins
+            mPauseRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    long remainingMs = mPauseUntilMs - System.currentTimeMillis();
+                    if (remainingMs <= 0) {
+                        setFiveMinutePause(false);
+                    } else {
+                        long sec = (remainingMs / 1000) % 60;
+                        long min = (remainingMs / 1000) / 60;
+                        String countStr = String.format(java.util.Locale.US, "%02d:%02d", min, sec);
+                        Notification notif = buildNotification("Пауза (" + countStr + ") • Прямой доступ для банков");
+                        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                        if (nm != null) nm.notify(NOTIF_ID, notif);
+                        mPauseHandler.postDelayed(this, 1000);
+                    }
+                }
+            };
+            mPauseHandler.post(mPauseRunnable);
+        } else {
+            Notification notif = buildNotification("Защита активна • AEGS Titan Reality ECH");
+            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm != null) nm.notify(NOTIF_ID, notif);
+        }
+    }
+
     private Notification buildNotification(String text) {
         Intent intent = new Intent(this, MainActivity.class);
-        PendingIntent pi = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
-        return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("AEGS Titan v6.5")
+        PendingIntent piMain = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+
+        Intent stopIntent = new Intent(this, AegsVpnService.class).setAction("STOP");
+        PendingIntent piStop = PendingIntent.getService(this, 1, stopIntent, PendingIntent.FLAG_IMMUTABLE);
+
+        Intent pauseIntent = new Intent(this, AegsVpnService.class).setAction(mIsPaused ? "RESUME" : "PAUSE_5MIN");
+        PendingIntent piPause = PendingIntent.getService(this, 2, pauseIntent, PendingIntent.FLAG_IMMUTABLE);
+
+        NotificationCompat.Builder b = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("AEGS Titan v7.0")
                 .setContentText(text)
                 .setSmallIcon(R.drawable.ic_shield)
-                .setContentIntent(pi)
-                .setOngoing(true)
-                .build();
+                .setContentIntent(piMain)
+                .addAction(R.drawable.ic_shield, mIsPaused ? "Возобновить" : "Пауза 5 мин", piPause)
+                .addAction(R.drawable.ic_shield, "Отключить", piStop)
+                .setOngoing(true);
+        return b.build();
     }
 
     @Override
@@ -249,7 +308,14 @@ public class AegsVpnService extends VpnService implements Runnable {
 
             if (mSplitTunnel && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 PackageManager pm = getPackageManager();
-                for (String pkg : BYPASS_PACKAGES) {
+                java.util.Set<String> allBypass = new java.util.HashSet<>(java.util.Arrays.asList(BYPASS_PACKAGES));
+                try {
+                    android.content.SharedPreferences prefs = getSharedPreferences("aegs_prefs", Context.MODE_PRIVATE);
+                    java.util.Set<String> custom = prefs.getStringSet("custom_bypass_packages", null);
+                    if (custom != null) allBypass.addAll(custom);
+                } catch (Exception ignored) {}
+
+                for (String pkg : allBypass) {
                     try {
                         pm.getPackageInfo(pkg, 0);
                         builder.addDisallowedApplication(pkg);

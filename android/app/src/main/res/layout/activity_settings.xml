@@ -243,6 +243,36 @@
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:layout_marginTop="4dp" />
+
+            <LinearLayout
+                android:id="@+id/btn_choose_bypass_apps"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_input_rounded"
+                android:padding="10dp"
+                android:layout_marginTop="8dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <TextView
+                    android:id="@+id/tv_bypass_apps_count"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Выбрать приложения в обход туннеля"
+                    android:textColor="@color/amber_primary"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="›"
+                    android:textColor="@color/amber_primary"
+                    android:textSize="18sp" />
+            </LinearLayout>
         </LinearLayout>
 
         <!-- Authors & GitHub Section (Strictly in Settings!) -->
@@ -422,6 +452,57 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="↗"
+                    android:textColor="@color/amber_primary"
+                    android:textSize="16sp" />
+            </LinearLayout>
+
+            <!-- License Button -->
+            <LinearLayout
+                android:id="@+id/btn_link_license"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_input_rounded"
+                android:padding="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:layout_marginTop="10dp">
+
+                <TextView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:text="📜"
+                    android:textSize="18sp"
+                    android:gravity="center" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Лицензия: Non-Commercial v1.0"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Запрещено коммерческое использование"
+                        android:textColor="@color/amber_primary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ⓘ"
                     android:textColor="@color/amber_primary"
                     android:textSize="16sp" />
             </LinearLayout>

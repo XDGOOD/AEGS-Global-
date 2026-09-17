@@ -130,6 +130,17 @@ public class SettingsActivity extends AppCompatActivity {
         if (btnGlobal != null) {
             btnGlobal.setOnClickListener(v -> openUrl("https://github.com/XDGOOD/AEGS-Global-"));
         }
+
+        View btnLicense = findViewById(R.id.btn_link_license);
+        if (btnLicense != null) {
+            btnLicense.setOnClickListener(v -> showLicenseDialog());
+        }
+
+        View btnChooseBypass = findViewById(R.id.btn_choose_bypass_apps);
+        if (btnChooseBypass != null) {
+            btnChooseBypass.setOnClickListener(v -> showAppSelectionDialog());
+        }
+        updateBypassCountLabel();
     }
 
     private void openUrl(String url) {
@@ -139,5 +150,73 @@ public class SettingsActivity extends AppCompatActivity {
         } catch (Exception e) {
             Toast.makeText(this, "Не удалось открыть ссылку: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void updateBypassCountLabel() {
+        android.widget.TextView tv = findViewById(R.id.tv_bypass_apps_count);
+        if (tv == null) return;
+        java.util.Set<String> custom = mPrefs.getStringSet("custom_bypass_packages", null);
+        int count = custom != null ? custom.size() : 9; // 9 default banking/gov apps
+        tv.setText("Приложения в обход туннеля (" + count + " выбрано)");
+    }
+
+    private void showLicenseDialog() {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("AEGS Non-Commercial Community License v1.0")
+                .setMessage("Правообладатель и автор протокола: XDGOOD\n\n" +
+                        "Протокол AEGS и мобильный клиент распространяются исключительно для некоммерческого, исследовательского и личного использования.\n\n" +
+                        "⚠️ Любое коммерческое использование, перепродажа, продажа платных VPN-подписок и интеграция в коммерческие маршрутизаторы без прямого предварительного письменного согласия автора (XDGOOD) СТРОГО ЗАПРЕЩЕНЫ.\n\n" +
+                        "Все права защищены.")
+                .setPositiveButton("Понятно", null)
+                .show();
+    }
+
+    private void showAppSelectionDialog() {
+        new Thread(() -> {
+            PackageManager pm = getPackageManager();
+            java.util.List<android.content.pm.ApplicationInfo> installed = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+            java.util.List<String> names = new java.util.ArrayList<>();
+            java.util.List<String> pkgs = new java.util.ArrayList<>();
+
+            for (android.content.pm.ApplicationInfo ai : installed) {
+                if ((ai.flags & android.content.pm.ApplicationInfo.FLAG_SYSTEM) == 0 || pm.getLaunchIntentForPackage(ai.packageName) != null) {
+                    names.add(pm.getApplicationLabel(ai).toString() + " (" + ai.packageName + ")");
+                    pkgs.add(ai.packageName);
+                }
+            }
+
+            java.util.Set<String> saved = mPrefs.getStringSet("custom_bypass_packages", null);
+            if (saved == null) {
+                saved = new java.util.HashSet<>(java.util.Arrays.asList(
+                        "ru.sberbankmobile", "com.idamob.tinkoff.android", "ru.vtb24.mobilebanking",
+                        "ru.alfabank.mobile.android", "ru.gosuslugi.net", "ru.yandex.searchplugin",
+                        "com.vkontakte.android", "ru.ozon.app.android", "com.wildberries.ru"
+                ));
+            }
+
+            final boolean[] checked = new boolean[pkgs.size()];
+            for (int i = 0; i < pkgs.size(); i++) {
+                checked[i] = saved.contains(pkgs.get(i));
+            }
+
+            runOnUiThread(() -> {
+                new androidx.appcompat.app.AlertDialog.Builder(this)
+                        .setTitle("Приложения в обход VPN")
+                        .setMultiChoiceItems(names.toArray(new CharSequence[0]), checked, (dialog, which, isChecked) -> {
+                            checked[which] = isChecked;
+                        })
+                        .setPositiveButton("Сохранить", (dialog, which) -> {
+                            java.util.Set<String> newSet = new java.util.HashSet<>();
+                            for (int i = 0; i < pkgs.size(); i++) {
+                                if (checked[i]) newSet.add(pkgs.get(i));
+                            }
+                            mPrefs.edit().putStringSet("custom_bypass_packages", newSet).apply();
+                            updateBypassCountLabel();
+                            Toast.makeText(this, "Сохранено приложений в обход: " + newSet.size(), Toast.LENGTH_SHORT).show();
+                        })
+                        .setNegativeButton("Отмена", null)
+                        .show();
+            });
+        }).start();
     }
 }

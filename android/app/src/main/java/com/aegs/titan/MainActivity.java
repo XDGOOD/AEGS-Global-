@@ -59,6 +59,7 @@ public class MainActivity extends AppCompatActivity {
     private ImageView mBtnSettings;
 
     private boolean mIsConnected = false;
+    private String mLastImportedClip = "";
     private ObjectAnimator mPulseAnimX;
     private ObjectAnimator mPulseAnimY;
 
@@ -197,6 +198,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         updateProtoBadge();
+        checkClipboardForConfig();
     }
 
     @Override
@@ -266,6 +268,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void toggleConnection() {
+        triggerHaptic();
         if (!mIsConnected) {
             Intent vpnIntent = VpnService.prepare(this);
             if (vpnIntent != null) {
@@ -350,5 +353,40 @@ public class MainActivity extends AppCompatActivity {
         mTvConnLabel.setText("ПОДКЛЮЧИТЬ");
         pickRandomPhrase();
         mTvConnSub.setTextColor(0xFFF59E0B);
+    }
+
+    private void triggerHaptic() {
+        try {
+            View decor = getWindow().getDecorView();
+            decor.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY,
+                    android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+        } catch (Exception ignored) {}
+    }
+
+    private void checkClipboardForConfig() {
+        try {
+            android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (cm != null && cm.hasPrimaryClip()) {
+                android.content.ClipData clip = cm.getPrimaryClip();
+                if (clip != null && clip.getItemCount() > 0) {
+                    CharSequence cs = clip.getItemAt(0).getText();
+                    if (cs != null) {
+                        final String text = cs.toString().trim();
+                        if (text.startsWith("aegs://") && !text.equals(mLastImportedClip)) {
+                            mLastImportedClip = text;
+                            new androidx.appcompat.app.AlertDialog.Builder(this)
+                                    .setTitle("Обнаружен профиль AEGS")
+                                    .setMessage("В буфере обмена найдена ссылка конфигурации:\n" + text + "\n\nИмпортировать настройки сервера?")
+                                    .setPositiveButton("Импортировать", (dialog, which) -> {
+                                        triggerHaptic();
+                                        handleIncomingIntent(new Intent(Intent.ACTION_VIEW, Uri.parse(text)));
+                                    })
+                                    .setNegativeButton("Отмена", null)
+                                    .show();
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
     }
 }
