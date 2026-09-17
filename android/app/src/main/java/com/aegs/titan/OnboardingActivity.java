@@ -143,7 +143,7 @@ public class OnboardingActivity extends AppCompatActivity {
 
             mTvTitle.setText("Выберите способ подключения");
             mTvSubtitle.setText("Используйте встроенный защищенный кластер AEGS или настройте подключение к своему VPS.");
-            mBtnNext.setText("ЗАПУСТИТЬ AEGS  🚀");
+            mBtnNext.setText("ЗАПУСТИТЬ AEGS");
 
             setDotState(mDot0, false);
             setDotState(mDot1, false);

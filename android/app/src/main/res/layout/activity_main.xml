@@ -152,11 +152,12 @@
                 android:focusable="true"
                 android:layout_marginBottom="20dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="🛡️"
-                    android:textSize="26sp" />
+                <ImageView
+                    android:id="@+id/iv_conn_shield"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:src="@drawable/ic_shield"
+                    android:tint="@color/amber_primary" />
 
                 <TextView
                     android:id="@+id/tv_conn_label"
@@ -371,7 +372,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="⚙️ Раздел с настройками"
+                        android:text="Раздел с настройками"
                         android:textColor="#FFFBEB"
                         android:textSize="15sp"
                         android:textStyle="bold" />
@@ -388,7 +389,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="➔"
+                    android:text="›"
                     android:textColor="#F59E0B"
                     android:textSize="18sp"
                     android:textStyle="bold" />

@@ -256,12 +256,54 @@
                 android:clickable="true"
                 android:focusable="true">
 
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_settings"
+                    android:layout_marginEnd="8dp" />
+
                 <TextView
                     android:id="@+id/tv_bypass_apps_count"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="Выбрать приложения в обход туннеля"
+                    android:textColor="@color/amber_primary"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="›"
+                    android:textColor="@color/amber_primary"
+                    android:textSize="18sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btn_choose_bypass_domains"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_input_rounded"
+                android:padding="10dp"
+                android:layout_marginTop="8dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_globe"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/tv_bypass_domains_count"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Выбрать сайты и домены в обход VPN"
                     android:textColor="@color/amber_primary"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -315,12 +357,11 @@
                 android:layout_marginTop="6dp"
                 android:layout_marginBottom="12dp">
 
-                <TextView
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:text="🛡️"
-                    android:textSize="18sp"
-                    android:gravity="center" />
+                <ImageView
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:src="@drawable/ic_shield"
+                    android:layout_gravity="center_vertical" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -469,12 +510,11 @@
                 android:focusable="true"
                 android:layout_marginTop="10dp">
 
-                <TextView
+                <ImageView
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:text="📜"
-                    android:textSize="18sp"
-                    android:gravity="center" />
+                    android:src="@drawable/ic_document"
+                    android:layout_gravity="center_vertical" />
 
                 <LinearLayout
                     android:layout_width="0dp"

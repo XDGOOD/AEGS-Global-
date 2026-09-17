@@ -8,7 +8,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.VpnService;
+import android.net.IpPrefix;
 import android.os.Build;
+import java.net.InetAddress;
+import java.net.Inet4Address;
 import android.os.ParcelFileDescriptor;
 import android.os.PowerManager;
 import android.util.Log;
@@ -196,7 +199,7 @@ public class AegsVpnService extends VpnService implements Runnable {
         PendingIntent piPause = PendingIntent.getService(this, 2, pauseIntent, PendingIntent.FLAG_IMMUTABLE);
 
         NotificationCompat.Builder b = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("AEGS Titan v7.0")
+                .setContentTitle("AEGS Titan v6.5")
                 .setContentText(text)
                 .setSmallIcon(R.drawable.ic_shield)
                 .setContentIntent(piMain)
@@ -320,6 +323,35 @@ public class AegsVpnService extends VpnService implements Runnable {
                         pm.getPackageInfo(pkg, 0);
                         builder.addDisallowedApplication(pkg);
                     } catch (PackageManager.NameNotFoundException ignored) {}
+                }
+
+                // Domain Split-Tunneling: Exclude direct routes for bypass domains on Android 13+ (API 33)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    try {
+                        android.content.SharedPreferences prefs = getSharedPreferences("aegs_prefs", Context.MODE_PRIVATE);
+                        java.util.Set<String> bypassDomains = prefs.getStringSet("custom_bypass_domains", null);
+                        if (bypassDomains == null) {
+                            bypassDomains = new java.util.HashSet<>(java.util.Arrays.asList(
+                                    "gosuslugi.ru", "sberbank.ru", "tbank.ru", "vtb.ru",
+                                    "ya.ru", "yandex.ru", "kinopoisk.ru", "ozon.ru", "wildberries.ru"
+                            ));
+                        }
+                        for (String domain : bypassDomains) {
+                            try {
+                                InetAddress[] addrs = InetAddress.getAllByName(domain);
+                                for (InetAddress addr : addrs) {
+                                    if (addr instanceof Inet4Address) {
+                                        builder.excludeRoute(new IpPrefix(addr, 32));
+                                        Log.d(TAG, "[AEGS] Excluded direct route for bypass domain: " + domain + " -> " + addr.getHostAddress());
+                                    }
+                                }
+                            } catch (Exception e) {
+                                Log.w(TAG, "[AEGS] Could not resolve bypass domain " + domain + ": " + e.getMessage());
+                            }
+                        }
+                    } catch (Exception e) {
+                        Log.w(TAG, "[AEGS] Failed to configure domain route exclusion: " + e.getMessage());
+                    }
                 }
             }
 

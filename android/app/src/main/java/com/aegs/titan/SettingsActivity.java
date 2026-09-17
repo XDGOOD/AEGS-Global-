@@ -13,6 +13,16 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.SwitchCompat;
+import androidx.appcompat.app.AlertDialog;
+import android.content.pm.PackageManager;
+import android.content.pm.ApplicationInfo;
+import android.widget.EditText;
+import android.widget.TextView;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class SettingsActivity extends AppCompatActivity {
     public static final String PREFS_NAME = "aegs_prefs";
@@ -21,6 +31,7 @@ public class SettingsActivity extends AppCompatActivity {
     public static final String KEY_SPLIT_TUNNEL = "split_tunnel";
     public static final String KEY_KILL_SWITCH = "kill_switch";
     public static final String KEY_DYNAMIC_THEME = "dynamic_theme";
+    public static final String KEY_CUSTOM_BYPASS_DOMAINS = "custom_bypass_domains";
 
     public static final int PROTO_REALITY_ECH = 0;
     public static final int PROTO_STEALTH = 1;
@@ -140,7 +151,13 @@ public class SettingsActivity extends AppCompatActivity {
         if (btnChooseBypass != null) {
             btnChooseBypass.setOnClickListener(v -> showAppSelectionDialog());
         }
+
+        View btnChooseDomains = findViewById(R.id.btn_choose_bypass_domains);
+        if (btnChooseDomains != null) {
+            btnChooseDomains.setOnClickListener(v -> showDomainSelectionDialog());
+        }
         updateBypassCountLabel();
+        updateBypassDomainsLabel();
     }
 
     private void openUrl(String url) {
@@ -153,11 +170,65 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void updateBypassCountLabel() {
-        android.widget.TextView tv = findViewById(R.id.tv_bypass_apps_count);
+        TextView tv = findViewById(R.id.tv_bypass_apps_count);
         if (tv == null) return;
-        java.util.Set<String> custom = mPrefs.getStringSet("custom_bypass_packages", null);
-        int count = custom != null ? custom.size() : 9; // 9 default banking/gov apps
+        Set<String> custom = mPrefs.getStringSet("custom_bypass_packages", null);
+        int count = custom != null ? custom.size() : 9;
         tv.setText("Приложения в обход туннеля (" + count + " выбрано)");
+    }
+
+    private void updateBypassDomainsLabel() {
+        TextView tv = findViewById(R.id.tv_bypass_domains_count);
+        if (tv == null) return;
+        Set<String> custom = mPrefs.getStringSet(KEY_CUSTOM_BYPASS_DOMAINS, null);
+        int count = custom != null ? custom.size() : DEFAULT_DOMAINS.length;
+        tv.setText("Сайты и домены в обход VPN (" + count + " настроено)");
+    }
+
+    private static final String[] DEFAULT_DOMAINS = {
+            "gosuslugi.ru", "sberbank.ru", "tbank.ru", "vtb.ru",
+            "ya.ru", "yandex.ru", "kinopoisk.ru", "ozon.ru", "wildberries.ru"
+    };
+
+    private void showDomainSelectionDialog() {
+        Set<String> savedDomains = mPrefs.getStringSet(KEY_CUSTOM_BYPASS_DOMAINS, null);
+        final List<String> domainList = new ArrayList<>();
+        if (savedDomains != null) {
+            domainList.addAll(savedDomains);
+        } else {
+            domainList.addAll(Arrays.asList(DEFAULT_DOMAINS));
+        }
+
+        final boolean[] checked = new boolean[domainList.size()];
+        Arrays.fill(checked, true);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Сайты и домены в обход VPN");
+
+        builder.setMultiChoiceItems(domainList.toArray(new CharSequence[0]), checked, (dialog, which, isChecked) -> {
+            checked[which] = isChecked;
+        });
+
+        final EditText etNewDomain = new EditText(this);
+        etNewDomain.setHint("Добавить домен (например, vk.com)");
+        builder.setView(etNewDomain);
+
+        builder.setPositiveButton("Сохранить", (dialog, which) -> {
+            Set<String> resultSet = new HashSet<>();
+            for (int i = 0; i < domainList.size(); i++) {
+                if (checked[i]) resultSet.add(domainList.get(i));
+            }
+            String newDom = etNewDomain.getText().toString().trim().toLowerCase();
+            if (!newDom.isEmpty() && newDom.contains(".")) {
+                resultSet.add(newDom);
+            }
+            mPrefs.edit().putStringSet(KEY_CUSTOM_BYPASS_DOMAINS, resultSet).apply();
+            updateBypassDomainsLabel();
+            Toast.makeText(this, "Сохранено доменов в обход: " + resultSet.size(), Toast.LENGTH_SHORT).show();
+        });
+
+        builder.setNegativeButton("Отмена", null);
+        builder.show();
     }
 
     private void showLicenseDialog() {
@@ -165,7 +236,7 @@ public class SettingsActivity extends AppCompatActivity {
                 .setTitle("AEGS Non-Commercial Community License v1.0")
                 .setMessage("Правообладатель и автор протокола: XDGOOD\n\n" +
                         "Протокол AEGS и мобильный клиент распространяются исключительно для некоммерческого, исследовательского и личного использования.\n\n" +
-                        "⚠️ Любое коммерческое использование, перепродажа, продажа платных VPN-подписок и интеграция в коммерческие маршрутизаторы без прямого предварительного письменного согласия автора (XDGOOD) СТРОГО ЗАПРЕЩЕНЫ.\n\n" +
+                        "Любое коммерческое использование, перепродажа, продажа платных VPN-подписок и интеграция в коммерческие маршрутизаторы без прямого предварительного письменного согласия автора (XDGOOD) СТРОГО ЗАПРЕЩЕНЫ.\n\n" +
                         "Все права защищены.")
                 .setPositiveButton("Понятно", null)
                 .show();
