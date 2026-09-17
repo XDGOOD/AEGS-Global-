@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/obsidian_base"
+    android:background="@color/bg_main"
     android:paddingTop="24dp">
 
     <!-- Header Toolbar -->
@@ -99,7 +99,7 @@
             android:padding="8dp"
             android:background="@drawable/bg_btn_amber"
             android:text="Все"
-            android:textColor="@color/obsidian_base"
+            android:textColor="@color/bg_main"
             android:textSize="12sp"
             android:textStyle="bold"
             android:clickable="true"

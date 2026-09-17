@@ -1,6 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Obsidian Palette (Night / Dark) -->
+    <color name="obsidian_base">#0D0D10</color>
     <color name="obsidian_bg">#090A0D</color>
     <color name="obsidian_surface">#12141B</color>
     <color name="obsidian_surface_elevated">#191C25</color>

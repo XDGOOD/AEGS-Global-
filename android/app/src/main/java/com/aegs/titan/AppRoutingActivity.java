@@ -116,15 +116,15 @@ public class AppRoutingActivity extends AppCompatActivity {
         mCurrentFilter = filterMode;
         if (mBtnFilterAll != null) {
             mBtnFilterAll.setBackgroundResource(filterMode == 0 ? R.drawable.bg_btn_amber : R.drawable.bg_input_rounded);
-            mBtnFilterAll.setTextColor(filterMode == 0 ? getResources().getColor(R.color.obsidian_base) : getResources().getColor(R.color.text_primary));
+            mBtnFilterAll.setTextColor(filterMode == 0 ? getResources().getColor(R.color.text_on_amber) : getResources().getColor(R.color.text_primary));
         }
         if (mBtnFilterVpn != null) {
             mBtnFilterVpn.setBackgroundResource(filterMode == 1 ? R.drawable.bg_btn_amber : R.drawable.bg_input_rounded);
-            mBtnFilterVpn.setTextColor(filterMode == 1 ? getResources().getColor(R.color.obsidian_base) : getResources().getColor(R.color.text_primary));
+            mBtnFilterVpn.setTextColor(filterMode == 1 ? getResources().getColor(R.color.text_on_amber) : getResources().getColor(R.color.text_primary));
         }
         if (mBtnFilterDirect != null) {
             mBtnFilterDirect.setBackgroundResource(filterMode == 2 ? R.drawable.bg_btn_amber : R.drawable.bg_input_rounded);
-            mBtnFilterDirect.setTextColor(filterMode == 2 ? getResources().getColor(R.color.obsidian_base) : getResources().getColor(R.color.text_primary));
+            mBtnFilterDirect.setTextColor(filterMode == 2 ? getResources().getColor(R.color.text_on_amber) : getResources().getColor(R.color.text_primary));
         }
         applyQueryAndFilter();
     }

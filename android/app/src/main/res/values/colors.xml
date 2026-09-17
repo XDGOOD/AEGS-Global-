@@ -16,6 +16,7 @@
     <color name="btn_text">#261102</color>
 
     <!-- Obsidian Palette (Day/Base) -->
+    <color name="obsidian_base">#0D0D10</color>
     <color name="obsidian_bg">#F5F6F9</color>
     <color name="obsidian_surface">#FFFFFF</color>
     <color name="obsidian_surface_elevated">#EDEDF2</color>
