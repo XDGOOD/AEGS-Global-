@@ -33,11 +33,16 @@ public class SettingsActivity extends AppCompatActivity {
     public static final String KEY_DYNAMIC_THEME = "dynamic_theme";
     public static final String KEY_CUSTOM_BYPASS_DOMAINS = "custom_bypass_domains";
 
-    public static final int PROTO_REALITY_ECH = 0;
-    public static final int PROTO_STEALTH = 1;
-    public static final int PROTO_FAST_RESUME = 2;
-    public static final int PROTO_ILLUSION = 3;
-    public static final int PROTO_TCP_FALLBACK = 4;
+    public static final int PROTO_EMERGENCY = 0;       // Аварийное (при блокировках • Reality ECH)
+    public static final int PROTO_FAST_EMERGENCY = 1;  // Быстрый аварийный (0-RTT + IAT Shaper)
+    public static final int PROTO_TURBO_PQC = 2;       // Скоростной и Защищенный (Turbo UDP + Kyber-768)
+    public static final int PROTO_HYBRID_AUTO = 3;     // Универсальный (Все варианты • Адаптивный авто-выбор)
+
+    public static final int PROTO_REALITY_ECH = PROTO_EMERGENCY;
+    public static final int PROTO_STEALTH = PROTO_FAST_EMERGENCY;
+    public static final int PROTO_FAST_RESUME = PROTO_FAST_EMERGENCY;
+    public static final int PROTO_ILLUSION = PROTO_EMERGENCY;
+    public static final int PROTO_TCP_FALLBACK = PROTO_EMERGENCY;
 
     private RadioGroup mRgProtocol;
     private SwitchCompat mSwKillSwitch;
@@ -46,6 +51,11 @@ public class SettingsActivity extends AppCompatActivity {
     private SwitchCompat mSwSplitTunnel;
     private SharedPreferences mPrefs;
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateBypassCountLabel();
+    }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -63,23 +73,20 @@ public class SettingsActivity extends AppCompatActivity {
         mSwSplitTunnel = findViewById(R.id.sw_split_tunnel);
 
         // Load saved preferences
-        int savedProto = mPrefs.getInt(KEY_PROTOCOL_MODE, PROTO_REALITY_ECH);
+        int savedProto = mPrefs.getInt(KEY_PROTOCOL_MODE, PROTO_EMERGENCY);
         switch (savedProto) {
-            case PROTO_STEALTH:
-                mRgProtocol.check(R.id.rb_proto_stealth);
+            case PROTO_FAST_EMERGENCY:
+                mRgProtocol.check(R.id.rb_proto_fast_emergency);
                 break;
-            case PROTO_FAST_RESUME:
-                mRgProtocol.check(R.id.rb_proto_fast_resume);
+            case PROTO_TURBO_PQC:
+                mRgProtocol.check(R.id.rb_proto_turbo_pqc);
                 break;
-            case PROTO_ILLUSION:
-                mRgProtocol.check(R.id.rb_proto_illusion);
+            case PROTO_HYBRID_AUTO:
+                mRgProtocol.check(R.id.rb_proto_hybrid_auto);
                 break;
-            case PROTO_TCP_FALLBACK:
-                mRgProtocol.check(R.id.rb_proto_tcp_fallback);
-                break;
-            case PROTO_REALITY_ECH:
+            case PROTO_EMERGENCY:
             default:
-                mRgProtocol.check(R.id.rb_proto_reality_ech);
+                mRgProtocol.check(R.id.rb_proto_emergency);
                 break;
         }
 
@@ -90,18 +97,16 @@ public class SettingsActivity extends AppCompatActivity {
 
         // Save listeners
         mRgProtocol.setOnCheckedChangeListener((group, checkedId) -> {
-            int mode = PROTO_REALITY_ECH;
-            if (checkedId == R.id.rb_proto_stealth) {
-                mode = PROTO_STEALTH;
-            } else if (checkedId == R.id.rb_proto_fast_resume) {
-                mode = PROTO_FAST_RESUME;
-            } else if (checkedId == R.id.rb_proto_illusion) {
-                mode = PROTO_ILLUSION;
-            } else if (checkedId == R.id.rb_proto_tcp_fallback) {
-                mode = PROTO_TCP_FALLBACK;
+            int mode = PROTO_EMERGENCY;
+            if (checkedId == R.id.rb_proto_fast_emergency) {
+                mode = PROTO_FAST_EMERGENCY;
+            } else if (checkedId == R.id.rb_proto_turbo_pqc) {
+                mode = PROTO_TURBO_PQC;
+            } else if (checkedId == R.id.rb_proto_hybrid_auto) {
+                mode = PROTO_HYBRID_AUTO;
             }
             mPrefs.edit().putInt(KEY_PROTOCOL_MODE, mode).apply();
-            Toast.makeText(this, "Режим протокола сохранен", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Режим подключения сохранен", Toast.LENGTH_SHORT).show();
         });
 
         mSwKillSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -149,7 +154,10 @@ public class SettingsActivity extends AppCompatActivity {
 
         View btnChooseBypass = findViewById(R.id.btn_choose_bypass_apps);
         if (btnChooseBypass != null) {
-            btnChooseBypass.setOnClickListener(v -> showAppSelectionDialog());
+            btnChooseBypass.setOnClickListener(v -> {
+                Intent intent = new Intent(this, AppRoutingActivity.class);
+                startActivity(intent);
+            });
         }
 
         View btnChooseDomains = findViewById(R.id.btn_choose_bypass_domains);
@@ -174,7 +182,7 @@ public class SettingsActivity extends AppCompatActivity {
         if (tv == null) return;
         Set<String> custom = mPrefs.getStringSet("custom_bypass_packages", null);
         int count = custom != null ? custom.size() : 9;
-        tv.setText("Приложения в обход туннеля (" + count + " выбрано)");
+        tv.setText("Маршрутизация приложений (" + count + " напрямую)");
     }
 
     private void updateBypassDomainsLabel() {

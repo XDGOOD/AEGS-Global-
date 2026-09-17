@@ -66,54 +66,43 @@
             android:layout_marginBottom="20dp">
 
             <RadioButton
-                android:id="@+id/rb_proto_reality_ech"
+                android:id="@+id/rb_proto_emergency"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Chrome 128+ Reality ECH [Рекомендуется]\nМаскировка ClientHello под www.cloudflare.com, ECH 0xfe0d"
+                android:text="Аварийное (при блокировках)\nChrome 128+ Reality ECH, открытый SNI www.cloudflare.com"
                 android:textColor="@color/text_primary"
                 android:textSize="14sp"
                 android:buttonTint="@color/amber_primary"
                 android:lineSpacingExtra="3dp"
-                android:layout_marginBottom="12dp" />
+                android:layout_marginBottom="14dp" />
 
             <RadioButton
-                android:id="@+id/rb_proto_stealth"
+                android:id="@+id/rb_proto_fast_emergency"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="AEGS v6 Titan Stealth (QUIC RFC 9000 + Bimodal)\nОбход ТСПУ/DPI, бимодальный шейпинг фреймов"
+                android:text="Быстрый аварийный\nFast 0-RTT + Bimodal IAT-шейпер, низкая задержка при замедлении"
                 android:textColor="@color/text_primary"
                 android:textSize="14sp"
                 android:buttonTint="@color/amber_primary"
                 android:lineSpacingExtra="3dp"
-                android:layout_marginBottom="12dp" />
+                android:layout_marginBottom="14dp" />
 
             <RadioButton
-                android:id="@+id/rb_proto_fast_resume"
+                android:id="@+id/rb_proto_turbo_pqc"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="AEGS Fast 0-RTT (Resumption Token)\nМгновенный реконнект без вычисления Curve25519"
+                android:text="Скоростной и максимально защищённый\nTurbo UDP + Постквантовое шифрование Kyber-768 и ChaCha20"
                 android:textColor="@color/text_primary"
                 android:textSize="14sp"
                 android:buttonTint="@color/amber_primary"
                 android:lineSpacingExtra="3dp"
-                android:layout_marginBottom="12dp" />
+                android:layout_marginBottom="14dp" />
 
             <RadioButton
-                android:id="@+id/rb_proto_illusion"
+                android:id="@+id/rb_proto_hybrid_auto"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="AEGS Illusion STUN (RFC 5389 Decoys)\nМаскировка под доверенный WebRTC/STUN трафик"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:buttonTint="@color/amber_primary"
-                android:lineSpacingExtra="3dp"
-                android:layout_marginBottom="12dp" />
-
-            <RadioButton
-                android:id="@+id/rb_proto_tcp_fallback"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="AEGS TCP/TLS 1.3 Fallback (Port 443)\nАварийный туннель при 100% блокировке UDP"
+                android:text="Универсальный (Все варианты)\nАдаптивный гибрид: авто-выбор режима и мгновенное авто-переключение"
                 android:textColor="@color/text_primary"
                 android:textSize="14sp"
                 android:buttonTint="@color/amber_primary"

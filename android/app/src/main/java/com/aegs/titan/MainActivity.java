@@ -210,27 +210,23 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateProtoBadge() {
         if (mTvProtoBadge == null) return;
-        int mode = mPrefs.getInt(SettingsActivity.KEY_PROTOCOL_MODE, SettingsActivity.PROTO_REALITY_ECH);
+        int mode = mPrefs.getInt(SettingsActivity.KEY_PROTOCOL_MODE, SettingsActivity.PROTO_EMERGENCY);
         switch (mode) {
-            case SettingsActivity.PROTO_STEALTH:
-                mTvProtoBadge.setText("v6.0 • RFC 9000 QUIC Stealth");
-                if (mMetricsGraph != null) mMetricsGraph.setStatusText("QUIC STEALTH: ACTIVE");
+            case SettingsActivity.PROTO_FAST_EMERGENCY:
+                mTvProtoBadge.setText("v6.5 • Быстрый аварийный (0-RTT)");
+                if (mMetricsGraph != null) mMetricsGraph.setStatusText("0-RTT IAT: ACTIVE");
                 break;
-            case SettingsActivity.PROTO_FAST_RESUME:
-                mTvProtoBadge.setText("v6.2 • AEGS Fast 0-RTT");
-                if (mMetricsGraph != null) mMetricsGraph.setStatusText("0-RTT RESUME: ACTIVE");
+            case SettingsActivity.PROTO_TURBO_PQC:
+                mTvProtoBadge.setText("v6.5 • Скоростной квантовый (Kyber-768)");
+                if (mMetricsGraph != null) mMetricsGraph.setStatusText("KYBER-768 PQC: ACTIVE");
                 break;
-            case SettingsActivity.PROTO_ILLUSION:
-                mTvProtoBadge.setText("v6.1 • AEGS Illusion STUN");
-                if (mMetricsGraph != null) mMetricsGraph.setStatusText("STUN DECOY: ACTIVE");
+            case SettingsActivity.PROTO_HYBRID_AUTO:
+                mTvProtoBadge.setText("v6.5 • Универсальный (Адаптивный)");
+                if (mMetricsGraph != null) mMetricsGraph.setStatusText("ADAPTIVE HYBRID: ACTIVE");
                 break;
-            case SettingsActivity.PROTO_TCP_FALLBACK:
-                mTvProtoBadge.setText("v6.3 • TCP/TLS 1.3 Fallback");
-                if (mMetricsGraph != null) mMetricsGraph.setStatusText("TCP/TLS: ACTIVE");
-                break;
-            case SettingsActivity.PROTO_REALITY_ECH:
+            case SettingsActivity.PROTO_EMERGENCY:
             default:
-                mTvProtoBadge.setText("v6.5 • Chrome 128+ Reality ECH");
+                mTvProtoBadge.setText("v6.5 • Аварийный (Reality ECH)");
                 if (mMetricsGraph != null) mMetricsGraph.setStatusText("ECH REALITY: ACTIVE");
                 break;
         }

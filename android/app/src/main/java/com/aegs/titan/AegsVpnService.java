@@ -225,19 +225,24 @@ public class AegsVpnService extends VpnService implements Runnable {
 
             byte[] initPkt = AegsProtocol.buildHandshakeInit(keyId, masterKey, ephKeyPair.publicKey);
 
-            // Phase 2: Camouflage & Anti-Censorship Framing
-            if (mProtocolMode == SettingsActivity.PROTO_REALITY_ECH) {
-                // Option 3: Reality ECH Handshake encapsulation with www.cloudflare.com SNI & ECH 0xfe0d
+            // Phase 2: Camouflage & Anti-Censorship Framing across 4 streamlined modes
+            byte[] rawInitPkt = initPkt.clone();
+            if (mProtocolMode == SettingsActivity.PROTO_EMERGENCY) {
+                // Mode 0: Emergency (Anti-Censorship Reality ECH with www.cloudflare.com SNI)
                 initPkt = AegsProtocol.buildTlsRealityClientHello(initPkt, AegsProtocol.DEFAULT_REALITY_SNI);
-                Log.i(TAG, "[AEGS] Handshake encapsulated in TLS 1.3 Reality ECH (SNI: " + AegsProtocol.DEFAULT_REALITY_SNI + ")");
-            } else if (mProtocolMode == SettingsActivity.PROTO_ILLUSION) {
-                byte[] stunDecoy = AegsProtocol.buildStunDecoy();
-                mTunnel.write(ByteBuffer.wrap(stunDecoy));
-                Thread.sleep(50);
-            } else if (mProtocolMode == SettingsActivity.PROTO_STEALTH) {
+                Log.i(TAG, "[AEGS] Mode 0 (Emergency): Handshake encapsulated in TLS 1.3 Reality ECH (SNI: " + AegsProtocol.DEFAULT_REALITY_SNI + ")");
+            } else if (mProtocolMode == SettingsActivity.PROTO_FAST_EMERGENCY) {
+                // Mode 1: Fast Emergency (0-RTT + Bimodal decoy)
                 byte[] quicDecoy = AegsProtocol.buildQuicInitialDecoy();
                 mTunnel.write(ByteBuffer.wrap(quicDecoy));
-                Thread.sleep(50);
+                Thread.sleep(30);
+                Log.i(TAG, "[AEGS] Mode 1 (Fast Emergency): QUIC 0-RTT frame active");
+            } else if (mProtocolMode == SettingsActivity.PROTO_TURBO_PQC) {
+                // Mode 2: Turbo PQC (Max throughput UDP + Kyber-768 quantum resistance)
+                Log.i(TAG, "[AEGS] Mode 2 (Turbo PQC): Direct quantum-resistant UDP handshake");
+            } else if (mProtocolMode == SettingsActivity.PROTO_HYBRID_AUTO) {
+                // Mode 3: Universal Hybrid Auto-Switch (Adaptive)
+                Log.i(TAG, "[AEGS] Mode 3 (Hybrid Auto): Adaptive multi-stage negotiation");
             }
 
             boolean handshakeOk = false;
@@ -248,7 +253,12 @@ public class AegsVpnService extends VpnService implements Runnable {
             mTunnel.register(selector, SelectionKey.OP_READ);
 
             for (int attempt = 0; attempt < 3 && mRunning.get(); attempt++) {
-                mTunnel.write(ByteBuffer.wrap(initPkt));
+                byte[] currentPkt = initPkt;
+                if (mProtocolMode == SettingsActivity.PROTO_HYBRID_AUTO && attempt > 0) {
+                    currentPkt = AegsProtocol.buildTlsRealityClientHello(rawInitPkt, AegsProtocol.DEFAULT_REALITY_SNI);
+                    Log.i(TAG, "[AEGS] Hybrid Auto: Active blocking detected, auto-switched to Reality ECH fallback on attempt " + (attempt + 1));
+                }
+                mTunnel.write(ByteBuffer.wrap(currentPkt));
 
                 if (selector.select(2500) > 0) {
                     selector.selectedKeys().clear();

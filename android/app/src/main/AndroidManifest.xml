@@ -41,6 +41,12 @@
             android:label="Настройки"
             android:parentActivityName=".MainActivity" />
 
+        <activity
+            android:name=".AppRoutingActivity"
+            android:exported="false"
+            android:label="Маршрутизация приложений"
+            android:parentActivityName=".SettingsActivity" />
+
         <service
             android:name=".AegsVpnService"
             android:permission="android.permission.BIND_VPN_SERVICE"
