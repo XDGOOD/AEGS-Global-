@@ -40,7 +40,6 @@ jobs:
         run: |
           mkdir -p output_apk
           find android/app/build/outputs/apk/ -name "*.apk" -exec cp {} output_apk/AEGS-v6.0-titan.apk \;
-          cp output_apk/AEGS-v6.0-titan.apk output_apk/AEGS-VPN.apk
           ls -la output_apk/
 
       - name: Upload APK Artifact
@@ -51,10 +50,9 @@ jobs:
 
       - name: Attach APK to GitHub Release v6.0-titan
         uses: softprops/action-gh-release@v2
+        continue-on-error: true
         with:
           tag_name: v6.0-titan
-          files: |
-            output_apk/AEGS-v6.0-titan.apk
-            output_apk/AEGS-VPN.apk
+          files: output_apk/AEGS-v6.0-titan.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
