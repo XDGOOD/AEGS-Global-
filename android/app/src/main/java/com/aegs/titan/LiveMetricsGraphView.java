@@ -18,6 +18,7 @@ import java.util.Deque;
 /**
  * AEGS Titan Obsidian & Amber Live Metrics Graph
  * Hardware-accelerated real-time Bezier latency curve and jitter visualizer.
+ * Zero-allocation onDraw hot path.
  */
 public class LiveMetricsGraphView extends View {
 
@@ -34,6 +35,8 @@ public class LiveMetricsGraphView extends View {
     private float mMaxPing = 100.0f;
     private String mStatusText = "ECH REALITY: ACTIVE";
 
+    private LinearGradient mFillGrad;
+
     public LiveMetricsGraphView(Context context) {
         super(context);
         init();
@@ -45,6 +48,8 @@ public class LiveMetricsGraphView extends View {
     }
 
     private void init() {
+        setLayerType(LAYER_TYPE_HARDWARE, null);
+
         mLinePaint.setColor(0xFFFFB300); // Warm Amber
         mLinePaint.setStyle(Paint.Style.STROKE);
         mLinePaint.setStrokeWidth(4.5f);
@@ -63,6 +68,20 @@ public class LiveMetricsGraphView extends View {
 
         for (int i = 0; i < MAX_SAMPLES; ++i) {
             mPingHistory.add(20.0f);
+        }
+    }
+
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        if (h > 0) {
+            mFillGrad = new LinearGradient(
+                    0, 0, 0, h,
+                    0x40FFB300, // 25% amber top
+                    0x00FFB300, // 0% amber bottom
+                    Shader.TileMode.CLAMP
+            );
+            mFillPaint.setShader(mFillGrad);
         }
     }
 
@@ -97,8 +116,8 @@ public class LiveMetricsGraphView extends View {
         }
 
         // 2. Build Bezier curve
-        mPath.reset();
-        mFillPath.reset();
+        mPath.rewind();
+        mFillPath.rewind();
 
         float dx = (float) w / (MAX_SAMPLES - 1);
         float prevX = 0;
@@ -129,14 +148,7 @@ public class LiveMetricsGraphView extends View {
         mFillPath.lineTo(prevX, h);
         mFillPath.close();
 
-        // 3. Render amber gradient fill
-        LinearGradient fillGrad = new LinearGradient(
-            0, 0, 0, h,
-            0x40FFB300, // 25% amber top
-            0x00FFB300, // 0% amber bottom
-            Shader.TileMode.CLAMP
-        );
-        mFillPaint.setShader(fillGrad);
+        // 3. Render amber gradient fill (shader reused from onSizeChanged)
         canvas.drawPath(mFillPath, mFillPaint);
 
         // 4. Render curve

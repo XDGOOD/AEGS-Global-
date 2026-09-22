@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:background="#0D0D10">
 
-    <!-- Ambient Floating Translucent Amber Circles -->
+    <!-- Ambient Floating Translucent Amber Circles (Hardware Accelerated, Zero GC) -->
     <com.aegs.titan.WaveCirclesBackgroundView
         android:id="@+id/bg_wave_circles"
         android:layout_width="match_parent"
@@ -80,7 +80,7 @@
                             android:id="@+id/tv_proto_badge"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="v6.5 • Chrome 128+ Reality ECH"
+                            android:text="v6.5   Chrome 128+ Reality ECH"
                             android:textColor="#F59E0B"
                             android:textSize="11.5sp"
                             android:textStyle="bold" />
@@ -95,18 +95,7 @@
                     android:orientation="horizontal"
                     android:gravity="center_vertical">
 
-                    <Button
-                        android:id="@+id/btn_guide"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:text="Гайд"
-                        android:textColor="#F59E0B"
-                        android:textSize="12sp"
-                        android:textStyle="bold"
-                        android:background="@drawable/card_obsidian"
-                        android:paddingLeft="10dp"
-                        android:paddingRight="10dp"
-                        android:layout_marginEnd="8dp" />
+
 
                     <ImageView
                         android:id="@+id/btn_settings"
@@ -128,7 +117,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:text="● Отключено • Готов к защите"
+                android:text="ТРЕБУЕТСЯ КЛЮЧ ДОСТУПА"
                 android:textColor="#F87171"
                 android:textSize="12.5sp"
                 android:textStyle="bold"
@@ -139,7 +128,226 @@
                 android:paddingBottom="6dp"
                 android:layout_marginBottom="16dp" />
 
-            <!-- Big Circular Connect Button -->
+            <!-- ============================================================= -->
+            <!-- STATE 1: NO KEY CONFIGURED CARD                               -->
+            <!-- ============================================================= -->
+            <LinearLayout
+                android:id="@+id/card_no_key"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/card_obsidian"
+                android:orientation="vertical"
+                android:padding="18dp"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="12dp">
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@drawable/ic_key"
+                        android:tint="@color/amber_primary"
+                        android:layout_marginEnd="12dp" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Требуется ключ доступа"
+                            android:textColor="#FFFBEB"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="AEGS Titan Crypto Key"
+                            android:textColor="#F59E0B"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Для подключения к зашифрованной сети AEGS v6 Titan необходим персональный ключ доступа. Оформите подписку в Telegram-боте @aegs_support_bot всего от 100 руб/мес (до 4 устройств одновременно)."
+                    android:textColor="#D4D4D8"
+                    android:textSize="13sp"
+                    android:lineSpacingExtra="2dp"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- Prominent Action: Open Telegram Bot -->
+                <Button
+                    android:id="@+id/btn_buy_bot"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:text="КУПИТЬ / ПОЛУЧИТЬ КЛЮЧ В БОТЕ"
+                    android:textColor="#18181B"
+                    android:textSize="13.5sp"
+                    android:textStyle="bold"
+                    android:background="@drawable/btn_amber_gradient"
+                    android:layout_marginBottom="14dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Или вставьте уже полученный ключ / aegs:// ссылку:"
+                    android:textColor="#A8A29E"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="8dp" />
+
+                <EditText
+                    android:id="@+id/et_access_key"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="aegs://31.76.9.86:50001/... или токен"
+                    android:textColor="#FFFBEB"
+                    android:textColorHint="#71717A"
+                    android:background="@drawable/bg_input_rounded"
+                    android:padding="12dp"
+                    android:textSize="13sp"
+                    android:fontFamily="monospace"
+                    android:singleLine="true"
+                    android:layout_marginBottom="10dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btn_paste_key"
+                        android:layout_width="0dp"
+                        android:layout_height="42dp"
+                        android:layout_weight="1"
+                        android:text="Вставить из буфера"
+                        android:textColor="#F59E0B"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:background="@drawable/card_obsidian"
+                        android:layout_marginEnd="6dp" />
+
+                    <Button
+                        android:id="@+id/btn_activate_key"
+                        android:layout_width="0dp"
+                        android:layout_height="42dp"
+                        android:layout_weight="1"
+                        android:text="Активировать ключ"
+                        android:textColor="#18181B"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:background="@drawable/bg_btn_amber"
+                        android:layout_marginStart="6dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ============================================================= -->
+            <!-- STATE 2: ACTIVE KEY SUMMARY CARD                              -->
+            <!-- ============================================================= -->
+            <LinearLayout
+                android:id="@+id/card_active_key"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/card_obsidian"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:visibility="gone"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="8dp">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:src="@drawable/ic_shield"
+                        android:tint="@color/amber_primary"
+                        android:layout_marginEnd="8dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="КЛЮЧ ДОСТУПА АКТИВЕН"
+                        android:textColor="#34D399"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_active_key_id"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="KeyID: ●●●●●●●●"
+                    android:textColor="#FFFBEB"
+                    android:textSize="13sp"
+                    android:fontFamily="monospace"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/tv_active_server"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Сервер: 31.76.9.86:50001 (AEGS Titan-01)"
+                    android:textColor="#A8A29E"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="12dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btn_change_key"
+                        android:layout_width="0dp"
+                        android:layout_height="38dp"
+                        android:layout_weight="1"
+                        android:text="Сменить ключ"
+                        android:textColor="#D4D4D8"
+                        android:textSize="11.5sp"
+                        android:background="@drawable/card_obsidian"
+                        android:layout_marginEnd="6dp" />
+
+                    <Button
+                        android:id="@+id/btn_renew_bot"
+                        android:layout_width="0dp"
+                        android:layout_height="38dp"
+                        android:layout_weight="1"
+                        android:text="Продлить в боте"
+                        android:textColor="#F59E0B"
+                        android:textSize="11.5sp"
+                        android:textStyle="bold"
+                        android:background="@drawable/card_obsidian"
+                        android:layout_marginStart="6dp" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/btn_share_key"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:text="📤 Поделиться ключом (до 4 устройств)"
+                    android:textColor="#261102"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:background="@drawable/btn_amber_gradient"
+                    android:layout_marginTop="10dp" />
+            </LinearLayout>
+
+            <!-- Big Circular Connect Button (Shown ONLY when Key is Active!) -->
             <LinearLayout
                 android:id="@+id/btn_connect_circle"
                 android:layout_width="152dp"
@@ -150,6 +358,7 @@
                 android:gravity="center"
                 android:clickable="true"
                 android:focusable="true"
+                android:visibility="gone"
                 android:layout_marginBottom="20dp">
 
                 <ImageView
@@ -163,7 +372,7 @@
                     android:id="@+id/tv_conn_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="ПОДКЛЮЧИТЬ"
+                    android:text="ПОДКЛЮЧИТЬСЯ"
                     android:textColor="#FFFBEB"
                     android:textSize="13sp"
                     android:textStyle="bold"
@@ -173,7 +382,7 @@
                     android:id="@+id/tv_conn_sub"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Готов?"
+                    android:text="Готов к защите"
                     android:textColor="#F59E0B"
                     android:textSize="11.5sp"
                     android:textStyle="bold"
@@ -196,7 +405,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="ТЕЛЕМЕТРИЯ КАНАЛА"
+                        android:text="ТЕЛЕМЕТРИЯ СЕТИ"
                         android:textColor="#A8A29E"
                         android:textSize="11sp"
                         android:textStyle="bold"
@@ -217,7 +426,7 @@
                     android:id="@+id/tv_ping"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Пинг до сервера: -- мс"
+                    android:text="Пинг к серверу: -- мс"
                     android:textColor="#FFFBEB"
                     android:textSize="13sp"
                     android:textStyle="bold"
@@ -233,6 +442,7 @@
 
             <!-- Split Tunneling Card -->
             <LinearLayout
+                android:id="@+id/card_split_tunneling"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/card_obsidian"
@@ -240,102 +450,48 @@
                 android:padding="14dp"
                 android:layout_marginBottom="12dp">
 
-                <CheckBox
-                    android:id="@+id/cb_split"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Умный обход (Split-Tunneling)"
-                    android:textColor="#F59E0B"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:checked="true" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <CheckBox
+                        android:id="@+id/cb_split"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Умный обход (Split-Tunneling)"
+                        android:textColor="#F59E0B"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:checked="true" />
+
+                    <TextView
+                        android:id="@+id/btn_configure_apps"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Настроить ⚙️"
+                        android:textColor="#34D399"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:background="@drawable/card_obsidian"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        android:clickable="true"
+                        android:focusable="true" />
+                </LinearLayout>
 
                 <TextView
+                    android:id="@+id/tv_split_status"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Банки РФ (Сбер, Т-Банк, ВТБ, Альфа), Госуслуги, Ozon, WB работают напрямую без капчи."
+                    android:text="Банки РФ, Госуслуги, Ozon, WB работают напрямую в обход VPN."
                     android:textColor="#A8A29E"
                     android:textSize="12sp"
-                    android:layout_marginTop="2dp" />
-            </LinearLayout>
-
-            <!-- Mode Selector -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="РЕЖИМ ПОДКЛЮЧЕНИЯ"
-                android:textColor="#A8A29E"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="8dp" />
-
-            <RadioGroup
-                android:id="@+id/rg_mode"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="12dp">
-
-                <RadioButton
-                    android:id="@+id/rb_service"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Кластер AEGS"
-                    android:textColor="#FFFBEB"
-                    android:checked="true" />
-
-                <RadioButton
-                    android:id="@+id/rb_custom"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Свой VPS"
-                    android:textColor="#FFFBEB" />
-            </RadioGroup>
-
-            <!-- Custom VPS inputs -->
-            <LinearLayout
-                android:id="@+id/ll_custom_vps"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone"
-                android:layout_marginBottom="14dp">
-
-                <EditText
-                    android:id="@+id/et_ip"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="IP адрес VPS сервера"
-                    android:textColor="#FFFBEB"
-                    android:textColorHint="#71717A"
-                    android:background="@drawable/card_obsidian"
-                    android:padding="12dp"
-                    android:layout_marginBottom="8dp" />
-
-                <EditText
-                    android:id="@+id/et_port"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="Порт (по умолчанию 50001)"
-                    android:text="50001"
-                    android:textColor="#FFFBEB"
-                    android:textColorHint="#71717A"
-                    android:background="@drawable/card_obsidian"
-                    android:padding="12dp"
-                    android:inputType="number"
-                    android:layout_marginBottom="8dp" />
-
-                <EditText
-                    android:id="@+id/et_token"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="Секретный токен (Ключ)"
-                    android:textColor="#FFFBEB"
-                    android:textColorHint="#71717A"
-                    android:background="@drawable/card_obsidian"
-                    android:padding="12dp" />
+                    android:layout_marginTop="4dp" />
             </LinearLayout>
 
             <!-- Prominent Settings Section Card (Unmissable!) -->
@@ -372,7 +528,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Раздел с настройками"
+                        android:text="Параметры и протоколы"
                         android:textColor="#FFFBEB"
                         android:textSize="15sp"
                         android:textStyle="bold" />
@@ -380,7 +536,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Reality ECH, Kill-Switch, Режимы обхода, Авторы"
+                        android:text="Reality ECH, Kill-Switch, Режимы обхода, Сертификаты"
                         android:textColor="#A8A29E"
                         android:textSize="12sp"
                         android:layout_marginTop="2dp" />

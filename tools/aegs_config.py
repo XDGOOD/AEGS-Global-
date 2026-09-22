@@ -44,73 +44,40 @@ class AegsProfile:
 
     def to_uri(self) -> str:
         """Generates an aegs:// URI string for 1-click import or QR codes."""
-        # Clean query-string URI compatible with both Telegram Bot and PC/Android clients
-        qs = urllib.parse.urlencode({
-            "token": self.token,
-            "proto": "titan_quic",
-            "key_id": self.key_id,
-            "name": self.name
-        })
-        return f"aegs://{self.server_ip}:{self.port}?{qs}"
+        data = {
+            "v": 6,
+            "name": self.name,
+            "ip": self.server_ip,
+            "p": self.port,
+            "pc": self.port_count,
+            "t": self.token,
+            "k": self.key_id,
+            "m": 1 if self.mimicry else 0,
+            "st": 1 if self.split_tunnel else 0,
+            "dns": self.dns
+        }
+        encoded = base64.urlsafe_b64encode(json.dumps(data).encode("utf-8")).decode("ascii").rstrip("=")
+        return f"aegs://{encoded}"
 
     @classmethod
     def from_uri(cls, uri: str) -> "AegsProfile":
-        """
-        Parses an aegs:// URI string.
-        Supports both:
-        1. Telegram Bot / Deep Link query format: aegs://ip:port?token=...&proto=...&key_id=...
-        2. Base64-encoded JSON format: aegs://ey...
-        """
-        raw = uri.strip()
-        if raw.startswith("aegs://"):
-            raw = raw[7:]
-
-        # 1. Query-string style: ip:port?token=...
-        if "?" in raw or (":" in raw and not raw.startswith("{")):
-            try:
-                fake_url = "aegs://" + raw if not raw.startswith("http") else raw
-                parsed = urllib.parse.urlparse(fake_url)
-                netloc = parsed.netloc or parsed.path.split("?")[0]
-                if ":" in netloc:
-                    ip, port_s = netloc.split(":", 1)
-                    port = int(port_s)
-                else:
-                    ip = netloc
-                    port = 50001
-                qs = urllib.parse.parse_qs(parsed.query)
-                token = qs.get("token", [""])[0]
-                key_id = qs.get("key_id", [f"key_{ip}"])[0]
-                name = qs.get("name", [f"AEGS ({ip})"])[0]
-                return cls(
-                    name=name,
-                    server_ip=ip,
-                    port=port,
-                    token=token,
-                    key_id=key_id,
-                    mimicry=True,
-                    split_tunnel=True,
-                    mode="service" if "185.196." in ip else "custom"
-                )
-            except Exception:
-                pass
-
-        # 2. Base64-encoded JSON style
-        try:
-            padded = raw + "=" * (-len(raw) % 4)
-            data = json.loads(base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8"))
-            return cls(
-                name=data.get("name", "Импортированный сервер"),
-                server_ip=data["ip"],
-                port=data.get("p", 50001),
-                port_count=data.get("pc", 8),
-                token=data.get("t", ""),
-                key_id=data.get("k", ""),
-                mimicry=bool(data.get("m", 1)),
-                split_tunnel=bool(data.get("st", 1)),
-                mode="custom"
-            )
-        except Exception as e:
-            raise ValueError(f"Не удалось распознать ключ AEGS: {e}")
+        """Parses an aegs:// URI string."""
+        if not uri.startswith("aegs://"):
+            raise ValueError("Invalid AEGS URI format (must start with aegs://)")
+        raw = uri[7:]
+        padded = raw + "=" * (-len(raw) % 4)
+        data = json.loads(base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8"))
+        return cls(
+            name=data.get("name", "Imported Server"),
+            server_ip=data["ip"],
+            port=data.get("p", 50001),
+            port_count=data.get("pc", 8),
+            token=data.get("t", ""),
+            key_id=data.get("k", ""),
+            mimicry=bool(data.get("m", 1)),
+            split_tunnel=bool(data.get("st", 1)),
+            mode="custom"
+        )
 
     def to_mobile_conf(self) -> str:
         """Generates a client configuration profile compatible with mobile apps."""
@@ -145,14 +112,13 @@ class ProfileStorage:
                 with open(self.path, "r", encoding="utf-8") as f:
                     raw = json.load(f)
                     self.profiles = [AegsProfile(**p) for p in raw.get("profiles", [])]
-                    if self.profiles:
-                        return
+                    return
             except Exception:
                 pass
         # Default starter profiles
         self.profiles = [
             AegsProfile(
-                name="AEGS Cloud Скоростной (Германия)",
+                name="AEGS Cloud — Быстрый сервер (Анти-Блокировка)",
                 server_ip="31.76.9.86",
                 port=50001,
                 port_count=8,
@@ -162,10 +128,10 @@ class ProfileStorage:
                 split_tunnel=True,
                 mode="service",
                 is_active=True,
-                notes="Официальный скоростной сервер AEGS с защитой от ТСПУ/DPI"
+                notes="Официальный высокоскоростной сервер AEGS с обходом ТСПУ/DPI"
             ),
             AegsProfile(
-                name="Мой личный VPS (Amnezia-style)",
+                name="Мой собственный VPS (Amnezia-style)",
                 server_ip="198.51.100.1",
                 port=50001,
                 port_count=8,
@@ -175,7 +141,7 @@ class ProfileStorage:
                 split_tunnel=True,
                 mode="custom",
                 is_active=False,
-                notes="Свой сервер (введите IP и токен вашего VPS)"
+                notes="Пользовательский сервер (введите IP и токен своего VPS)"
             )
         ]
         self.save()
@@ -188,18 +154,12 @@ class ProfileStorage:
             print("Failed to save profiles:", e)
 
     def add_profile(self, profile: AegsProfile):
-        # Set all others inactive if this one should be active
-        for p in self.profiles:
-            p.is_active = False
-        profile.is_active = True
         self.profiles.append(profile)
         self.save()
 
     def delete_profile(self, idx: int):
         if 0 <= idx < len(self.profiles):
             del self.profiles[idx]
-            if self.profiles and not any(p.is_active for p in self.profiles):
-                self.profiles[0].is_active = True
             self.save()
 
     def get_active(self) -> Optional[AegsProfile]:

@@ -36,7 +36,7 @@ public class AegsTileService extends TileService {
                 startActivityAndCollapse(appIntent);
             } else {
                 SharedPreferences prefs = getSharedPreferences("aegs_prefs", MODE_PRIVATE);
-                String host = prefs.getString("server_ip", "185.196.8.10");
+                String host = prefs.getString("server_ip", "31.76.9.86");
                 int port = prefs.getInt("server_port", 50001);
                 String token = prefs.getString("token", "aegs_secure_token_titan_v6");
                 int proto = prefs.getInt("protocol_mode", 0);

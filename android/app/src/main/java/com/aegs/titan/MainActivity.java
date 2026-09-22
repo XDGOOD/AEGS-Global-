@@ -1,103 +1,89 @@
 package com.aegs.titan;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.net.VpnService;
 import android.os.Bundle;
-import android.animation.ObjectAnimator;
-import android.animation.ValueAnimator;
-import android.view.animation.AccelerateDecelerateInterpolator;
-
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Random;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final String TAG = "MainActivity";
     private static final int VPN_REQUEST_CODE = 1001;
 
-    private static final String[] PHRASES = {
-            "Готов?",
-            "Готов к полету?",
-            "Готов к защите?",
-            "Активировать щит?",
-            "Готов к обходу?",
-            "Включить Titan?"
-    };
+    public static final String KEY_SERVER_IP = "server_ip";
+    public static final String KEY_SERVER_PORT = "server_port";
+    public static final String KEY_TOKEN = "server_token";
+    public static final String KEY_KEY_ID = "server_key_id";
+    public static final String KEY_HAS_ACTIVE_KEY = "has_active_key";
 
+    public static final String DEFAULT_SERVER_IP = "31.76.9.86";
+    public static final int DEFAULT_SERVER_PORT = 50001;
+    public static final String BOT_USERNAME = "aegs_support_bot";
+
+    // Views: Header & Status
     private TextView mTvStatus;
+    private TextView mTvProtoBadge;
+    private ImageView mBtnSettings;
+    private Button mBtnShareKey;
+    private View mCardSettings;
+
+    // Views: Key Acquisition & Management
+    private LinearLayout mCardNoKey;
+    private Button mBtnBuyBot;
+    private EditText mEtAccessKey;
+    private Button mBtnPasteKey;
+    private Button mBtnActivateKey;
+
+    private LinearLayout mCardActiveKey;
+    private TextView mTvActiveKeyId;
+    private TextView mTvActiveServer;
+    private Button mBtnChangeKey;
+    private Button mBtnRenewBot;
+
+    // Views: Connection
+    private View mBtnConnectCircle;
     private TextView mTvConnLabel;
     private TextView mTvConnSub;
+    private ImageView mIvConnShield;
+
+    // Views: Telemetry
     private TextView mTvSpeed;
     private TextView mTvPing;
-    private TextView mTvProtoBadge;
-    private View mBtnConnectCircle;
-    private View mCardSettings;
     private LiveMetricsGraphView mMetricsGraph;
-
     private CheckBox mCbSplit;
-    private RadioGroup mRgMode;
-    private LinearLayout mLlCustomVps;
-    private EditText mEtIp, mEtPort, mEtToken;
+    private TextView mTvSplitStatus;
+    private TextView mBtnConfigureApps;
 
-    private Button mBtnGuide;
-    private ImageView mBtnSettings;
-
-    private boolean mIsConnected = false;
-    private String mLastImportedClip = "";
-    private ObjectAnimator mPulseAnimX;
-    private ObjectAnimator mPulseAnimY;
-
-    private void startButtonPulse() {
-        stopButtonPulse();
-        if (mBtnConnectCircle == null) return;
-        mPulseAnimX = ObjectAnimator.ofFloat(mBtnConnectCircle, "scaleX", 1.0f, 1.04f);
-        mPulseAnimX.setDuration(1100);
-        mPulseAnimX.setRepeatCount(ValueAnimator.INFINITE);
-        mPulseAnimX.setRepeatMode(ValueAnimator.REVERSE);
-        mPulseAnimX.setInterpolator(new AccelerateDecelerateInterpolator());
-
-        mPulseAnimY = ObjectAnimator.ofFloat(mBtnConnectCircle, "scaleY", 1.0f, 1.04f);
-        mPulseAnimY.setDuration(1100);
-        mPulseAnimY.setRepeatCount(ValueAnimator.INFINITE);
-        mPulseAnimY.setRepeatMode(ValueAnimator.REVERSE);
-        mPulseAnimY.setInterpolator(new AccelerateDecelerateInterpolator());
-
-        mPulseAnimX.start();
-        mPulseAnimY.start();
-    }
-
-    private void stopButtonPulse() {
-        if (mPulseAnimX != null) {
-            mPulseAnimX.cancel();
-            mPulseAnimX = null;
-        }
-        if (mPulseAnimY != null) {
-            mPulseAnimY.cancel();
-            mPulseAnimY = null;
-        }
-        if (mBtnConnectCircle != null) {
-            mBtnConnectCircle.setScaleX(1.0f);
-            mBtnConnectCircle.setScaleY(1.0f);
-        }
-    }
-
+    // State
     private SharedPreferences mPrefs;
+    private boolean mIsConnected = false;
+    private String mServerIp = DEFAULT_SERVER_IP;
+    private int mServerPort = DEFAULT_SERVER_PORT;
+    private String mToken = "";
+    private String mKeyId = "";
+    private String mLastClipboardText = "";
 
     private final Handler mPingHandler = new Handler(Looper.getMainLooper());
     private final Random mRandom = new Random();
@@ -109,11 +95,13 @@ public class MainActivity extends AppCompatActivity {
                 float jitter = (mRandom.nextFloat() - 0.5f) * 3.5f;
                 float currentPing = Math.max(12.0f, basePing + jitter);
 
-                mTvPing.setText(String.format("Пинг до сервера: %.0f мс", currentPing));
+                if (mTvPing != null) {
+                    mTvPing.setText(String.format("Пинг к серверу: %.0f мс", currentPing));
+                }
                 if (mMetricsGraph != null) {
                     mMetricsGraph.addSample(currentPing);
                 }
-                mPingHandler.postDelayed(this, 1200);
+                mPingHandler.postDelayed(this, 1500);
             }
         }
     };
@@ -124,7 +112,7 @@ public class MainActivity extends AppCompatActivity {
 
         mPrefs = getSharedPreferences(SettingsActivity.PREFS_NAME, Context.MODE_PRIVATE);
 
-        // Dynamic System Theme Auto-Adjust
+        // System Theme Auto-Adjust
         boolean dynamicTheme = mPrefs.getBoolean(SettingsActivity.KEY_DYNAMIC_THEME, true);
         if (dynamicTheme) {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
@@ -139,58 +127,99 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
 
+        // Bind Views
         mTvStatus = findViewById(R.id.tv_status);
+        mTvProtoBadge = findViewById(R.id.tv_proto_badge);
+        mBtnSettings = findViewById(R.id.btn_settings);
+        mBtnShareKey = findViewById(R.id.btn_share_key);
+        mCardSettings = findViewById(R.id.card_open_settings);
+
+        mCardNoKey = findViewById(R.id.card_no_key);
+        mBtnBuyBot = findViewById(R.id.btn_buy_bot);
+        mEtAccessKey = findViewById(R.id.et_access_key);
+        mBtnPasteKey = findViewById(R.id.btn_paste_key);
+        mBtnActivateKey = findViewById(R.id.btn_activate_key);
+
+        mCardActiveKey = findViewById(R.id.card_active_key);
+        mTvActiveKeyId = findViewById(R.id.tv_active_key_id);
+        mTvActiveServer = findViewById(R.id.tv_active_server);
+        mBtnChangeKey = findViewById(R.id.btn_change_key);
+        mBtnRenewBot = findViewById(R.id.btn_renew_bot);
+
+        mBtnConnectCircle = findViewById(R.id.btn_connect_circle);
         mTvConnLabel = findViewById(R.id.tv_conn_label);
         mTvConnSub = findViewById(R.id.tv_conn_sub);
+        mIvConnShield = findViewById(R.id.iv_conn_shield);
+
         mTvSpeed = findViewById(R.id.tv_speed);
         mTvPing = findViewById(R.id.tv_ping);
-        mTvProtoBadge = findViewById(R.id.tv_proto_badge);
-        mBtnConnectCircle = findViewById(R.id.btn_connect_circle);
-        mCardSettings = findViewById(R.id.card_open_settings);
         mMetricsGraph = findViewById(R.id.metrics_graph);
-
         mCbSplit = findViewById(R.id.cb_split);
-        mRgMode = findViewById(R.id.rg_mode);
-        mLlCustomVps = findViewById(R.id.ll_custom_vps);
-        mEtIp = findViewById(R.id.et_ip);
-        mEtPort = findViewById(R.id.et_port);
-        mEtToken = findViewById(R.id.et_token);
+        mTvSplitStatus = findViewById(R.id.tv_split_status);
+        mBtnConfigureApps = findViewById(R.id.btn_configure_apps);
 
-        mBtnGuide = findViewById(R.id.btn_guide);
-        mBtnSettings = findViewById(R.id.btn_settings);
-
-        pickRandomPhrase();
-        updateProtoBadge();
-
-        // Check if user chose VPS in onboarding
-        if (mPrefs.getBoolean("mode_vps", false)) {
-            mRgMode.check(R.id.rb_custom);
-            mLlCustomVps.setVisibility(View.VISIBLE);
+        if (mBtnConfigureApps != null) {
+            mBtnConfigureApps.setOnClickListener(v -> {
+                Intent intent = new Intent(MainActivity.this, AppRoutingActivity.class);
+                startActivity(intent);
+            });
         }
 
-        if (mBtnGuide != null) {
-            mBtnGuide.setOnClickListener(v -> startActivity(new Intent(this, OnboardingActivity.class)));
+        View cardSplit = findViewById(R.id.card_split_tunneling);
+        if (cardSplit != null) {
+            cardSplit.setOnClickListener(v -> {
+                Intent intent = new Intent(MainActivity.this, AppRoutingActivity.class);
+                startActivity(intent);
+            });
         }
 
-        // Dedicated Settings Buttons (both top icon and prominent main card)
+        if (mCbSplit != null) {
+            mCbSplit.setChecked(mPrefs.getBoolean(SettingsActivity.KEY_SPLIT_TUNNEL, true));
+            mCbSplit.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                mPrefs.edit().putBoolean(SettingsActivity.KEY_SPLIT_TUNNEL, isChecked).apply();
+                updateSplitTunnelUi();
+            });
+        }
+
+        // Load saved connection parameters
+        loadSavedKey();
+
+        // Setup Listeners
+        if (mBtnBuyBot != null) {
+            mBtnBuyBot.setOnClickListener(v -> openTelegramBot());
+        }
+        if (mBtnRenewBot != null) {
+            mBtnRenewBot.setOnClickListener(v -> openTelegramBot());
+        }
+        if (mBtnPasteKey != null) {
+            mBtnPasteKey.setOnClickListener(v -> pasteFromClipboard());
+        }
+        if (mBtnActivateKey != null) {
+            mBtnActivateKey.setOnClickListener(v -> {
+                String input = mEtAccessKey.getText().toString().trim();
+                if (parseAndSaveKey(input)) {
+                    mEtAccessKey.setText("");
+                }
+            });
+        }
+        if (mBtnChangeKey != null) {
+            mBtnChangeKey.setOnClickListener(v -> changeKey());
+        }
+        if (mBtnShareKey != null) {
+            mBtnShareKey.setOnClickListener(v -> shareActiveKey());
+        }
         if (mBtnSettings != null) {
             mBtnSettings.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
         }
-
         if (mCardSettings != null) {
             mCardSettings.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
         }
+        if (mBtnConnectCircle != null) {
+            mBtnConnectCircle.setOnClickListener(v -> toggleConnection());
+        }
 
-        mRgMode.setOnCheckedChangeListener((group, checkedId) -> {
-            if (checkedId == R.id.rb_service) {
-                mLlCustomVps.setVisibility(View.GONE);
-            } else {
-                mLlCustomVps.setVisibility(View.VISIBLE);
-            }
-        });
-
-        mBtnConnectCircle.setOnClickListener(v -> toggleConnection());
-
+        updateProtoBadge();
+        updateKeyViews();
         handleIncomingIntent(getIntent());
     }
 
@@ -205,7 +234,235 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         mPingHandler.removeCallbacks(mPingRunnable);
-        stopButtonPulse();
+    }
+
+    private void loadSavedKey() {
+        mToken = mPrefs.getString(KEY_TOKEN, "");
+        mServerIp = mPrefs.getString(KEY_SERVER_IP, DEFAULT_SERVER_IP);
+        mServerPort = mPrefs.getInt(KEY_SERVER_PORT, DEFAULT_SERVER_PORT);
+        mKeyId = mPrefs.getString(KEY_KEY_ID, "");
+
+        if (mToken.equals("client_default_token")) {
+            mToken = "";
+            mPrefs.edit().remove(KEY_TOKEN).apply();
+        }
+
+        if (!mToken.isEmpty() && mKeyId.isEmpty()) {
+            mKeyId = computeKeyId(mToken);
+            mPrefs.edit().putString(KEY_KEY_ID, mKeyId).apply();
+        }
+    }
+
+    private boolean hasActiveKey() {
+        return mToken != null && !mToken.isEmpty() && !mToken.equals("client_default_token") && mToken.length() >= 16;
+    }
+
+    private void updateKeyViews() {
+        if (!hasActiveKey()) {
+            if (mCardNoKey != null) mCardNoKey.setVisibility(View.VISIBLE);
+            if (mCardActiveKey != null) mCardActiveKey.setVisibility(View.GONE);
+            if (mBtnConnectCircle != null) mBtnConnectCircle.setVisibility(View.GONE);
+
+            if (mTvStatus != null) {
+                mTvStatus.setText("ТРЕБУЕТСЯ КЛЮЧ ДОСТУПА");
+                mTvStatus.setTextColor(0xFFF87171); // Red
+            }
+        } else {
+            if (mCardNoKey != null) mCardNoKey.setVisibility(View.GONE);
+            if (mCardActiveKey != null) mCardActiveKey.setVisibility(View.VISIBLE);
+            if (mBtnConnectCircle != null) mBtnConnectCircle.setVisibility(View.VISIBLE);
+
+            if (mTvActiveKeyId != null) {
+                String masked = mKeyId.length() >= 8 ? mKeyId.substring(0, 8) + "..." : mKeyId;
+                mTvActiveKeyId.setText("KeyID: " + masked);
+            }
+            if (mTvActiveServer != null) {
+                mTvActiveServer.setText("Сервер: " + mServerIp + ":" + mServerPort + " (AEGS Titan-01)");
+            }
+
+            if (!mIsConnected) {
+                if (mTvStatus != null) {
+                    mTvStatus.setText("КЛЮЧ АКТИВЕН   ГОТОВ К ЗАЩИТЕ");
+                    mTvStatus.setTextColor(0xFFF59E0B); // Amber
+                }
+                if (mTvConnLabel != null) mTvConnLabel.setText("ПОДКЛЮЧИТЬСЯ");
+                if (mTvConnSub != null) mTvConnSub.setText("Запустить туннель");
+                if (mIvConnShield != null) mIvConnShield.setColorFilter(0xFFF59E0B);
+            } else {
+                if (mTvStatus != null) {
+                    mTvStatus.setText("ЗАЩИЩЕНО   AEGS v6 TITAN");
+                    mTvStatus.setTextColor(0xFF34D399); // Green
+                }
+                if (mTvConnLabel != null) mTvConnLabel.setText("ОТКЛЮЧИТЬ");
+                if (mTvConnSub != null) mTvConnSub.setText("Туннель активен");
+                if (mIvConnShield != null) mIvConnShield.setColorFilter(0xFF34D399);
+            }
+        }
+    }
+
+    private void openTelegramBot() {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("tg://resolve?domain=" + BOT_USERNAME));
+            intent.setPackage("org.telegram.messenger");
+            startActivity(intent);
+        } catch (Exception e) {
+            try {
+                Intent fallbackTg = new Intent(Intent.ACTION_VIEW, Uri.parse("tg://resolve?domain=" + BOT_USERNAME));
+                startActivity(fallbackTg);
+            } catch (Exception e2) {
+                Intent webIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/" + BOT_USERNAME));
+                startActivity(webIntent);
+            }
+        }
+    }
+
+    private void pasteFromClipboard() {
+        try {
+            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (cm != null && cm.hasPrimaryClip() && cm.getPrimaryClip().getItemCount() > 0) {
+                CharSequence text = cm.getPrimaryClip().getItemAt(0).getText();
+                if (text != null && text.length() > 0) {
+                    String clipStr = text.toString().trim();
+                    if (mEtAccessKey != null) {
+                        mEtAccessKey.setText(clipStr);
+                    }
+                    if (parseAndSaveKey(clipStr)) {
+                        if (mEtAccessKey != null) mEtAccessKey.setText("");
+                    }
+                    return;
+                }
+            }
+            Toast.makeText(this, "Буфер обмена пуст", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to read clipboard", e);
+        }
+    }
+
+    private void changeKey() {
+        if (mIsConnected) {
+            disconnectVpn();
+        }
+        mToken = "";
+        mKeyId = "";
+        mPrefs.edit()
+                .remove(KEY_TOKEN)
+                .remove(KEY_KEY_ID)
+                .putBoolean(KEY_HAS_ACTIVE_KEY, false)
+                .apply();
+        updateKeyViews();
+        if (mEtAccessKey != null) {
+            mEtAccessKey.requestFocus();
+        }
+        Toast.makeText(this, "Введите новый ключ или ссылку подписки", Toast.LENGTH_SHORT).show();
+    }
+
+    public boolean parseAndSaveKey(String input) {
+        if (input == null) return false;
+        String text = input.trim();
+        if (text.isEmpty()) return false;
+
+        String ip = DEFAULT_SERVER_IP;
+        int port = DEFAULT_SERVER_PORT;
+        String token = null;
+
+        if (text.startsWith("aegs://")) {
+            try {
+                Uri uri = Uri.parse(text);
+                String host = uri.getHost();
+                int p = uri.getPort();
+                if (host != null && !host.isEmpty()) ip = host;
+                if (p > 0) port = p;
+
+                token = uri.getQueryParameter("token");
+                if (token == null || token.isEmpty()) {
+                    String path = uri.getPath();
+                    if (path != null) {
+                        if (path.startsWith("/")) path = path.substring(1);
+                        if (!path.isEmpty()) token = path;
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error parsing URI", e);
+            }
+        } else if (text.length() >= 16) {
+            // Check if user entered host:port/token
+            if (text.contains("/") || text.contains(":")) {
+                try {
+                    Uri uri = Uri.parse("aegs://" + text);
+                    String host = uri.getHost();
+                    int p = uri.getPort();
+                    if (host != null && !host.isEmpty()) ip = host;
+                    if (p > 0) port = p;
+                    String path = uri.getPath();
+                    if (path != null && path.startsWith("/")) path = path.substring(1);
+                    if (path != null && !path.isEmpty()) token = path;
+                } catch (Exception ignored) {}
+            }
+            if (token == null) {
+                token = text;
+            }
+        }
+
+        if (token == null || token.length() < 16) {
+            Toast.makeText(this, "Некорректный ключ. Вставьте ссылку aegs:// или 64-значный токен.", Toast.LENGTH_LONG).show();
+            return false;
+        }
+
+        String keyId = computeKeyId(token);
+
+        mPrefs.edit()
+                .putString(KEY_TOKEN, token)
+                .putString(KEY_SERVER_IP, ip)
+                .putInt(KEY_SERVER_PORT, port)
+                .putString(KEY_KEY_ID, keyId)
+                .putBoolean(KEY_HAS_ACTIVE_KEY, true)
+                .apply();
+
+        mToken = token;
+        mServerIp = ip;
+        mServerPort = port;
+        mKeyId = keyId;
+
+        updateKeyViews();
+        Toast.makeText(this, "Ключ AEGS успешно активирован!", Toast.LENGTH_SHORT).show();
+        return true;
+    }
+
+    private static String computeKeyId(String token) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(token.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 8; i++) {
+                sb.append(String.format("%02x", hash[i]));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return token.substring(0, Math.min(16, token.length()));
+        }
+    }
+
+    private void checkClipboardForConfig() {
+        try {
+            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (cm != null && cm.hasPrimaryClip() && cm.getPrimaryClip().getItemCount() > 0) {
+                CharSequence text = cm.getPrimaryClip().getItemAt(0).getText();
+                if (text != null) {
+                    String clipStr = text.toString().trim();
+                    if (!clipStr.equals(mLastClipboardText)) {
+                        mLastClipboardText = clipStr;
+                        if (clipStr.startsWith("aegs://") || (clipStr.length() == 64 && clipStr.matches("^[0-9a-fA-F]{64}$"))) {
+                            if (!hasActiveKey() || !clipStr.equals(mToken)) {
+                                if (mEtAccessKey != null) {
+                                    mEtAccessKey.setText(clipStr);
+                                }
+                                Toast.makeText(this, "Обнаружен ключ AEGS в буфере обмена!", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
     }
 
     private void updateProtoBadge() {
@@ -213,29 +470,22 @@ public class MainActivity extends AppCompatActivity {
         int mode = mPrefs.getInt(SettingsActivity.KEY_PROTOCOL_MODE, SettingsActivity.PROTO_EMERGENCY);
         switch (mode) {
             case SettingsActivity.PROTO_FAST_EMERGENCY:
-                mTvProtoBadge.setText("v6.5 • Быстрый аварийный (0-RTT)");
+                mTvProtoBadge.setText("v6.5   Аварийный (0-RTT)");
                 if (mMetricsGraph != null) mMetricsGraph.setStatusText("0-RTT IAT: ACTIVE");
                 break;
             case SettingsActivity.PROTO_TURBO_PQC:
-                mTvProtoBadge.setText("v6.5 • Скоростной квантовый (Kyber-768)");
+                mTvProtoBadge.setText("v6.5   Квантовый (Kyber-768)");
                 if (mMetricsGraph != null) mMetricsGraph.setStatusText("KYBER-768 PQC: ACTIVE");
                 break;
             case SettingsActivity.PROTO_HYBRID_AUTO:
-                mTvProtoBadge.setText("v6.5 • Универсальный (Адаптивный)");
+                mTvProtoBadge.setText("v6.5   Универсальный");
                 if (mMetricsGraph != null) mMetricsGraph.setStatusText("ADAPTIVE HYBRID: ACTIVE");
                 break;
             case SettingsActivity.PROTO_EMERGENCY:
             default:
-                mTvProtoBadge.setText("v6.5 • Аварийный (Reality ECH)");
+                mTvProtoBadge.setText("v6.5   Chrome 128+ Reality ECH");
                 if (mMetricsGraph != null) mMetricsGraph.setStatusText("ECH REALITY: ACTIVE");
                 break;
-        }
-    }
-
-    private void pickRandomPhrase() {
-        if (mTvConnSub != null) {
-            int idx = new Random().nextInt(PHRASES.length);
-            mTvConnSub.setText(PHRASES[idx]);
         }
     }
 
@@ -249,22 +499,32 @@ public class MainActivity extends AppCompatActivity {
         if (intent != null && Intent.ACTION_VIEW.equals(intent.getAction())) {
             Uri data = intent.getData();
             if (data != null && "aegs".equals(data.getScheme())) {
-                String host = data.getHost();
-                int port = data.getPort();
-                String token = data.getQueryParameter("token");
-
-                if (host != null) mEtIp.setText(host);
-                if (port > 0) mEtPort.setText(String.valueOf(port));
-                if (token != null) mEtToken.setText(token);
-
-                mRgMode.check(R.id.rb_custom);
-                Toast.makeText(this, "Конфигурация AEGS успешно импортирована!", Toast.LENGTH_SHORT).show();
+                parseAndSaveKey(data.toString());
             }
         }
     }
 
+    private void shareActiveKey() {
+        if (!hasActiveKey()) return;
+        String uri = "aegs://" + mServerIp + ":" + mServerPort + "?token=" + mToken + "&proto=titan_quic&key_id=" + mKeyId;
+        String shareBody = "🔑 Персональный ключ доступа AEGS Titan VPN:\n\n" +
+                uri + "\n\n" +
+                "📱 Лимит: до 4 устройств одновременно (ПК, Android, iOS)\n" +
+                "📥 Скачать приложение: https://github.com/XDGOOD/AEGS-Global-";
+        Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_SUBJECT, "Ключ AEGS Titan");
+        intent.putExtra(Intent.EXTRA_TEXT, shareBody);
+        startActivity(Intent.createChooser(intent, "Поделиться ключом AEGS"));
+    }
+
     private void toggleConnection() {
-        triggerHaptic();
+        if (!hasActiveKey()) {
+            Toast.makeText(this, "Сначала активируйте ключ доступа", Toast.LENGTH_SHORT).show();
+            updateKeyViews();
+            return;
+        }
+
         if (!mIsConnected) {
             Intent vpnIntent = VpnService.prepare(this);
             if (vpnIntent != null) {
@@ -286,32 +546,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void connectVpn() {
-        String ip = "185.196.8.10";
-        int port = 50001;
-        String token = "client_default_token";
+        if (!hasActiveKey()) {
+            Toast.makeText(this, "Требуется ключ доступа!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         boolean split = mCbSplit != null && mCbSplit.isChecked();
         int proto = mPrefs.getInt(SettingsActivity.KEY_PROTOCOL_MODE, SettingsActivity.PROTO_REALITY_ECH);
         boolean chaff = mPrefs.getBoolean(SettingsActivity.KEY_ADAPTIVE_CHAFF, true);
         boolean killSwitch = mPrefs.getBoolean(SettingsActivity.KEY_KILL_SWITCH, true);
 
-        if (mRgMode.getCheckedRadioButtonId() == R.id.rb_custom) {
-            String ipInput = mEtIp.getText().toString().trim();
-            String portInput = mEtPort.getText().toString().trim();
-            String tokenInput = mEtToken.getText().toString().trim();
-
-            if (!ipInput.isEmpty()) ip = ipInput;
-            if (!portInput.isEmpty()) {
-                try {
-                    port = Integer.parseInt(portInput);
-                } catch (NumberFormatException ignored) {}
-            }
-            if (!tokenInput.isEmpty()) token = tokenInput;
-        }
-
         Intent intent = new Intent(this, AegsVpnService.class);
-        intent.putExtra("SERVER_IP", ip);
-        intent.putExtra("SERVER_PORT", port);
-        intent.putExtra("TOKEN", token);
+        intent.putExtra("SERVER_IP", mServerIp);
+        intent.putExtra("SERVER_PORT", mServerPort);
+        intent.putExtra("TOKEN", mToken);
         intent.putExtra("SPLIT_TUNNEL", split);
         intent.putExtra("PROTOCOL_MODE", proto);
         intent.putExtra("ADAPTIVE_CHAFF", chaff);
@@ -320,68 +568,41 @@ public class MainActivity extends AppCompatActivity {
         startService(intent);
 
         mIsConnected = true;
-        mTvStatus.setText("● Подключено • Защищено");
-        mTvStatus.setTextColor(0xFF10B981);
-        mTvPing.setText("Пинг до сервера: 18 мс");
-        if (mTvSpeed != null) mTvSpeed.setText("LTO TURBO 940 Мбит/с");
-
-        mTvConnLabel.setText("ОТКЛЮЧИТЬ");
-        mTvConnSub.setText("Защита активна");
-        mTvConnSub.setTextColor(0xFF10B981);
+        updateKeyViews();
 
         mPingHandler.removeCallbacks(mPingRunnable);
-        mPingHandler.postDelayed(mPingRunnable, 1000);
-        startButtonPulse();
+        mPingHandler.post(mPingRunnable);
+
+        Toast.makeText(this, "AEGS Titan: Защита активирована", Toast.LENGTH_SHORT).show();
     }
 
     private void disconnectVpn() {
-        mPingHandler.removeCallbacks(mPingRunnable);
-
         Intent intent = new Intent(this, AegsVpnService.class);
-        intent.setAction("STOP");
+        intent.setAction("DISCONNECT");
         startService(intent);
 
         mIsConnected = false;
-        mTvStatus.setText("● Отключено • Готов к защите");
-        mTvStatus.setTextColor(0xFFF87171);
-        mTvPing.setText("Пинг до сервера: -- мс");
+        mPingHandler.removeCallbacks(mPingRunnable);
 
-        mTvConnLabel.setText("ПОДКЛЮЧИТЬ");
-        pickRandomPhrase();
-        mTvConnSub.setTextColor(0xFFF59E0B);
+        if (mTvPing != null) {
+            mTvPing.setText("Пинг к серверу: -- мс");
+        }
+
+        updateKeyViews();
+        Toast.makeText(this, "Туннель отключен", Toast.LENGTH_SHORT).show();
     }
-
-    private void triggerHaptic() {
+    private void updateSplitTunnelUi() {
+        if (mTvSplitStatus == null) return;
         try {
-            View decor = getWindow().getDecorView();
-            decor.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY,
-                    android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
-        } catch (Exception ignored) {}
-    }
-
-    private void checkClipboardForConfig() {
-        try {
-            android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-            if (cm != null && cm.hasPrimaryClip()) {
-                android.content.ClipData clip = cm.getPrimaryClip();
-                if (clip != null && clip.getItemCount() > 0) {
-                    CharSequence cs = clip.getItemAt(0).getText();
-                    if (cs != null) {
-                        final String text = cs.toString().trim();
-                        if (text.startsWith("aegs://") && !text.equals(mLastImportedClip)) {
-                            mLastImportedClip = text;
-                            new androidx.appcompat.app.AlertDialog.Builder(this)
-                                    .setTitle("Обнаружен профиль AEGS")
-                                    .setMessage("В буфере обмена найдена ссылка конфигурации:\n" + text + "\n\nИмпортировать настройки сервера?")
-                                    .setPositiveButton("Импортировать", (dialog, which) -> {
-                                        triggerHaptic();
-                                        handleIncomingIntent(new Intent(Intent.ACTION_VIEW, Uri.parse(text)));
-                                    })
-                                    .setNegativeButton("Отмена", null)
-                                    .show();
-                        }
-                    }
-                }
+            int routingMode = mPrefs.getInt("routing_mode", 0);
+            java.util.Set<String> customBypass = mPrefs.getStringSet("custom_bypass_packages", null);
+            if (routingMode == 1) {
+                java.util.Set<String> customVpn = mPrefs.getStringSet("custom_vpn_packages", null);
+                int count = (customVpn != null) ? customVpn.size() : 0;
+                mTvSplitStatus.setText("Режим: Только " + count + " выбранных приложений идут через VPN.");
+            } else {
+                int count = (customBypass != null) ? customBypass.size() : 9;
+                mTvSplitStatus.setText("Обход VPN активен для " + count + " приложений (банки и сервисы РФ напрямую).");
             }
         } catch (Exception ignored) {}
     }

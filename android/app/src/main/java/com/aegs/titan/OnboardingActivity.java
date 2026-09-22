@@ -1,31 +1,40 @@
 package com.aegs.titan;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 
 public class OnboardingActivity extends AppCompatActivity {
 
     private AnimShieldSpeedometerView mAnimView;
     private LinearLayout mLlSourceSelector;
-    private View mCardCloud;
-    private View mCardVps;
+    private View mCardGetBotKey;
+    private View mCardPasteKey;
+    private TextView mTvCardPasteTitle;
+    private TextView mTvCardPasteSub;
 
     private TextView mTvTitle;
     private TextView mTvSubtitle;
     private Button mBtnNext;
-    private TextView mBtnSkip;
     private View mDot0, mDot1, mDot2, mDot3;
 
     private int mCurrentStep = 0;
-    private boolean mSelectedVps = false;
+    private boolean mKeyConfigured = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,42 +43,37 @@ public class OnboardingActivity extends AppCompatActivity {
 
         mAnimView = findViewById(R.id.anim_view);
         mLlSourceSelector = findViewById(R.id.ll_source_selector);
-        mCardCloud = findViewById(R.id.card_source_cloud);
-        mCardVps = findViewById(R.id.card_source_vps);
+        mCardGetBotKey = findViewById(R.id.card_source_cloud);
+        mCardPasteKey = findViewById(R.id.card_source_vps);
+        mTvCardPasteTitle = findViewById(R.id.tv_card_paste_title);
+        mTvCardPasteSub = findViewById(R.id.tv_card_paste_sub);
 
         mTvTitle = findViewById(R.id.tv_title);
         mTvSubtitle = findViewById(R.id.tv_subtitle);
         mBtnNext = findViewById(R.id.btn_next);
-        mBtnSkip = findViewById(R.id.btn_skip);
 
         mDot0 = findViewById(R.id.dot_0);
         mDot1 = findViewById(R.id.dot_1);
         mDot2 = findViewById(R.id.dot_2);
         mDot3 = findViewById(R.id.dot_3);
 
-        if (mCardCloud != null) {
-            mCardCloud.setOnClickListener(v -> {
-                mSelectedVps = false;
-                mCardCloud.setBackgroundResource(R.drawable.card_obsidian);
-                mCardVps.setBackgroundResource(R.drawable.card_obsidian);
-                mCardCloud.setAlpha(1.0f);
-                mCardVps.setAlpha(0.6f);
+        if (mCardGetBotKey != null) {
+            mCardGetBotKey.setOnClickListener(v -> {
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/aegs_support_bot"));
+                    startActivity(intent);
+                } catch (Exception e) {
+                    Toast.makeText(this, "Откройте Telegram: @aegs_support_bot", Toast.LENGTH_LONG).show();
+                }
             });
         }
-        if (mCardVps != null) {
-            mCardVps.setOnClickListener(v -> {
-                mSelectedVps = true;
-                mCardVps.setBackgroundResource(R.drawable.card_obsidian);
-                mCardCloud.setBackgroundResource(R.drawable.card_obsidian);
-                mCardVps.setAlpha(1.0f);
-                mCardCloud.setAlpha(0.6f);
-            });
+
+        if (mCardPasteKey != null) {
+            mCardPasteKey.setOnClickListener(v -> handlePasteKey());
         }
 
         mBtnNext.setOnClickListener(v -> advanceStep());
-        mBtnSkip.setOnClickListener(v -> finishOnboarding());
 
-        // Handle Back button: step back if on step 1-3, else finish
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -83,6 +87,92 @@ public class OnboardingActivity extends AppCompatActivity {
         });
 
         updateStepDisplay();
+    }
+
+    private void handlePasteKey() {
+        try {
+            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (cm != null && cm.hasPrimaryClip() && cm.getPrimaryClip().getItemCount() > 0) {
+                CharSequence cs = cm.getPrimaryClip().getItemAt(0).getText();
+                if (cs != null) {
+                    String clipStr = cs.toString().trim();
+                    boolean saved = parseAndSaveKey(clipStr);
+                    if (saved) {
+                        mKeyConfigured = true;
+                        if (mTvCardPasteTitle != null) {
+                            mTvCardPasteTitle.setText("✓ Ключ успешно сохранен!");
+                            mTvCardPasteTitle.setTextColor(0xFF34D399);
+                        }
+                        if (mTvCardPasteSub != null) {
+                            mTvCardPasteSub.setText("Ключ активирован в приложении. Нажмите «Запустить AEGS».");
+                        }
+                        mBtnNext.setText("🚀 Запустить AEGS");
+                        Toast.makeText(this, "Ключ AEGS успешно активирован!", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                }
+            }
+            Toast.makeText(this, "Скопируйте ключ aegs:// или токен в боте @aegs_support_bot перед вставкой", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Не удалось прочитать буфер обмена", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private boolean parseAndSaveKey(String text) {
+        if (text == null || text.isEmpty()) return false;
+
+        String ip = "31.76.9.86";
+        int port = 50001;
+        String token = null;
+
+        if (text.startsWith("aegs://")) {
+            try {
+                Uri uri = Uri.parse(text);
+                String host = uri.getHost();
+                int p = uri.getPort();
+                if (host != null && !host.isEmpty()) ip = host;
+                if (p > 0) port = p;
+
+                token = uri.getQueryParameter("token");
+                if (token == null || token.isEmpty()) {
+                    String path = uri.getPath();
+                    if (path != null && path.startsWith("/")) path = path.substring(1);
+                    if (path != null && !path.isEmpty()) token = path;
+                }
+            } catch (Exception ignored) {}
+        } else if (text.length() >= 16) {
+            token = text;
+        }
+
+        if (token == null || token.length() < 16) {
+            return false;
+        }
+
+        String keyId = computeKeyId(token);
+        SharedPreferences prefs = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE);
+        prefs.edit()
+                .putString(MainActivity.KEY_TOKEN, token)
+                .putString(MainActivity.KEY_SERVER_IP, ip)
+                .putInt(MainActivity.KEY_SERVER_PORT, port)
+                .putString(MainActivity.KEY_KEY_ID, keyId)
+                .putBoolean(MainActivity.KEY_HAS_ACTIVE_KEY, true)
+                .apply();
+
+        return true;
+    }
+
+    private static String computeKeyId(String token) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(token.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 8; i++) {
+                sb.append(String.format("%02x", hash[i]));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return token.substring(0, Math.min(16, token.length()));
+        }
     }
 
     private void advanceStep() {
@@ -101,8 +191,8 @@ public class OnboardingActivity extends AppCompatActivity {
             mAnimView.setMode(AnimShieldSpeedometerView.MODE_WELCOME);
 
             mTvTitle.setText("Добро пожаловать в AEGS");
-            mTvSubtitle.setText("Свободный и безопасный интернет без цензуры, слежки и замедлений провайдера.");
-            mBtnNext.setText("ДАЛЕЕ");
+            mTvSubtitle.setText("Новейший протокол v6 Titan для надежного обхода DPI и блокировок любого уровня.");
+            mBtnNext.setText("Далее");
 
             setDotState(mDot0, true);
             setDotState(mDot1, false);
@@ -114,9 +204,9 @@ public class OnboardingActivity extends AppCompatActivity {
             mLlSourceSelector.setVisibility(View.GONE);
             mAnimView.setMode(AnimShieldSpeedometerView.MODE_LOCK);
 
-            mTvTitle.setText("Абсолютная безопасность");
-            mTvSubtitle.setText("Шифрование ChaCha20-Poly1305 и маскировка Chrome 128+ Reality ECH. Трафик неотличим от HTTPS.");
-            mBtnNext.setText("ДАЛЕЕ");
+            mTvTitle.setText("Абсолютная защита");
+            mTvSubtitle.setText("Шифрование ChaCha20-Poly1305 и маскировка заголовков под Chrome 128+ Reality ECH.");
+            mBtnNext.setText("Далее");
 
             setDotState(mDot0, false);
             setDotState(mDot1, true);
@@ -129,8 +219,8 @@ public class OnboardingActivity extends AppCompatActivity {
             mAnimView.setMode(AnimShieldSpeedometerView.MODE_SPEEDOMETER);
 
             mTvTitle.setText("Скорость до 940+ Мбит/с");
-            mTvSubtitle.setText("Аппаратное zero-copy ядро. Мгновенная загрузка 4K видео на YouTube и минимальный пинг в играх.");
-            mBtnNext.setText("ДАЛЕЕ");
+            mTvSubtitle.setText("Оптимизация zero-copy ядра. Мгновенный отклик, 4K видео и минимальный пинг.");
+            mBtnNext.setText("Далее");
 
             setDotState(mDot0, false);
             setDotState(mDot1, false);
@@ -141,9 +231,14 @@ public class OnboardingActivity extends AppCompatActivity {
             mAnimView.setVisibility(View.GONE);
             mLlSourceSelector.setVisibility(View.VISIBLE);
 
-            mTvTitle.setText("Выберите способ подключения");
-            mTvSubtitle.setText("Используйте встроенный защищенный кластер AEGS или настройте подключение к своему VPS.");
-            mBtnNext.setText("ЗАПУСТИТЬ AEGS");
+            mTvTitle.setText("🔑 Ключ доступа к сети");
+            mTvSubtitle.setText("Для работы протокола необходим персональный ключ доступа (100 руб/мес, до 4 устройств). Оформите подписку в боте @aegs_support_bot.");
+
+            if (mKeyConfigured) {
+                mBtnNext.setText("🚀 Запустить AEGS");
+            } else {
+                mBtnNext.setText("Перейти в приложение");
+            }
 
             setDotState(mDot0, false);
             setDotState(mDot1, false);
@@ -164,14 +259,11 @@ public class OnboardingActivity extends AppCompatActivity {
         prefs.edit()
                 .putBoolean("onboarding_complete", true)
                 .putBoolean("onboarding_done", true)
-                .putBoolean("mode_vps", mSelectedVps)
                 .apply();
 
-        if (isTaskRoot()) {
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
-        }
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
         finish();
     }
 }

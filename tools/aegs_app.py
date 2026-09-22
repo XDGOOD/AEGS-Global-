@@ -7,12 +7,9 @@ Features:
 - Dual-Mode Architecture (Amnezia-style):
   1. "Our Cloud Service" (Official AEGS High-Speed Stealth Network)
   2. "Custom VPS / Servers" (Add your own VPS with 1 click)
-- 1-Click Key Import from Telegram Bot (aegs:// URI):
-  - Auto-detects key in clipboard
-  - Connects in 1 click
 - Smart Split-Tunneling:
   - Automatically bypass Russian banks, Gosuslugi, Yandex, and local services
-  - Only route blocked/international destinations through AEGS
+  - Only route blocked/international destinations (YouTube, Discord, etc.) through AEGS
 - Live Speed & Latency Telemetry:
   - Real-time Mbps throughput gauge and RTT latency graph
 - Mobile Integration:
@@ -34,9 +31,9 @@ from aegs_config import ProfileStorage, AegsProfile
 class AegsApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("AEGS VPN — Titan v6.5 (ПК)")
-        self.geometry("700x640")
-        self.minsize(640, 560)
+        self.title("AEGS VPN — Titan v6.5")
+        self.geometry("680x600")
+        self.minsize(620, 540)
         self.configure(bg="#12141A")
 
         self.storage = ProfileStorage()
@@ -71,7 +68,7 @@ class AegsApp(tk.Tk):
         header = ttk.Frame(self, style="Dark.TFrame")
         header.pack(fill="x", padx=20, pady=(15, 8))
         
-        lbl_title = ttk.Label(header, text="AEGS VPN (ПК Клиент)", style="Header.TLabel")
+        lbl_title = ttk.Label(header, text="AEGS TITAN", style="Header.TLabel")
         lbl_title.pack(side="left")
         
         self.lbl_proto = ttk.Label(header, text="v6.5 • RFC 9000 QUIC Stealth", background="#12141A", foreground="#00D26A", font=("Segoe UI", 9, "bold"))
@@ -88,7 +85,7 @@ class AegsApp(tk.Tk):
 
         # Tab 2: Servers (Amnezia-style)
         self.tab_servers = ttk.Frame(self.notebook, style="Dark.TFrame")
-        self.notebook.add(self.tab_servers, text="  ⚙️ Серверы / Ключи  ")
+        self.notebook.add(self.tab_servers, text="  ⚙️ Серверы (Amnezia)  ")
         self._build_servers_tab()
 
         # Tab 3: Split Tunneling
@@ -105,27 +102,11 @@ class AegsApp(tk.Tk):
         card = ttk.Frame(self.tab_connect, style="Card.TFrame", padding=20)
         card.pack(fill="both", expand=True, pady=10)
 
-        lbl_srv = ttk.Label(card, text="АКТИВНЫЙ СЕРВЕР / КЛЮЧ", style="Dim.TLabel")
+        lbl_srv = ttk.Label(card, text="ВЫБРАННЫЙ СЕРВЕР", style="Dim.TLabel")
         lbl_srv.pack(anchor="w")
 
         self.lbl_active_server = ttk.Label(card, text="Загрузка...", style="Card.TLabel", font=("Segoe UI", 13, "bold"))
-        self.lbl_active_server.pack(anchor="w", pady=(2, 8))
-
-        # Import key button directly on connect tab
-        self.btn_import_quick = tk.Button(
-            card,
-            text="🔑 Импортировать ключ из бота (aegs://)",
-            command=self.import_key_dialog,
-            bg="#1C212E",
-            fg="#00D26A",
-            font=("Segoe UI", 10, "bold"),
-            relief="flat",
-            activebackground="#252B3B",
-            activeforeground="#00D26A",
-            pady=8,
-            cursor="hand2"
-        )
-        self.btn_import_quick.pack(fill="x", pady=(2, 10))
+        self.lbl_active_server.pack(anchor="w", pady=(2, 12))
 
         # Big Connect Button
         self.btn_connect = tk.Button(
@@ -142,7 +123,7 @@ class AegsApp(tk.Tk):
             pady=12,
             cursor="hand2"
         )
-        self.btn_connect.pack(fill="x", pady=6)
+        self.btn_connect.pack(fill="x", pady=12)
 
         # Status & Stats Bar
         stats_frame = ttk.Frame(card, style="Card.TFrame")
@@ -168,7 +149,6 @@ class AegsApp(tk.Tk):
         ttk.Label(det_frame, text="• Протокол: RFC 9000 QUIC Camouflage (Невидимо для ТСПУ/DPI)", style="Dim.TLabel").pack(anchor="w")
         ttk.Label(det_frame, text="• Шифрование: ChaCha20-Poly1305 + Stateless Cookies (Anti-DDoS)", style="Dim.TLabel").pack(anchor="w")
         ttk.Label(det_frame, text="• Режим: Умный обход (Банки и Госуслуги работают напрямую)", style="Dim.TLabel").pack(anchor="w")
-        ttk.Label(det_frame, text="• Лимит: до 4 устройств на одну подписку одновременно", style="Dim.TLabel").pack(anchor="w")
 
         self.refresh_active_display()
 
@@ -176,7 +156,7 @@ class AegsApp(tk.Tk):
         frame = ttk.Frame(self.tab_servers, style="Dark.TFrame", padding=12)
         frame.pack(fill="both", expand=True)
 
-        ttk.Label(frame, text="Сохраненные серверы и ключи доступа:", background="#12141A", foreground="#FFFFFF", font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 8))
+        ttk.Label(frame, text="Выберите узел или добавьте свой собственный VPS:", background="#12141A", foreground="#FFFFFF", font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 8))
 
         self.srv_listbox = tk.Listbox(
             frame,
@@ -196,10 +176,7 @@ class AegsApp(tk.Tk):
         btn_select = tk.Button(btn_box, text="Выбрать активным", command=self.select_server, bg="#1C212E", fg="#FFFFFF", relief="flat", font=("Segoe UI", 9, "bold"), padx=12, pady=6)
         btn_select.pack(side="left", padx=(0, 6))
 
-        btn_import = tk.Button(btn_box, text="🔑 Импорт ключа (aegs://)", command=self.import_key_dialog, bg="#00D26A", fg="#12141A", relief="flat", font=("Segoe UI", 9, "bold"), padx=12, pady=6)
-        btn_import.pack(side="left", padx=6)
-
-        btn_add = tk.Button(btn_box, text="+ Свой VPS", command=self.add_custom_server_dialog, bg="#0D6EFD", fg="#FFFFFF", relief="flat", font=("Segoe UI", 9, "bold"), padx=12, pady=6)
+        btn_add = tk.Button(btn_box, text="+ Добавить свой VPS", command=self.add_custom_server_dialog, bg="#0D6EFD", fg="#FFFFFF", relief="flat", font=("Segoe UI", 9, "bold"), padx=12, pady=6)
         btn_add.pack(side="left", padx=6)
 
         btn_del = tk.Button(btn_box, text="Удалить", command=self.delete_server, bg="#DC3545", fg="#FFFFFF", relief="flat", font=("Segoe UI", 9, "bold"), padx=12, pady=6)
@@ -211,44 +188,42 @@ class AegsApp(tk.Tk):
         card = ttk.Frame(self.tab_split, style="Card.TFrame", padding=20)
         card.pack(fill="both", expand=True, pady=10)
 
-        ttk.Label(card, text="Умное раздельное туннелирование (Split-Tunneling)", style="Card.TLabel", font=("Segoe UI", 12, "bold")).pack(anchor="w")
-        ttk.Label(card, text="Российские сайты и сервисы работают напрямую на максимальной скорости вашего провайдера.", style="Dim.TLabel").pack(anchor="w", pady=(2, 12))
+        ttk.Label(card, text="УМНОЕ РАЗДЕЛЬНОЕ ТУННЕЛИРОВАНИЕ (SPLIT TUNNELING)", style="Dim.TLabel").pack(anchor="w")
+        ttk.Label(card, text="Прямой доступ к российским сайтам и банкам", style="Card.TLabel", font=("Segoe UI", 12, "bold")).pack(anchor="w", pady=(2, 10))
 
         self.var_split = tk.BooleanVar(value=True)
-        chk = tk.Checkbutton(
+        cb = tk.Checkbutton(
             card,
-            text="Включить раздельное туннелирование (рекомендуется)",
+            text="Включить умный обход (Рекомендуется)",
             variable=self.var_split,
             command=self.on_toggle_split,
             bg="#1A1F2C",
-            fg="#FFFFFF",
-            selectcolor="#0D6EFD",
+            fg="#00D26A",
+            selectcolor="#12141A",
             activebackground="#1A1F2C",
-            activeforeground="#FFFFFF",
-            font=("Segoe UI", 10, "bold")
+            activeforeground="#00D26A",
+            font=("Segoe UI", 11, "bold")
         )
-        chk.pack(anchor="w", pady=5)
+        cb.pack(anchor="w", pady=6)
 
-        ttk.Label(card, text="Список доменов-исключений (напрямую без VPN):", style="Dim.TLabel").pack(anchor="w", pady=(12, 4))
+        ttk.Label(card, text="Список сайтов и сервисов, работающих напрямую в обход VPN:\n(Сбербанк, Т-Банк, ВТБ, Госуслуги, Яндекс, Кинопоиск, Ozon, WB и др.)", style="Dim.TLabel").pack(anchor="w", pady=(8, 4))
 
-        self.txt_bypass = tk.Text(card, height=6, bg="#12141A", fg="#E1E7F5", relief="flat", font=("Consolas", 9), insertbackground="#FFFFFF")
-        self.txt_bypass.pack(fill="both", expand=True, pady=5)
-        
+        self.txt_bypass = tk.Text(card, height=5, bg="#12141A", fg="#E1E7F5", relief="flat", font=("Consolas", 9), wrap="word")
+        self.txt_bypass.pack(fill="both", expand=True, pady=6)
+
         p = self.storage.get_active()
         if p and p.bypass_domains:
             self.txt_bypass.insert("1.0", p.bypass_domains)
-        else:
-            self.txt_bypass.insert("1.0", "sberbank.ru, tbank.ru, gosuslugi.ru, ya.ru, yandex.ru, vk.com, kinopoisk.ru, ozon.ru, wildberries.ru")
 
-        btn_save_split = tk.Button(card, text="Сохранить список исключений", command=self.save_split_settings, bg="#0D6EFD", fg="#FFFFFF", relief="flat", font=("Segoe UI", 9, "bold"), pady=6)
-        btn_save_split.pack(fill="x", pady=(10, 0))
+        btn_save_split = tk.Button(card, text="💾 Применить настройки маршрутов", command=self.save_split_settings, bg="#1C212E", fg="#FFFFFF", relief="flat", font=("Segoe UI", 9, "bold"), pady=6)
+        btn_save_split.pack(fill="x", pady=6)
 
     def _build_mobile_tab(self):
         card = ttk.Frame(self.tab_mobile, style="Card.TFrame", padding=20)
         card.pack(fill="both", expand=True, pady=10)
 
-        ttk.Label(card, text="Подключение на телефоне (Android / iOS)", style="Card.TLabel", font=("Segoe UI", 12, "bold")).pack(anchor="w")
-        ttk.Label(card, text="Используйте этот же ключ на телефоне (до 4 устройств одновременно):", style="Dim.TLabel").pack(anchor="w", pady=(2, 10))
+        ttk.Label(card, text="ПОДКЛЮЧЕНИЕ ТЕЛЕФОНА (ANDROID / IOS)", style="Dim.TLabel").pack(anchor="w")
+        ttk.Label(card, text="Используйте приложение AEGS Titan на смартфоне", style="Card.TLabel", font=("Segoe UI", 12, "bold")).pack(anchor="w", pady=(2, 10))
 
         ttk.Label(card, text="Ключ быстрого импорта (вставьте в приложении):", style="Dim.TLabel").pack(anchor="w", pady=(6, 2))
 
@@ -275,7 +250,7 @@ class AegsApp(tk.Tk):
         if p:
             self.lbl_active_server.config(text=f"{p.name}\nIP: {p.server_ip}:{p.port}")
         else:
-            self.lbl_active_server.config(text="Сервер не выбран (нажмите «Импортировать ключ»)")
+            self.lbl_active_server.config(text="Сервер не выбран")
 
     def refresh_mobile_display(self):
         p = self.storage.get_active()
@@ -294,109 +269,28 @@ class AegsApp(tk.Tk):
             self.refresh_mobile_display()
             messagebox.showinfo("AEGS", "Сервер успешно выбран!")
 
-    def import_key_dialog(self):
-        dialog = tk.Toplevel(self)
-        dialog.title("Импорт ключа AEGS (из Telegram бота)")
-        dialog.geometry("520x360")
-        dialog.configure(bg="#12141A")
-        dialog.transient(self)
-        dialog.grab_set()
-
-        ttk.Label(dialog, text="🔑 Импорт персонального ключа доступа", background="#12141A", foreground="#FFFFFF", font=("Segoe UI", 12, "bold")).pack(anchor="w", padx=20, pady=(15, 2))
-        ttk.Label(dialog, text="Вставьте ссылку aegs://..., полученную в Telegram боте @aegs_support_bot:", background="#12141A", foreground="#8E99B0", font=("Segoe UI", 9)).pack(anchor="w", padx=20, pady=(0, 10))
-
-        # Check clipboard
-        clip_content = ""
-        has_aegs_clip = False
-        try:
-            clip_content = self.clipboard_get().strip()
-            if "aegs://" in clip_content or "token=" in clip_content:
-                has_aegs_clip = True
-        except Exception:
-            pass
-
-        lbl_clip_hint = ttk.Label(dialog, text="", background="#12141A", font=("Segoe UI", 9, "bold"))
-        lbl_clip_hint.pack(anchor="w", padx=20)
-        if has_aegs_clip:
-            lbl_clip_hint.config(text="✓ Ключ обнаружен в буфере обмена!", foreground="#00D26A")
-
-        ttk.Label(dialog, text="Ключ доступа (aegs://...):", background="#12141A", foreground="#FFFFFF").pack(anchor="w", padx=20, pady=(8, 2))
-        e_uri = tk.Entry(dialog, bg="#1A1F2C", fg="#00D26A", relief="flat", font=("Consolas", 10), insertbackground="#FFFFFF")
-        e_uri.pack(fill="x", padx=20)
-        if has_aegs_clip:
-            e_uri.insert(0, clip_content)
-
-        def paste_from_clip():
-            try:
-                c = self.clipboard_get().strip()
-                e_uri.delete(0, tk.END)
-                e_uri.insert(0, c)
-            except Exception:
-                pass
-
-        btn_paste = tk.Button(dialog, text="📋 Вставить из буфера обмена", command=paste_from_clip, bg="#1C212E", fg="#FFFFFF", relief="flat", font=("Segoe UI", 8), pady=3)
-        btn_paste.pack(anchor="e", padx=20, pady=(4, 8))
-
-        ttk.Label(dialog, text="Название профиля (необязательно):", background="#12141A", foreground="#FFFFFF").pack(anchor="w", padx=20, pady=(4, 2))
-        e_name = tk.Entry(dialog, bg="#1A1F2C", fg="#FFFFFF", relief="flat", font=("Segoe UI", 10), insertbackground="#FFFFFF")
-        e_name.insert(0, "AEGS Titan (Подписка)")
-        e_name.pack(fill="x", padx=20)
-
-        def do_import():
-            raw_uri = e_uri.get().strip()
-            if not raw_uri:
-                messagebox.showerror("Ошибка", "Пожалуйста, введите ключ aegs:// или вставьте его из буфера обмена!")
-                return
-
-            try:
-                prof = AegsProfile.from_uri(raw_uri)
-                custom_name = e_name.get().strip()
-                if custom_name:
-                    prof.name = custom_name
-                self.storage.add_profile(prof)
-                self.populate_server_list()
-                self.refresh_active_display()
-                self.refresh_mobile_display()
-                self.notebook.select(0)
-                dialog.destroy()
-                messagebox.showinfo(
-                    "AEGS",
-                    f"🎉 Ключ успешно импортирован!\n\n"
-                    f"🌐 Сервер: {prof.server_ip}:{prof.port}\n"
-                    f"🔑 Идентификатор: {prof.key_id}\n"
-                    f"📱 Лимит: до 4 устройств одновременно\n\n"
-                    f"Нажмите кнопку «ПОДКЛЮЧИТЬСЯ» для защищенного выхода в сеть!"
-                )
-            except Exception as ex:
-                messagebox.showerror("Ошибка импорта", f"Не удалось распознать ключ: {ex}")
-
-        btn_confirm = tk.Button(dialog, text="✅ Импортировать и применить", command=do_import, bg="#0D6EFD", fg="#FFFFFF", relief="flat", font=("Segoe UI", 11, "bold"), pady=8)
-        btn_confirm.pack(fill="x", padx=20, pady=(15, 10))
-
     def add_custom_server_dialog(self):
         dialog = tk.Toplevel(self)
         dialog.title("Добавить свой VPS")
-        dialog.geometry("420x360")
+        dialog.geometry("400x320")
         dialog.configure(bg="#12141A")
-        dialog.transient(self)
-        dialog.grab_set()
 
         ttk.Label(dialog, text="Название:", background="#12141A", foreground="#FFFFFF").pack(anchor="w", padx=20, pady=(15, 2))
-        e_name = tk.Entry(dialog, bg="#1A1F2C", fg="#FFFFFF", relief="flat", font=("Segoe UI", 10), insertbackground="#FFFFFF")
+        e_name = tk.Entry(dialog, bg="#1A1F2C", fg="#FFFFFF", relief="flat", font=("Segoe UI", 10))
         e_name.insert(0, "Мой личный VPS")
         e_name.pack(fill="x", padx=20)
 
-        ttk.Label(dialog, text="IP адрес VPS:", background="#12141A", foreground="#FFFFFF").pack(anchor="w", padx=20, pady=(8, 2))
-        e_ip = tk.Entry(dialog, bg="#1A1F2C", fg="#FFFFFF", relief="flat", font=("Segoe UI", 10), insertbackground="#FFFFFF")
+        ttk.Label(dialog, text="IP адрес VPS:", background="#12141A", foreground="#FFFFFF").pack(anchor="w", padx=20, pady=(10, 2))
+        e_ip = tk.Entry(dialog, bg="#1A1F2C", fg="#FFFFFF", relief="flat", font=("Segoe UI", 10))
         e_ip.pack(fill="x", padx=20)
 
-        ttk.Label(dialog, text="Порт (по умолчанию 50001):", background="#12141A", foreground="#FFFFFF").pack(anchor="w", padx=20, pady=(8, 2))
-        e_port = tk.Entry(dialog, bg="#1A1F2C", fg="#FFFFFF", relief="flat", font=("Segoe UI", 10), insertbackground="#FFFFFF")
+        ttk.Label(dialog, text="Порт (по умолчанию 50001):", background="#12141A", foreground="#FFFFFF").pack(anchor="w", padx=20, pady=(10, 2))
+        e_port = tk.Entry(dialog, bg="#1A1F2C", fg="#FFFFFF", relief="flat", font=("Segoe UI", 10))
         e_port.insert(0, "50001")
         e_port.pack(fill="x", padx=20)
 
-        ttk.Label(dialog, text="Токен / Секретный ключ:", background="#12141A", foreground="#FFFFFF").pack(anchor="w", padx=20, pady=(8, 2))
-        e_token = tk.Entry(dialog, bg="#1A1F2C", fg="#FFFFFF", relief="flat", font=("Segoe UI", 10), insertbackground="#FFFFFF")
+        ttk.Label(dialog, text="Токен / Секретный ключ:", background="#12141A", foreground="#FFFFFF").pack(anchor="w", padx=20, pady=(10, 2))
+        e_token = tk.Entry(dialog, bg="#1A1F2C", fg="#FFFFFF", relief="flat", font=("Segoe UI", 10))
         e_token.insert(0, "my_secret_token_123")
         e_token.pack(fill="x", padx=20)
 
@@ -418,13 +312,11 @@ class AegsApp(tk.Tk):
             )
             self.storage.add_profile(prof)
             self.populate_server_list()
-            self.refresh_active_display()
-            self.refresh_mobile_display()
             dialog.destroy()
-            messagebox.showinfo("AEGS", "VPS сервер успешно добавлен и выбран!")
+            messagebox.showinfo("AEGS", "VPS сервер успешно добавлен!")
 
-        btn_save = tk.Button(dialog, text="Сохранить", command=save_srv, bg="#0D6EFD", fg="#FFFFFF", relief="flat", font=("Segoe UI", 10, "bold"), pady=6)
-        btn_save.pack(fill="x", padx=20, pady=18)
+        btn_save = tk.Button(dialog, text="Сохранить", command=save_srv, bg="#0D6EFD", fg="#FFFFFF", relief="flat", font=("Segoe UI", 10, "bold"), pady=5)
+        btn_save.pack(fill="x", padx=20, pady=20)
 
     def delete_server(self):
         sel = self.srv_listbox.curselection()
@@ -462,21 +354,13 @@ class AegsApp(tk.Tk):
     def save_mobile_conf(self):
         p = self.storage.get_active()
         if p:
-            desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-            out_path = os.path.join(desktop, f"{p.name.replace(' ', '_')}.conf")
-            try:
-                with open(out_path, "w", encoding="utf-8") as f:
-                    f.write(p.to_mobile_conf())
-                messagebox.showinfo("AEGS", f"Конфигурация сохранена на рабочем столе:\n{out_path}")
-            except Exception as e:
-                messagebox.showerror("Ошибка", f"Не удалось сохранить: {e}")
+            out_path = os.path.expanduser(f"~/Desktop/{p.name.replace(' ', '_')}.conf")
+            with open(out_path, "w", encoding="utf-8") as f:
+                f.write(p.to_mobile_conf())
+            messagebox.showinfo("AEGS", f"Конфигурация сохранена на рабочем столе:\n{out_path}")
 
     def toggle_connect(self):
         if not self.is_connected:
-            p = self.storage.get_active()
-            if not p:
-                messagebox.showwarning("AEGS", "Сначала импортируйте или выберите сервер!")
-                return
             self.lbl_status.config(text="● Подключение...", foreground="#FBBF24")
             self.btn_connect.config(text="ПОДКЛЮЧЕНИЕ...", state="disabled")
             threading.Thread(target=self._run_connection, daemon=True).start()
@@ -506,7 +390,7 @@ class AegsApp(tk.Tk):
             while True:
                 time.sleep(1.0)
                 if self.is_connected:
-                    rx_inc = random.randint(1200000, 3500000)
+                    rx_inc = random.randint(1200000, 3500000) # Simulating active high-speed stream
                     tx_inc = random.randint(80000, 350000)
                     self.bytes_rx += rx_inc
                     self.bytes_tx += tx_inc

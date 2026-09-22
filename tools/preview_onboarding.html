@@ -1,0 +1,2108 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AEGS Titan — Обсидиан и Тёплый Янтарь (Дизайн-прототип v6.2)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     THEMES DEFINITIONS
+     DEFAULT: Obsidian & Warm Amber (Тёплый Янтарь и Обсидиан)
+     ============================================================ */
+  :root {
+    --bg-main: #0D0D10;
+    --bg-card: rgba(23, 22, 28, 0.78);
+    --bg-sheet: #141318;
+    --border-card: rgba(245, 158, 11, 0.22);
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --primary: #F59E0B;
+    --primary-glow: rgba(245, 158, 11, 0.28);
+    --secondary: #FB923C;
+    --accent: #FBBF24;
+    --text-title: #FFFBEB;
+    --text-body: #A8A29E;
+    --text-muted: #71717A;
+    --circle-fill-1: rgba(245, 158, 11, 0.22);
+    --circle-stroke-1: rgba(245, 158, 11, 0.40);
+    --circle-fill-2: rgba(251, 146, 60, 0.16);
+    --circle-stroke-2: rgba(251, 146, 60, 0.32);
+    --circle-fill-3: rgba(217, 119, 6, 0.14);
+    --circle-stroke-3: rgba(217, 119, 6, 0.30);
+    --circle-fill-4: rgba(255, 255, 255, 0.07);
+    --circle-stroke-4: rgba(255, 255, 255, 0.18);
+    --button-bg: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+    --button-text: #261102;
+  }
+
+  [data-theme="arctic"] {
+    --bg-main: #090E14;
+    --bg-card: rgba(16, 26, 38, 0.78);
+    --bg-sheet: #0D1622;
+    --border-card: rgba(45, 212, 191, 0.20);
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --primary: #2DD4BF;
+    --primary-glow: rgba(45, 212, 191, 0.28);
+    --secondary: #38BDF8;
+    --accent: #2DD4BF;
+    --text-title: #F0FDFA;
+    --text-body: #94A3B8;
+    --text-muted: #64748B;
+    --circle-fill-1: rgba(45, 212, 191, 0.22);
+    --circle-stroke-1: rgba(45, 212, 191, 0.40);
+    --circle-fill-2: rgba(56, 189, 248, 0.16);
+    --circle-stroke-2: rgba(56, 189, 248, 0.32);
+    --circle-fill-3: rgba(20, 184, 166, 0.14);
+    --circle-stroke-3: rgba(20, 184, 166, 0.30);
+    --circle-fill-4: rgba(255, 255, 255, 0.07);
+    --circle-stroke-4: rgba(255, 255, 255, 0.18);
+    --button-bg: linear-gradient(135deg, #2DD4BF 0%, #0D9488 100%);
+    --button-text: #042F2E;
+  }
+
+  [data-theme="lavender"] {
+    --bg-main: #0B0914;
+    --bg-card: rgba(23, 19, 36, 0.78);
+    --bg-sheet: #151124;
+    --border-card: rgba(167, 139, 250, 0.20);
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --primary: #A78BFA;
+    --primary-glow: rgba(167, 139, 250, 0.28);
+    --secondary: #818CF8;
+    --accent: #C084FC;
+    --text-title: #F5F3FF;
+    --text-body: #9CA3AF;
+    --text-muted: #6B7280;
+    --circle-fill-1: rgba(167, 139, 250, 0.22);
+    --circle-stroke-1: rgba(167, 139, 250, 0.40);
+    --circle-fill-2: rgba(129, 140, 248, 0.16);
+    --circle-stroke-2: rgba(129, 140, 248, 0.32);
+    --circle-fill-3: rgba(192, 132, 252, 0.14);
+    --circle-stroke-3: rgba(192, 132, 252, 0.30);
+    --circle-fill-4: rgba(255, 255, 255, 0.07);
+    --circle-stroke-4: rgba(255, 255, 255, 0.18);
+    --button-bg: linear-gradient(135deg, #A78BFA 0%, #7C3AED 100%);
+    --button-text: #1E0B38;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    user-select: none;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+  }
+
+  body {
+    background-color: #050507;
+    color: var(--text-title);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 16px;
+  }
+
+  /* Theme Switcher Bar */
+  .theme-bar {
+    display: flex;
+    gap: 10px;
+    background: rgba(23, 22, 28, 0.7);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 6px 12px;
+    border-radius: 30px;
+    margin-bottom: 12px;
+    z-index: 100;
+  }
+
+  .theme-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #9CA3AF;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 7px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.25s;
+  }
+
+  .theme-btn:hover { color: #FFF; }
+
+  .theme-btn.active {
+    background: rgba(255, 255, 255, 0.12);
+    color: #FFF;
+    border-color: rgba(255, 255, 255, 0.22);
+  }
+
+  .theme-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  /* Phone Mockup Frame */
+  .device-frame {
+    width: 390px;
+    height: 780px;
+    background: var(--bg-main);
+    border-radius: 46px;
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 25px 60px rgba(0,0,0,0.92), 0 0 50px rgba(0, 0, 0, 0.6);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Canvas for Semi-Transparent Circles & Button-Level Wave */
+  #bgCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* Status Bar */
+  .status-bar {
+    height: 44px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 24px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-body);
+    z-index: 10;
+  }
+
+  .notch {
+    width: 110px;
+    height: 22px;
+    background: #000;
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+  }
+
+  /* App Container (Onboarding Screens) */
+  .app-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 8px 22px 24px;
+    position: relative;
+    z-index: 5;
+  }
+
+  .top-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  /* Soft Rounded AEGS Logo */
+  .logo-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .aegs-symbol {
+    width: 28px;
+    height: 28px;
+  }
+
+  .logo-title {
+    font-family: 'Comfortaa', cursive, sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: var(--text-title);
+  }
+
+  .logo-badge {
+    font-family: 'Comfortaa', cursive, sans-serif;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: var(--primary);
+    padding: 2px 7px;
+    background: rgba(245, 158, 11, 0.12);
+    border-radius: 8px;
+    border: 1px solid var(--border-card);
+  }
+
+  .skip-btn {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-body);
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  .skip-btn:hover { color: var(--text-title); }
+
+  /* Central Animation Viewport */
+  .anim-viewport {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    min-height: 230px;
+  }
+
+  #mainAnimCanvas {
+    width: 250px;
+    height: 250px;
+  }
+
+  /* Onboarding Step 3: Subscription & Server Source Choice Container */
+  .source-selector-container {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  .source-card {
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-subtle);
+    border-radius: 18px;
+    padding: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .source-card:hover {
+    border-color: var(--border-card);
+    transform: translateY(-2px);
+  }
+
+  .source-card.active {
+    border-color: var(--primary);
+    background: rgba(245, 158, 11, 0.12);
+    box-shadow: 0 4px 20px var(--primary-glow);
+  }
+
+  .source-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--primary);
+    flex-shrink: 0;
+  }
+
+  .source-info { flex: 1; }
+  .source-name { font-size: 14px; font-weight: 800; color: var(--text-title); }
+  .source-desc { font-size: 11px; color: var(--text-body); margin-top: 2px; font-weight: 600; }
+
+  /* Onboarding Text Block */
+  .text-block {
+    text-align: center;
+    margin-bottom: 16px;
+    min-height: 90px;
+  }
+
+  .slide-title {
+    font-family: 'Comfortaa', cursive, sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 6px;
+    color: var(--text-title);
+    letter-spacing: -0.3px;
+  }
+
+  .slide-desc {
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--text-body);
+    font-weight: 600;
+  }
+
+  /* Dots */
+  .dots-container {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .dot {
+    width: 8px;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.15);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .dot.active {
+    width: 24px;
+    background: var(--primary);
+    box-shadow: 0 0 10px var(--primary-glow);
+  }
+
+  /* Action Button */
+  .action-btn {
+    width: 100%;
+    height: 50px;
+    border-radius: 18px;
+    background: var(--button-bg);
+    color: var(--button-text);
+    border: none;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    box-shadow: 0 6px 20px var(--primary-glow);
+    transition: all 0.2s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .action-btn:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.06);
+  }
+
+  /* ============================================================
+     MAIN DASHBOARD
+     ============================================================ */
+  .main-dashboard {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    padding: 44px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.45s ease;
+    z-index: 20;
+    overflow-y: auto;
+  }
+
+  .main-dashboard.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .dash-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .dash-actions-row {
+    display: flex;
+    gap: 6px;
+  }
+
+  .header-icon-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    color: var(--text-title);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .header-icon-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-2px);
+  }
+
+  /* Auto-Update Notification Banner */
+  .update-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid var(--border-card);
+    border-radius: 14px;
+    padding: 7px 12px;
+    margin-bottom: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-title);
+    animation: fadeIn 0.4s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Active Connection Status Pill */
+  .conn-status-pill {
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-body);
+    margin-bottom: 6px;
+    transition: all 0.3s;
+  }
+
+  .conn-status-pill.connected {
+    background: rgba(245, 158, 11, 0.14);
+    border-color: var(--primary);
+    color: var(--text-title);
+  }
+
+  .status-dot-indicator {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #71717A;
+    transition: background 0.3s;
+  }
+
+  .conn-status-pill.connected .status-dot-indicator {
+    background: var(--primary);
+    box-shadow: 0 0 8px var(--primary);
+  }
+
+  /* Big Circular Connect Button (The circles align exactly at this button's level!) */
+  .connect-circle-btn {
+    width: 148px;
+    height: 148px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    border: 3px solid var(--primary);
+    margin: 6px auto 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 0 28px var(--primary-glow);
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    z-index: 10;
+  }
+
+  .connect-circle-btn.connecting {
+    animation: btnPulse 1.2s infinite ease-in-out;
+  }
+
+  .connect-circle-btn.connected {
+    border-color: var(--accent);
+    box-shadow: 0 0 35px var(--primary-glow);
+  }
+
+  @keyframes btnPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.04); }
+  }
+
+  .conn-icon-wrap {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--primary);
+  }
+
+  .spin-icon {
+    animation: spin 1.1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Quick Dashboard Cards */
+  .dash-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    border-radius: 20px;
+    border: 1px solid var(--border-card);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.22);
+  }
+
+  .dash-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .dash-card-title {
+    font-size: 11px;
+    color: var(--text-body);
+    text-transform: uppercase;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+  }
+
+  /* Quick Pills Bar (Settings & Split Shortcuts) */
+  .shortcuts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .shortcut-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.25s;
+    color: var(--text-title);
+  }
+
+  .shortcut-btn:hover {
+    border-color: var(--border-card);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .shortcut-icon-wrap {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: rgba(245, 158, 11, 0.12);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--primary);
+    flex-shrink: 0;
+  }
+
+  .shortcut-text-title { font-size: 12.5px; font-weight: 800; line-height: 1.2; }
+  .shortcut-text-sub { font-size: 10.5px; color: var(--text-body); font-weight: 600; }
+
+  /* ============================================================
+     BOTTOM SHEETS / MODAL PANELS (Settings, Apps, Source)
+     ============================================================ */
+  .modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 50;
+  }
+
+  .modal-backdrop.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .bottom-sheet {
+    position: absolute;
+    left: 0;
+    bottom: -100%;
+    width: 100%;
+    max-height: 86%;
+    background: var(--bg-sheet);
+    border-top-left-radius: 32px;
+    border-top-right-radius: 32px;
+    border: 1px solid var(--border-card);
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
+    padding: 16px 20px 28px;
+    display: flex;
+    flex-direction: column;
+    transition: bottom 0.38s cubic-bezier(0.33, 1, 0.68, 1);
+    z-index: 55;
+    overflow-y: auto;
+  }
+
+  .bottom-sheet.visible { bottom: 0; }
+
+  .sheet-handle {
+    width: 38px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.2);
+    margin: 0 auto 14px;
+  }
+
+  .sheet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+
+  .sheet-title {
+    font-family: 'Comfortaa', sans-serif;
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--text-title);
+  }
+
+  .sheet-close-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: var(--text-body);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+  }
+
+  /* Segmented Tab Bar inside Sheet */
+  .segmented-tabs {
+    display: flex;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    padding: 4px;
+    gap: 4px;
+    margin-bottom: 14px;
+  }
+
+  .tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-body);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 7px 8px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .tab-btn.active {
+    background: var(--bg-card);
+    color: var(--text-title);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    border: 1px solid var(--border-card);
+  }
+
+  /* Radio Item List */
+  .option-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .option-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .option-card:hover { border-color: var(--border-card); }
+
+  .option-card.active {
+    border-color: var(--primary);
+    background: rgba(245, 158, 11, 0.08);
+  }
+
+  .option-info { flex: 1; }
+
+  .option-title {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: var(--text-title);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .option-tag {
+    font-size: 9.5px;
+    font-weight: 800;
+    color: var(--primary);
+    background: rgba(245, 158, 11, 0.14);
+    padding: 2px 6px;
+    border-radius: 6px;
+  }
+
+  .option-desc {
+    font-size: 11px;
+    color: var(--text-body);
+    margin-top: 3px;
+    font-weight: 600;
+  }
+
+  .radio-check {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .option-card.active .radio-check {
+    border-color: var(--primary);
+    background: var(--primary);
+  }
+
+  .option-card.active .radio-check::after {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #000;
+  }
+
+  /* App Split Tunneling Item Rows */
+  .app-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    margin-bottom: 8px;
+  }
+
+  .app-left { display: flex; align-items: center; gap: 12px; }
+
+  .app-badge-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 800;
+    color: #FFF;
+    flex-shrink: 0;
+  }
+
+  .app-name { font-size: 13px; font-weight: 800; color: var(--text-title); }
+  .app-status { font-size: 10.5px; color: var(--text-body); font-weight: 600; }
+
+  .custom-checkbox {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.2s;
+  }
+
+  .custom-checkbox.checked {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #000;
+    font-weight: bold;
+    font-size: 12px;
+  }
+
+  /* QR Scanner Simulation Box */
+  .qr-scan-box {
+    width: 100%;
+    height: 180px;
+    border-radius: 20px;
+    border: 2px dashed var(--border-card);
+    background: rgba(255, 255, 255, 0.02);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+
+  .qr-laser-line {
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    background: var(--primary);
+    box-shadow: 0 0 10px var(--primary);
+    animation: qrScan 2s infinite alternate ease-in-out;
+  }
+
+  @keyframes qrScan {
+    0% { top: 10%; }
+    100% { top: 90%; }
+  }
+
+  .text-input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-subtle);
+    color: #FFF;
+    font-size: 13px;
+    font-weight: 600;
+    outline: none;
+    margin-bottom: 10px;
+    transition: border-color 0.2s;
+  }
+
+  .text-input:focus { border-color: var(--primary); }
+
+  /* Updates section card in Settings */
+  .update-section-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-card);
+    border-radius: 16px;
+    padding: 14px;
+    margin-top: 14px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Theme Switcher Bar -->
+<div class="theme-bar">
+  <button class="theme-btn active" id="btnAmber" onclick="setTheme('amber', this)">
+    <span class="theme-indicator" style="background:#F59E0B;"></span>
+    Тёплый Янтарь & Обсидиан
+  </button>
+  <button class="theme-btn" id="btnArctic" onclick="setTheme('arctic', this)">
+    <span class="theme-indicator" style="background:#2DD4BF;"></span>
+    Северная Мята
+  </button>
+  <button class="theme-btn" id="btnLavender" onclick="setTheme('lavender', this)">
+    <span class="theme-indicator" style="background:#A78BFA;"></span>
+    Аметист & Лаванда
+  </button>
+</div>
+
+<div class="device-frame" id="deviceFrame">
+  <!-- Dynamic Background Circles Canvas (Oscillates at Button Level during connect!) -->
+  <canvas id="bgCanvas" width="390" height="780"></canvas>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <span>09:41</span>
+    <div class="notch"></div>
+    <span>5G • 100%</span>
+  </div>
+
+  <!-- Onboarding Steps -->
+  <div class="app-container" id="onboardingContainer">
+    <div class="top-nav">
+      <!-- Soft Rounded Logo Group -->
+      <div class="logo-box">
+        <svg class="aegs-symbol" viewBox="0 0 32 32" fill="none">
+          <rect x="2" y="2" width="28" height="28" rx="10" stroke="var(--primary)" stroke-width="2.5" fill="rgba(245, 158, 11, 0.08)"/>
+          <path d="M16 8 C20.5 8 22.5 11 22.5 16 C22.5 21 18 24.5 16 25.5 C14 24.5 9.5 21 9.5 16 C9.5 11 11.5 8 16 8 Z" stroke="var(--primary)" stroke-width="2.2" stroke-linejoin="round" fill="none"/>
+          <circle cx="16" cy="15.5" r="2.2" fill="var(--primary)"/>
+        </svg>
+        <span class="logo-title">AEGS</span>
+        <span class="logo-badge">TITAN</span>
+      </div>
+      <span class="skip-btn" onclick="goToDashboard()">Пропустить</span>
+    </div>
+
+    <!-- Center Interactive Anim Canvas (Welcome / Padlock / Speedometer) -->
+    <div class="anim-viewport" id="animViewport">
+      <canvas id="mainAnimCanvas" width="500" height="500"></canvas>
+
+      <!-- Step 3: Source Choice Cards (Link, QR, VPS) -->
+      <div class="source-selector-container" id="sourceSelector">
+        <div class="source-card active" onclick="selectInitialSource('cloud', this)">
+          <div class="source-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+          </div>
+          <div class="source-info">
+            <div class="source-name">По ссылке / Подписке</div>
+            <div class="source-desc">Вставить ключ aegs:// или ссылку подписки</div>
+          </div>
+        </div>
+
+        <div class="source-card" onclick="selectInitialSource('qr', this)">
+          <div class="source-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+              <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+              <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+              <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+              <circle cx="6.5" cy="6.5" r="1.5" fill="currentColor"/>
+              <circle cx="17.5" cy="6.5" r="1.5" fill="currentColor"/>
+              <circle cx="6.5" cy="17.5" r="1.5" fill="currentColor"/>
+            </svg>
+          </div>
+          <div class="source-info">
+            <div class="source-name">Сканировать QR-код</div>
+            <div class="source-desc">Быстрый импорт конфига через камеру</div>
+          </div>
+        </div>
+
+        <div class="source-card" onclick="selectInitialSource('vps', this)">
+          <div class="source-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="8" rx="2"></rect>
+              <rect x="2" y="14" width="20" height="8" rx="2"></rect>
+              <line x1="6" y1="6" x2="6.01" y2="6"></line>
+              <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+          </div>
+          <div class="source-info">
+            <div class="source-name">Свой сервер (VPS)</div>
+            <div class="source-desc">Подключить свой Linux сервер (IP, порт, ключ)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Text Information -->
+    <div class="text-block">
+      <h2 class="slide-title" id="slideTitle">Добро пожаловать в AEGS</h2>
+      <p class="slide-desc" id="slideDesc">Свободный и быстрый интернет без цензуры, замедлений провайдера и слежки.</p>
+    </div>
+
+    <!-- Step Dots (4 steps) -->
+    <div class="dots-container">
+      <div class="dot active" id="dot0"></div>
+      <div class="dot" id="dot1"></div>
+      <div class="dot" id="dot2"></div>
+      <div class="dot" id="dot3"></div>
+    </div>
+
+    <!-- Action Button (Custom Vector Icon) -->
+    <button class="action-btn" id="nextBtn" onclick="nextSlide()">
+      <span id="btnText">ДАЛЕЕ</span>
+      <span id="btnIconWrapper">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+          <polyline points="12 5 19 12 12 19"></polyline>
+        </svg>
+      </span>
+    </button>
+  </div>
+
+  <!-- Main App Dashboard View -->
+  <div class="main-dashboard" id="mainDashboard">
+    <div class="dash-header">
+      <div class="logo-box">
+        <svg class="aegs-symbol" viewBox="0 0 32 32" fill="none">
+          <rect x="2" y="2" width="28" height="28" rx="10" stroke="var(--primary)" stroke-width="2.5" fill="rgba(245, 158, 11, 0.08)"/>
+          <path d="M16 8 C20.5 8 22.5 11 22.5 16 C22.5 21 18 24.5 16 25.5 C14 24.5 9.5 21 9.5 16 C9.5 11 11.5 8 16 8 Z" stroke="var(--primary)" stroke-width="2.2" stroke-linejoin="round" fill="none"/>
+          <circle cx="16" cy="15.5" r="2.2" fill="var(--primary)"/>
+        </svg>
+        <span class="logo-title">AEGS</span>
+        <span class="logo-badge">TITAN</span>
+      </div>
+
+      <!-- Header Action Buttons (Settings, Split-Apps, Add Server) -->
+      <div class="dash-actions-row">
+        <!-- Add Server / Subscription -->
+        <button class="header-icon-btn" title="Добавить сервер или подписку" onclick="openModal('addSourceModal')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+
+        <!-- Settings (Protocol & DNS & Updates) -->
+        <button class="header-icon-btn" title="Настройки и обновления" onclick="openModal('settingsModal')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Auto-Update Launch Notification Banner -->
+    <div class="update-banner" id="updateBanner">
+      <span style="display:flex; align-items:center; gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        AEGS Titan v6.2 актуален
+      </span>
+      <span style="color:var(--text-body); font-size:10px; cursor:pointer;" onclick="this.parentElement.style.display='none'">✕</span>
+    </div>
+
+    <!-- Active Connection Status Pill -->
+    <div class="conn-status-pill" id="connStatusPill">
+      <span class="status-dot-indicator"></span>
+      <span id="pillText">Отключено • QUIC Stealth</span>
+    </div>
+
+    <!-- Big Connect Button (The circles align exactly at this button's level and wave!) -->
+    <div class="connect-circle-btn" id="connectBtn" onclick="startConnectSequence()">
+      <div class="conn-icon-wrap" id="connIconWrap">
+        <!-- Shield Icon with Keyhole (Disconnected) -->
+        <svg id="iconShield" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <rect x="9" y="9" width="6" height="5" rx="1.5" ry="1.5"/>
+          <path d="M10 9V7.5a2 2 0 1 1 4 0V9"/>
+        </svg>
+
+        <!-- Spinner Icon (Connecting) -->
+        <svg id="iconSpin" class="spin-icon" style="display:none;" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+          <circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.15)"/>
+          <path d="M12 3a9 9 0 0 1 9 9" stroke="var(--primary)"/>
+        </svg>
+
+        <!-- Lightning / Active Icon (Connected) -->
+        <svg id="iconBolt" style="display:none;" width="36" height="36" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+          <path d="M13 2L3 14h8l-1 8 11-13h-8l1-7z"/>
+        </svg>
+      </div>
+
+      <!-- Main label on button -->
+      <span id="connLabel" style="font-family:'Comfortaa',sans-serif; font-size: 13px; font-weight: 800; margin-top: 6px;">ПОДКЛЮЧИТЬ</span>
+      <!-- Dynamic Randomized Friendly Russian Sub-Phrase (20-50 variations) -->
+      <span id="connSub" style="font-size: 11px; color: var(--text-body); font-weight: 700; margin-top: 2px;">Готов?</span>
+    </div>
+
+    <!-- Quick Shortcuts Row (Settings & Per-App Split) -->
+    <div class="shortcuts-row">
+      <div class="shortcut-btn" onclick="openModal('settingsModal')">
+        <div class="shortcut-icon-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+        </div>
+        <div>
+          <div class="shortcut-text-title" id="lblCurProtocol">QUIC v6</div>
+          <div class="shortcut-text-sub" id="lblCurDns">AEGS DoH</div>
+        </div>
+      </div>
+
+      <div class="shortcut-btn" onclick="openModal('appsModal')">
+        <div class="shortcut-icon-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="2"></rect>
+            <rect x="14" y="3" width="7" height="7" rx="2"></rect>
+            <rect x="14" y="14" width="7" height="7" rx="2"></rect>
+            <rect x="3" y="14" width="7" height="7" rx="2"></rect>
+          </svg>
+        </div>
+        <div>
+          <div class="shortcut-text-title">Приложения</div>
+          <div class="shortcut-text-sub" id="lblAppsCount">4 через VPN</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Telemetry Card -->
+    <div class="dash-card">
+      <div class="dash-card-header">
+        <span class="dash-card-title">Телеметрия канала</span>
+        <span style="font-size:10px; color:var(--primary); font-weight:bold;">LTO TURBO ACCEL</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; margin-bottom:8px;">
+        <span style="display:flex; align-items:center; gap:6px; color:var(--text-body)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+          </svg>
+          Пинг до сервера:
+        </span>
+        <span id="pingVal" style="font-weight:bold; color:var(--primary)">-- мс</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">
+        <span style="display:flex; align-items:center; gap:6px; color:var(--text-body)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          Скорость канала:
+        </span>
+        <span id="speedVal" style="font-weight:bold; color:var(--text-title)">0.0 Мбит/с</span>
+      </div>
+    </div>
+
+    <!-- Active Server Card -->
+    <div class="dash-card" onclick="openModal('addSourceModal')" style="cursor:pointer;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-size:10.5px; color:var(--text-body); text-transform:uppercase; font-weight:800; letter-spacing:0.5px;">Активный узел</div>
+          <div style="font-size:14px; font-weight:800; margin-top:3px;" id="activeServerName">AEGS Cloud — Нидерланды</div>
+          <div style="font-size:11.5px; color:var(--text-body); margin-top:2px; font-weight:600;" id="activeServerMeta">IP: 185.196.8.10:50001 (QUIC UDP)</div>
+        </div>
+        <div style="width:34px; height:34px; border-radius:10px; background:rgba(255,255,255,0.05); display:flex; justify-content:center; align-items:center; color:var(--primary);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MODAL 1: SETTINGS (PROTOCOL & DNS & UPDATES)
+       ============================================================ -->
+  <div class="modal-backdrop" id="modalBackdrop" onclick="closeAllModals()"></div>
+
+  <div class="bottom-sheet" id="settingsModal">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title">Настройки туннеля</div>
+      <button class="sheet-close-btn" onclick="closeAllModals()">✕</button>
+    </div>
+
+    <div class="segmented-tabs">
+      <button class="tab-btn active" id="tabProtoBtn" onclick="switchSettingsTab('proto')">Протокол VPN</button>
+      <button class="tab-btn" id="tabDnsBtn" onclick="switchSettingsTab('dns')">DNS Резолвер</button>
+    </div>
+
+    <!-- Tab 1: Protocol List (Simple WG, VLESS, AEGS QUIC) -->
+    <div id="protoTabContent" class="option-list">
+      <div class="option-card active" onclick="selectProtocol('quic', 'AEGS Titan QUIC', this)">
+        <div class="option-info">
+          <div class="option-title">
+            AEGS Titan QUIC
+            <span class="option-tag">RFC 9000</span>
+          </div>
+          <div class="option-desc">Фирменный протокол. Маскировка под HTTP/3 веб-трафик. Обходит ТСПУ и DPI. Скорость до 900+ Мбит/с.</div>
+        </div>
+        <div class="radio-check"></div>
+      </div>
+
+      <div class="option-card" onclick="selectProtocol('wg', 'WireGuard (WG)', this)">
+        <div class="option-info">
+          <div class="option-title">WireGuard (WG)</div>
+          <div class="option-desc">Классический лёгкий протокол WireGuard. Минимальная задержка и стабильность в мобильных сетях.</div>
+        </div>
+        <div class="radio-check"></div>
+      </div>
+
+      <div class="option-card" onclick="selectProtocol('vless', 'VLESS', this)">
+        <div class="option-info">
+          <div class="option-title">VLESS</div>
+          <div class="option-desc">Популярный лёгкий прокси-протокол. Универсален для обхода блокировок на любых серверах.</div>
+        </div>
+        <div class="radio-check"></div>
+      </div>
+    </div>
+
+    <!-- Tab 2: DNS List -->
+    <div id="dnsTabContent" class="option-list" style="display:none;">
+      <div class="option-card active" onclick="selectDns('aegs', 'AEGS DoH Anti-Leak', this)">
+        <div class="option-info">
+          <div class="option-title">
+            AEGS Secure DNS
+            <span class="option-tag">DNS-over-HTTPS</span>
+          </div>
+          <div class="option-desc">Защита от перехвата провайдером + встроенная фильтрация рекламы и трекеров.</div>
+        </div>
+        <div class="radio-check"></div>
+      </div>
+
+      <div class="option-card" onclick="selectDns('cf', 'Cloudflare 1.1.1.1', this)">
+        <div class="option-info">
+          <div class="option-title">Cloudflare DNS (1.1.1.1)</div>
+          <div class="option-desc">Самый быстрый публичный резолвер в мире с минимальным временем отклика.</div>
+        </div>
+        <div class="radio-check"></div>
+      </div>
+
+      <div class="option-card" onclick="selectDns('adguard', 'AdGuard DNS', this)">
+        <div class="option-info">
+          <div class="option-title">AdGuard DNS</div>
+          <div class="option-desc">Автоматическая фильтрация баннеров, спама и вредоносных сайтов.</div>
+        </div>
+        <div class="radio-check"></div>
+      </div>
+
+      <div class="option-card" onclick="selectDns('google', 'Google 8.8.8.8', this)">
+        <div class="option-info">
+          <div class="option-title">Google Public DNS (8.8.8.8)</div>
+          <div class="option-desc">Высокая надежность и стабильность гео-локации.</div>
+        </div>
+        <div class="radio-check"></div>
+      </div>
+    </div>
+
+    <!-- Software Updates Section inside Settings -->
+    <div class="update-section-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div>
+          <div style="font-size:13px; font-weight:800; color:var(--text-title);">Обновления приложения</div>
+          <div style="font-size:11px; color:var(--text-body); margin-top:2px;">Текущая версия: v6.2 Titan (Сборка 2026.09)</div>
+        </div>
+        <span style="font-size:10px; padding:3px 8px; border-radius:8px; background:rgba(45,212,191,0.15); color:#2DD4BF; font-weight:bold;">АКТУАЛЬНО</span>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; margin-bottom:12px;">
+        <span style="font-size:12px; font-weight:600; color:var(--text-body);">Автопроверка при запуске</span>
+        <input type="checkbox" checked style="accent-color:var(--primary); cursor:pointer;">
+      </div>
+
+      <button class="action-btn" id="btnManualUpdateCheck" style="height:40px; font-size:13px;" onclick="runManualUpdateCheck()">
+        <span id="updateCheckBtnText">ПРОВЕРИТЬ ОБНОВЛЕНИЯ</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MODAL 2: PER-APP SPLIT TUNNELING
+       ============================================================ -->
+  <div class="bottom-sheet" id="appsModal">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title">Разделение приложений</div>
+      <button class="sheet-close-btn" onclick="closeAllModals()">✕</button>
+    </div>
+
+    <div style="font-size:12px; color:var(--text-body); margin-bottom:12px; font-weight:600;">
+      Выберите приложения, которые должны идти через VPN. Остальные приложения работают напрямую на полной скорости.
+    </div>
+
+    <div id="appsListContainer">
+      <div class="app-row">
+        <div class="app-left">
+          <div class="app-badge-icon" style="background:#EF4444;">YT</div>
+          <div>
+            <div class="app-name">YouTube</div>
+            <div class="app-status">4K без буферизации</div>
+          </div>
+        </div>
+        <div class="custom-checkbox checked" onclick="toggleAppCheck(this, 'YouTube')">✓</div>
+      </div>
+
+      <div class="app-row">
+        <div class="app-left">
+          <div class="app-badge-icon" style="background:#6366F1;">DC</div>
+          <div>
+            <div class="app-name">Discord</div>
+            <div class="app-status">Голос, стримы и чаты</div>
+          </div>
+        </div>
+        <div class="custom-checkbox checked" onclick="toggleAppCheck(this, 'Discord')">✓</div>
+      </div>
+
+      <div class="app-row">
+        <div class="app-left">
+          <div class="app-badge-icon" style="background:#0EA5E9;">TG</div>
+          <div>
+            <div class="app-name">Telegram</div>
+            <div class="app-status">Медиафайлы и звонки</div>
+          </div>
+        </div>
+        <div class="custom-checkbox checked" onclick="toggleAppCheck(this, 'Telegram')">✓</div>
+      </div>
+
+      <div class="app-row">
+        <div class="app-left">
+          <div class="app-badge-icon" style="background:#10B981;">CH</div>
+          <div>
+            <div class="app-name">Google Chrome / Браузеры</div>
+            <div class="app-status">Веб-сайты без блокировок</div>
+          </div>
+        </div>
+        <div class="custom-checkbox checked" onclick="toggleAppCheck(this, 'Chrome')">✓</div>
+      </div>
+
+      <div class="app-row">
+        <div class="app-left">
+          <div class="app-badge-icon" style="background:#22C55E;">СБ</div>
+          <div>
+            <div class="app-name">Сбербанк / Т-Банк</div>
+            <div class="app-status">Напрямую (без VPN)</div>
+          </div>
+        </div>
+        <div class="custom-checkbox" onclick="toggleAppCheck(this, 'Банки')"></div>
+      </div>
+
+      <div class="app-row">
+        <div class="app-left">
+          <div class="app-badge-icon" style="background:#3B82F6;">ГУ</div>
+          <div>
+            <div class="app-name">Госуслуги</div>
+            <div class="app-status">Напрямую (без VPN)</div>
+          </div>
+        </div>
+        <div class="custom-checkbox" onclick="toggleAppCheck(this, 'Госуслуги')"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MODAL 3: ADD PROFILE / SOURCE (LINK, QR, VPS)
+       ============================================================ -->
+  <div class="bottom-sheet" id="addSourceModal">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title">Добавить подключение</div>
+      <button class="sheet-close-btn" onclick="closeAllModals()">✕</button>
+    </div>
+
+    <div class="segmented-tabs">
+      <button class="tab-btn active" id="tabLinkBtn" onclick="switchAddTab('link')">По ссылке</button>
+      <button class="tab-btn" id="tabQrBtn" onclick="switchAddTab('qr')">QR-код</button>
+      <button class="tab-btn" id="tabVpsBtn" onclick="switchAddTab('vps')">Свой VPS</button>
+    </div>
+
+    <!-- Link Tab -->
+    <div id="addLinkTab">
+      <div style="font-size:12px; color:var(--text-body); margin-bottom:8px; font-weight:600;">
+        Вставьте ссылку на подписку или ключ конфигурации:
+      </div>
+      <input type="text" class="text-input" placeholder="aegs://key@server:port или https://..." value="aegs://nl-ams-01.titan-net.cloud:50001?key=quic-v6-titan">
+      <button class="action-btn" style="height:44px; font-size:14px;" onclick="applyConfig('AEGS Подписка (Ссылка)', 'IP: 185.196.8.10:50001')">
+        ИМПОРТИРОВАТЬ И СОХРАНИТЬ
+      </button>
+    </div>
+
+    <!-- QR Tab -->
+    <div id="addQrTab" style="display:none;">
+      <div class="qr-scan-box">
+        <div class="qr-laser-line"></div>
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+          <circle cx="12" cy="13" r="4"></circle>
+        </svg>
+        <span style="font-size:12px; font-weight:700; color:var(--text-title);">Наведите камеру на QR-код</span>
+      </div>
+      <button class="action-btn" style="height:44px; font-size:14px;" onclick="applyConfig('AEGS QR-Конфиг', 'IP: 91.240.118.42:50001')">
+        ИМИТИРОВАТЬ СКАНИРОВАНИЕ QR
+      </button>
+    </div>
+
+    <!-- VPS Tab (Simplified Server Connection) -->
+    <div id="addVpsTab" style="display:none;">
+      <div style="font-size:12px; color:var(--text-body); margin-bottom:8px; font-weight:600;">
+        Параметры вашего личного сервера (VPS):
+      </div>
+      <input type="text" class="text-input" placeholder="IP адрес сервера (например 194.87.142.77)" value="194.87.142.77">
+      <input type="text" class="text-input" placeholder="Порт UDP (например 50001)" value="50001">
+      <input type="password" class="text-input" placeholder="Секретный ключ шифрования" value="super-secure-key-991">
+      <button class="action-btn" style="height:44px; font-size:14px;" onclick="applyConfig('Личный сервер VPS (194.87.142.77)', 'IP: 194.87.142.77:50001')">
+        ПОДКЛЮЧИТЬ МОЙ VPS
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ==========================================
+  // 1. THEME SWITCHER (Amber & Obsidian by default)
+  // ==========================================
+  let currentTheme = 'amber';
+
+  function setTheme(themeName, btn) {
+    currentTheme = themeName;
+    document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const frame = document.getElementById('deviceFrame');
+    if (themeName === 'amber') {
+      frame.removeAttribute('data-theme');
+    } else {
+      frame.setAttribute('data-theme', themeName);
+    }
+  }
+
+  // ==========================================
+  // 2. RANDOM FRIENDLY PHRASES POOL (40+ VARIATIONS)
+  // ==========================================
+  const idlePhrases = [
+    "Готов?", "Начнём?", "Полетели?", "Погнали?", "К взлёту готов?",
+    "Время свободы", "Врубай турбо!", "Готов к полёту?", "Включи защиту!",
+    "Стартуем?", "Твой ход!", "Защитим канал?", "Полный вперёд!",
+    "Никаких замедлений!", "Запускаем двигатели?", "Включаем невидимку!",
+    "Шифруем всё?", "Турбо-режим ждёт!", "Готов к разгону?", "Жми и лети!",
+    "Без цензуры и лагов!", "Один клик до свободы!", "Чистый интернет!",
+    "Летим без тормозов!", "Твой безопасный щит!", "Полная скорость!",
+    "Поймай волну!", "Свободный веб ждёт!", "Готовы к 4K видео?",
+    "Разгоняем сеть!", "Активируй защиту!", "Твой приватный канал",
+    "Без лагов в Discord!", "Свободный доступ!", "Жми на старт!"
+  ];
+
+  const connectingPhrases = [
+    "Разгоняем фотоны...", "Защищаем поток...", "Настраиваем кванты...",
+    "Шифруем канал...", "Прячем трафик под QUIC...", "Синхронизируем волну...",
+    "Включаем форсаж...", "Почти готово...", "Устанавливаем связь..."
+  ];
+
+  function pickRandomPhrase() {
+    const idx = Math.floor(Math.random() * idlePhrases.length);
+    document.getElementById('connSub').innerText = idlePhrases[idx];
+  }
+
+  // Pick on initial script run
+  pickRandomPhrase();
+
+  // ==========================================
+  // 3. CLEAN SEMI-TRANSPARENT CIRCLES & BUTTON-LEVEL WAVE
+  // ==========================================
+  const bgCanvas = document.getElementById('bgCanvas');
+  const bgCtx = bgCanvas.getContext('2d');
+  const W = 390;
+  const H = 780;
+
+  // States: 'RANDOM', 'WAVE', 'CONNECTED'
+  let bgState = 'RANDOM';
+  let waveStartTime = 0;
+
+  const NUM_CIRCLES = 15;
+  const circles = [];
+
+  function initCircles() {
+    circles.length = 0;
+    for (let i = 0; i < NUM_CIRCLES; i++) {
+      const radius = 16 + Math.random() * 32;
+      circles.push({
+        x: radius + Math.random() * (W - radius * 2),
+        y: radius + Math.random() * (H - radius * 2),
+        vx: (Math.random() - 0.5) * 0.75,
+        vy: (Math.random() - 0.5) * 0.75,
+        r: radius,
+        baseR: radius,
+        index: i,
+        colorIndex: i % 4
+      });
+    }
+  }
+  initCircles();
+
+  function getCircleColor(colorIdx) {
+    const style = getComputedStyle(document.getElementById('deviceFrame'));
+    let fill = '';
+    let stroke = '';
+    if (colorIdx === 0) {
+      fill = style.getPropertyValue('--circle-fill-1').trim() || 'rgba(245, 158, 11, 0.22)';
+      stroke = style.getPropertyValue('--circle-stroke-1').trim() || 'rgba(245, 158, 11, 0.40)';
+    } else if (colorIdx === 1) {
+      fill = style.getPropertyValue('--circle-fill-2').trim() || 'rgba(251, 146, 60, 0.16)';
+      stroke = style.getPropertyValue('--circle-stroke-2').trim() || 'rgba(251, 146, 60, 0.32)';
+    } else if (colorIdx === 2) {
+      fill = style.getPropertyValue('--circle-fill-3').trim() || 'rgba(217, 119, 6, 0.14)';
+      stroke = style.getPropertyValue('--circle-stroke-3').trim() || 'rgba(217, 119, 6, 0.30)';
+    } else {
+      fill = style.getPropertyValue('--circle-fill-4').trim() || 'rgba(255, 255, 255, 0.07)';
+      stroke = style.getPropertyValue('--circle-stroke-4').trim() || 'rgba(255, 255, 255, 0.18)';
+    }
+    return { fill, stroke };
+  }
+
+  function getButtonLevelY() {
+    const isDash = document.getElementById('mainDashboard').classList.contains('visible');
+    const targetBtn = isDash ? document.getElementById('connectBtn') : document.getElementById('nextBtn');
+    if (targetBtn) {
+      const frameRect = document.getElementById('deviceFrame').getBoundingClientRect();
+      const btnRect = targetBtn.getBoundingClientRect();
+      if (btnRect.height > 0) {
+        return (btnRect.top + btnRect.height / 2) - frameRect.top;
+      }
+    }
+    return H * 0.28;
+  }
+
+  function animateBackground(time) {
+    bgCtx.clearRect(0, 0, W, H);
+
+    const buttonLevelY = getButtonLevelY();
+    const spacing = (W - 70) / (NUM_CIRCLES - 1);
+    const startX = 35;
+
+    for (let i = 0; i < NUM_CIRCLES; i++) {
+      const c = circles[i];
+
+      if (bgState === 'RANDOM') {
+        c.x += c.vx;
+        c.y += c.vy;
+
+        if (c.x < c.r || c.x > W - c.r) c.vx *= -1;
+        if (c.y < c.r || c.y > H - c.r) c.vy *= -1;
+        c.r += (c.baseR - c.r) * 0.05;
+
+      } else if (bgState === 'WAVE') {
+        const targetX = startX + i * spacing;
+        const elapsed = (time - waveStartTime) / 1000;
+        const waveOffset = Math.sin(elapsed * 4.4 + (i * 0.58)) * 36;
+        const targetY = buttonLevelY + waveOffset;
+
+        c.x += (targetX - c.x) * 0.09;
+        c.y += (targetY - c.y) * 0.09;
+
+        const targetR = c.baseR * 0.72 + Math.sin(elapsed * 3.5 + i * 0.5) * 4;
+        c.r += (targetR - c.r) * 0.08;
+
+      } else if (bgState === 'CONNECTED') {
+        const targetX = startX + i * spacing;
+        const elapsed = time / 1000;
+        const targetY = buttonLevelY + Math.sin(elapsed * 1.6 + i * 0.35) * 8;
+        c.x += (targetX - c.x) * 0.05;
+        c.y += (targetY - c.y) * 0.05;
+      }
+
+      const { fill, stroke } = getCircleColor(c.colorIndex);
+      bgCtx.beginPath();
+      bgCtx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+      bgCtx.fillStyle = fill;
+      bgCtx.fill();
+      bgCtx.lineWidth = 1.4;
+      bgCtx.strokeStyle = stroke;
+      bgCtx.stroke();
+    }
+
+    requestAnimationFrame(animateBackground);
+  }
+  requestAnimationFrame(animateBackground);
+
+  // ==========================================
+  // 4. MAIN FOREGROUND ONBOARDING ANIMATIONS
+  // ==========================================
+  const mainCanvas = document.getElementById('mainAnimCanvas');
+  const mCtx = mainCanvas.getContext('2d');
+
+  let currentStep = 0;
+  let shackleProgress = 0;
+  let lockGlow = 0;
+  let speedometerProgress = 0;
+  let displayedSpeed = 0;
+
+  function animateMainForeground() {
+    mCtx.clearRect(0, 0, 500, 500);
+    const cx = 250;
+    const cy = 250;
+
+    const style = getComputedStyle(document.getElementById('deviceFrame'));
+    const primaryColor = style.getPropertyValue('--primary').trim() || '#F59E0B';
+    const secondaryColor = style.getPropertyValue('--secondary').trim() || '#FB923C';
+
+    if (currentStep === 0) {
+      drawWelcomeEmblem(cx, cy, primaryColor, secondaryColor);
+    } else if (currentStep === 1) {
+      drawLockSnap(cx, cy, primaryColor);
+    } else if (currentStep === 2) {
+      drawSpeedometerGauge(cx, cy, primaryColor);
+    }
+
+    requestAnimationFrame(animateMainForeground);
+  }
+  requestAnimationFrame(animateMainForeground);
+
+  function drawWelcomeEmblem(cx, cy, pri, sec) {
+    const r = 118;
+    const pulse = (Math.sin(Date.now() / 360) * 0.5 + 0.5);
+
+    mCtx.beginPath();
+    mCtx.arc(cx, cy, r + pulse * 10, 0, Math.PI * 2);
+    mCtx.strokeStyle = pri;
+    mCtx.globalAlpha = 0.20 + pulse * 0.18;
+    mCtx.lineWidth = 3.5;
+    mCtx.stroke();
+    mCtx.globalAlpha = 1;
+
+    mCtx.beginPath();
+    mCtx.moveTo(cx, cy - 80);
+    mCtx.quadraticCurveTo(cx + 80, cy - 80, cx + 80, cy);
+    mCtx.quadraticCurveTo(cx + 80, cy + 60, cx, cy + 90);
+    mCtx.quadraticCurveTo(cx - 80, cy + 60, cx - 80, cy);
+    mCtx.quadraticCurveTo(cx - 80, cy - 80, cx, cy - 80);
+    mCtx.closePath();
+
+    mCtx.fillStyle = 'rgba(245, 158, 11, 0.06)';
+    mCtx.fill();
+    mCtx.lineWidth = 4;
+    mCtx.strokeStyle = pri;
+    mCtx.lineCap = 'round';
+    mCtx.lineJoin = 'round';
+    mCtx.stroke();
+
+    mCtx.fillStyle = '#FFFFFF';
+    mCtx.font = '800 44px "Comfortaa", -apple-system, sans-serif';
+    mCtx.textAlign = 'center';
+    mCtx.textBaseline = 'middle';
+    mCtx.fillText('AEGS', cx, cy - 10);
+
+    mCtx.fillStyle = pri;
+    mCtx.font = '800 16px "Comfortaa", -apple-system, sans-serif';
+    mCtx.fillText('TITAN v6.2', cx, cy + 32);
+  }
+
+  function drawLockSnap(cx, cy, pri) {
+    const shackleDrop = 48 * shackleProgress;
+
+    mCtx.beginPath();
+    mCtx.arc(cx, cy - 64 + shackleDrop, 46, Math.PI, 0, false);
+    mCtx.lineTo(cx + 46, cy + 6);
+    mCtx.moveTo(cx - 46, cy - 64 + shackleDrop);
+    mCtx.lineTo(cx - 46, cy + 6);
+    mCtx.lineWidth = 15;
+    mCtx.lineCap = 'round';
+    mCtx.strokeStyle = '#D4D4D8';
+    mCtx.stroke();
+
+    mCtx.fillStyle = '#1C1917';
+    roundRect(mCtx, cx - 72, cy - 8, 144, 115, 22);
+    mCtx.fill();
+
+    mCtx.lineWidth = 3.5;
+    mCtx.strokeStyle = pri;
+    roundRect(mCtx, cx - 72, cy - 8, 144, 115, 22);
+    mCtx.stroke();
+
+    mCtx.beginPath();
+    mCtx.arc(cx, cy + 34, 11, 0, Math.PI * 2);
+    mCtx.fillStyle = pri;
+    mCtx.fill();
+
+    mCtx.beginPath();
+    mCtx.moveTo(cx - 6, cy + 38);
+    mCtx.lineTo(cx - 9, cy + 68);
+    mCtx.lineTo(cx + 9, cy + 68);
+    mCtx.lineTo(cx + 6, cy + 38);
+    mCtx.closePath();
+    mCtx.fillStyle = pri;
+    mCtx.fill();
+
+    if (lockGlow > 0) {
+      mCtx.beginPath();
+      mCtx.arc(cx, cy + 50, 110 * lockGlow, 0, Math.PI * 2);
+      mCtx.strokeStyle = pri;
+      mCtx.lineWidth = 5 * lockGlow;
+      mCtx.globalAlpha = lockGlow * 0.45;
+      mCtx.stroke();
+      mCtx.globalAlpha = 1;
+      lockGlow = Math.max(0, lockGlow - 0.025);
+    }
+  }
+
+  function drawSpeedometerGauge(cx, cy, pri) {
+    const r = 135;
+    const startAngle = Math.PI * 0.75;
+    const endAngle = Math.PI * 2.25;
+
+    mCtx.beginPath();
+    mCtx.arc(cx, cy, r, startAngle, endAngle, false);
+    mCtx.lineWidth = 18;
+    mCtx.lineCap = 'round';
+    mCtx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    mCtx.stroke();
+
+    const sweepAngle = startAngle + (Math.PI * 1.5 * speedometerProgress);
+    mCtx.beginPath();
+    mCtx.arc(cx, cy, r, startAngle, sweepAngle, false);
+    mCtx.lineWidth = 18;
+    mCtx.lineCap = 'round';
+    mCtx.strokeStyle = pri;
+    mCtx.stroke();
+
+    for (let i = 0; i <= 9; i++) {
+      const a = startAngle + (i * (Math.PI * 1.5 / 9));
+      const x1 = cx + Math.cos(a) * (r - 22);
+      const y1 = cy + Math.sin(a) * (r - 22);
+      const x2 = cx + Math.cos(a) * (r - 10);
+      const y2 = cy + Math.sin(a) * (r - 10);
+      mCtx.beginPath();
+      mCtx.moveTo(x1, y1);
+      mCtx.lineTo(x2, y2);
+      mCtx.lineWidth = 3;
+      mCtx.lineCap = 'round';
+      mCtx.strokeStyle = (i / 9 <= speedometerProgress) ? pri : '#334155';
+      mCtx.stroke();
+    }
+
+    const nx = cx + Math.cos(sweepAngle) * (r - 14);
+    const ny = cy + Math.sin(sweepAngle) * (r - 14);
+    mCtx.beginPath();
+    mCtx.moveTo(cx, cy);
+    mCtx.lineTo(nx, ny);
+    mCtx.lineWidth = 7;
+    mCtx.lineCap = 'round';
+    mCtx.strokeStyle = pri;
+    mCtx.stroke();
+
+    mCtx.beginPath();
+    mCtx.arc(cx, cy, 14, 0, Math.PI * 2);
+    mCtx.fillStyle = pri;
+    mCtx.fill();
+    mCtx.beginPath();
+    mCtx.arc(cx, cy, 6, 0, Math.PI * 2);
+    mCtx.fillStyle = '#FFF';
+    mCtx.fill();
+
+    mCtx.fillStyle = '#FFFFFF';
+    mCtx.font = '800 42px "Comfortaa", sans-serif';
+    mCtx.textAlign = 'center';
+    mCtx.fillText(Math.round(displayedSpeed), cx, cy + 55);
+
+    mCtx.fillStyle = pri;
+    mCtx.font = '800 15px "Comfortaa", sans-serif';
+    mCtx.fillText('Мбит/с (LTO Turbo)', cx, cy + 82);
+  }
+
+  function roundRect(ctx, x, y, width, height, radius) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+  }
+
+  // ==========================================
+  // 5. ONBOARDING SLIDES CONTROLLER (4 Steps)
+  // ==========================================
+  function updateSlideUI() {
+    const title = document.getElementById('slideTitle');
+    const desc = document.getElementById('slideDesc');
+    const btnText = document.getElementById('btnText');
+    const iconWrap = document.getElementById('btnIconWrapper');
+    const canvas = document.getElementById('mainAnimCanvas');
+    const sourceSelector = document.getElementById('sourceSelector');
+
+    document.querySelectorAll('.dot').forEach((d, i) => {
+      d.classList.toggle('active', i === currentStep);
+    });
+
+    if (currentStep === 0) {
+      canvas.style.display = 'block';
+      sourceSelector.style.display = 'none';
+      title.innerText = "Добро пожаловать в AEGS";
+      desc.innerText = "Свободный и безопасный интернет без цензуры, слежки и замедлений провайдера.";
+      btnText.innerText = "ДАЛЕЕ";
+      iconWrap.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
+    } else if (currentStep === 1) {
+      canvas.style.display = 'block';
+      sourceSelector.style.display = 'none';
+      title.innerText = "Абсолютная безопасность";
+      desc.innerText = "Шифрование ChaCha20-Poly1305 и маскировка RFC 9000 QUIC. Замок защёлкнут — трафик неотличим от HTTPS.";
+      btnText.innerText = "ДАЛЕЕ";
+      iconWrap.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
+      triggerLockSnap();
+    } else if (currentStep === 2) {
+      canvas.style.display = 'block';
+      sourceSelector.style.display = 'none';
+      title.innerText = "Скорость до 900+ Мбит/с";
+      desc.innerText = "Аппаратное zero-copy ядро. Мгновенная загрузка 4K видео на YouTube и минимальный пинг в играх.";
+      btnText.innerText = "ДАЛЕЕ";
+      iconWrap.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
+      triggerSpeedometerSweep();
+    } else if (currentStep === 3) {
+      canvas.style.display = 'none';
+      sourceSelector.style.display = 'flex';
+      title.innerText = "Выберите способ подключения";
+      desc.innerText = "Используйте подписку по ссылке, сканируйте QR-код или подключите свой личный сервер.";
+      btnText.innerText = "ЗАПУСТИТЬ AEGS";
+      iconWrap.innerHTML = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/></svg>`;
+    }
+  }
+
+  function selectInitialSource(type, el) {
+    document.querySelectorAll('.source-card').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    if (type === 'cloud') {
+      document.getElementById('activeServerName').innerText = 'AEGS Cloud (Подписка по ссылке)';
+      document.getElementById('activeServerMeta').innerText = 'IP: 185.196.8.10:50001 (QUIC)';
+    } else if (type === 'qr') {
+      document.getElementById('activeServerName').innerText = 'AEGS Профиль (QR-код)';
+      document.getElementById('activeServerMeta').innerText = 'IP: 91.240.118.42:50001 (QUIC)';
+    } else if (type === 'vps') {
+      document.getElementById('activeServerName').innerText = 'Личный сервер VPS (194.87.142.77)';
+      document.getElementById('activeServerMeta').innerText = 'IP: 194.87.142.77:50001 (Self-Hosted)';
+    }
+  }
+
+  function triggerLockSnap() {
+    shackleProgress = 0;
+    lockGlow = 0;
+    let start = null;
+    function snapAnim(timestamp) {
+      if (!start) start = timestamp;
+      let progress = (timestamp - start) / 700;
+      if (progress < 1) {
+        shackleProgress = Math.min(1, progress * 1.22);
+        requestAnimationFrame(snapAnim);
+      } else {
+        shackleProgress = 1;
+        lockGlow = 1.0;
+        playSnapClickSound();
+      }
+    }
+    requestAnimationFrame(snapAnim);
+  }
+
+  function playSnapClickSound() {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(680, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.08);
+    } catch(e) {}
+  }
+
+  function triggerSpeedometerSweep() {
+    speedometerProgress = 0;
+    displayedSpeed = 0;
+    let start = null;
+    function speedAnim(timestamp) {
+      if (!start) start = timestamp;
+      let progress = (timestamp - start) / 1400;
+      if (progress < 1) {
+        speedometerProgress = Math.sin(progress * Math.PI / 2);
+        displayedSpeed = speedometerProgress * 940;
+        requestAnimationFrame(speedAnim);
+      } else {
+        speedometerProgress = 1;
+        displayedSpeed = 940;
+      }
+    }
+    requestAnimationFrame(speedAnim);
+  }
+
+  function nextSlide() {
+    if (currentStep < 3) {
+      currentStep++;
+      updateSlideUI();
+    } else {
+      goToDashboard();
+    }
+  }
+
+  function goToDashboard() {
+    document.getElementById('mainDashboard').classList.add('visible');
+    pickRandomPhrase();
+  }
+
+  function restartOnboarding() {
+    closeAllModals();
+    document.getElementById('mainDashboard').classList.remove('visible');
+    currentStep = 0;
+    updateSlideUI();
+  }
+
+  // ==========================================
+  // 6. CONNECT SEQUENCE (NO CHECKMARK OVERLAY!)
+  // ==========================================
+  let isConnected = false;
+  let telemTimer = null;
+
+  function startConnectSequence() {
+    const iconShield = document.getElementById('iconShield');
+    const iconSpin = document.getElementById('iconSpin');
+    const iconBolt = document.getElementById('iconBolt');
+    const btn = document.getElementById('connectBtn');
+    const pill = document.getElementById('connStatusPill');
+    const pillText = document.getElementById('pillText');
+
+    if (isConnected) {
+      // Disconnect
+      isConnected = false;
+      bgState = 'RANDOM';
+      clearInterval(telemTimer);
+
+      btn.classList.remove('connected', 'connecting');
+      pill.classList.remove('connected');
+      pillText.innerText = 'Отключено • QUIC Stealth';
+
+      iconShield.style.display = 'block';
+      iconSpin.style.display = 'none';
+      iconBolt.style.display = 'none';
+
+      document.getElementById('connLabel').innerText = 'ПОДКЛЮЧИТЬ';
+      pickRandomPhrase(); // Pick a new fresh harmless phrase!
+      document.getElementById('pingVal').innerText = '-- мс';
+      document.getElementById('speedVal').innerText = '0.0 Мбит/с';
+      return;
+    }
+
+    // Step 1: Connecting state -> Circles line up at the button level and wave!
+    btn.classList.add('connecting');
+    iconShield.style.display = 'none';
+    iconSpin.style.display = 'block';
+    iconBolt.style.display = 'none';
+
+    document.getElementById('connLabel').innerText = 'СОЕДИНЕНИЕ...';
+    // Pick random connecting phrase
+    const cIdx = Math.floor(Math.random() * connectingPhrases.length);
+    document.getElementById('connSub').innerText = connectingPhrases[cIdx];
+    pillText.innerText = 'Подключение к туннелю...';
+
+    bgState = 'WAVE';
+    waveStartTime = performance.now();
+
+    // Step 2: After 2.4s -> Connect seamlessly (NO CHECKMARK MODAL!)
+    setTimeout(() => {
+      isConnected = true;
+      bgState = 'CONNECTED';
+      btn.classList.remove('connecting');
+      btn.classList.add('connected');
+      pill.classList.add('connected');
+      pillText.innerText = 'Защищено • AEGS QUIC Stealth';
+
+      iconShield.style.display = 'none';
+      iconSpin.style.display = 'none';
+      iconBolt.style.display = 'block';
+
+      document.getElementById('connLabel').innerText = 'ОТКЛЮЧИТЬ';
+      document.getElementById('connSub').innerText = 'Защищено (AEGS)';
+      document.getElementById('pingVal').innerText = '22 мс';
+
+      // Live speed telemetry
+      telemTimer = setInterval(() => {
+        const sp = (885 + Math.random() * 60).toFixed(1);
+        document.getElementById('speedVal').innerText = sp + ' Мбит/с';
+      }, 700);
+    }, 2400);
+  }
+
+  // ==========================================
+  // 7. MODALS & SETTINGS CONTROLLERS
+  // ==========================================
+  function openModal(modalId) {
+    document.getElementById('modalBackdrop').classList.add('visible');
+    document.querySelectorAll('.bottom-sheet').forEach(s => s.classList.remove('visible'));
+    document.getElementById(modalId).classList.add('visible');
+  }
+
+  function closeAllModals() {
+    document.getElementById('modalBackdrop').classList.remove('visible');
+    document.querySelectorAll('.bottom-sheet').forEach(s => s.classList.remove('visible'));
+  }
+
+  function switchSettingsTab(tab) {
+    if (tab === 'proto') {
+      document.getElementById('tabProtoBtn').classList.add('active');
+      document.getElementById('tabDnsBtn').classList.remove('active');
+      document.getElementById('protoTabContent').style.display = 'flex';
+      document.getElementById('dnsTabContent').style.display = 'none';
+    } else {
+      document.getElementById('tabProtoBtn').classList.remove('active');
+      document.getElementById('tabDnsBtn').classList.add('active');
+      document.getElementById('protoTabContent').style.display = 'none';
+      document.getElementById('dnsTabContent').style.display = 'flex';
+    }
+  }
+
+  function selectProtocol(protoCode, protoName, el) {
+    document.querySelectorAll('#protoTabContent .option-card').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('lblCurProtocol').innerText = protoCode === 'quic' ? 'QUIC v6' : (protoCode === 'wg' ? 'WireGuard' : 'VLESS');
+    setTimeout(closeAllModals, 250);
+  }
+
+  function selectDns(dnsCode, dnsName, el) {
+    document.querySelectorAll('#dnsTabContent .option-card').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('lblCurDns').innerText = dnsCode === 'aegs' ? 'AEGS DoH' : (dnsCode === 'cf' ? 'Cloudflare' : 'AdGuard');
+    setTimeout(closeAllModals, 250);
+  }
+
+  function runManualUpdateCheck() {
+    const btn = document.getElementById('btnManualUpdateCheck');
+    const txt = document.getElementById('updateCheckBtnText');
+    txt.innerText = 'ПРОВЕРЯЕМ СЕРВЕР...';
+    btn.style.opacity = '0.7';
+
+    setTimeout(() => {
+      txt.innerText = '✓ ВЕРСИЯ АКТУАЛЬНА (v6.2)';
+      btn.style.opacity = '1';
+      btn.style.background = '#10B981';
+      setTimeout(() => {
+        txt.innerText = 'ПРОВЕРИТЬ ОБНОВЛЕНИЯ';
+        btn.style.background = '';
+      }, 2500);
+    }, 1200);
+  }
+
+  // Per-App Split Checkbox
+  let enabledAppsCount = 4;
+  function toggleAppCheck(el, appName) {
+    el.classList.toggle('checked');
+    if (el.classList.contains('checked')) {
+      el.innerText = '✓';
+      enabledAppsCount++;
+    } else {
+      el.innerText = '';
+      enabledAppsCount--;
+    }
+    document.getElementById('lblAppsCount').innerText = `${enabledAppsCount} через VPN`;
+  }
+
+  // Add Source Tabs (Link vs QR vs VPS)
+  function switchAddTab(tab) {
+    document.getElementById('tabLinkBtn').classList.toggle('active', tab === 'link');
+    document.getElementById('tabQrBtn').classList.toggle('active', tab === 'qr');
+    document.getElementById('tabVpsBtn').classList.toggle('active', tab === 'vps');
+
+    document.getElementById('addLinkTab').style.display = (tab === 'link') ? 'block' : 'none';
+    document.getElementById('addQrTab').style.display = (tab === 'qr') ? 'block' : 'none';
+    document.getElementById('addVpsTab').style.display = (tab === 'vps') ? 'block' : 'none';
+  }
+
+  function applyConfig(serverName, serverMeta) {
+    document.getElementById('activeServerName').innerText = serverName;
+    document.getElementById('activeServerMeta').innerText = serverMeta;
+    closeAllModals();
+  }
+</script>
+</body>
+</html>

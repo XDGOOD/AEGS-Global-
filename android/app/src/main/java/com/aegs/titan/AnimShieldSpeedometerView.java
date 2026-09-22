@@ -14,6 +14,10 @@ import android.view.animation.DecelerateInterpolator;
 
 import androidx.annotation.Nullable;
 
+/**
+ * High-performance hardware-accelerated animated shield and speedometer gauge.
+ * Uses pre-allocated geometry objects to guarantee 0 GC allocations during draw cycles.
+ */
 public class AnimShieldSpeedometerView extends View {
 
     public static final int MODE_WELCOME = 0;
@@ -24,7 +28,6 @@ public class AnimShieldSpeedometerView extends View {
 
     // Palette: Obsidian & Warm Amber
     private static final int COLOR_AMBER = 0xFFF59E0B;
-    private static final int COLOR_AMBER_GLOW = 0x47F59E0B;
     private static final int COLOR_ORANGE = 0xFFFB923C;
     private static final int COLOR_OBSIDIAN_BODY = 0xFF1C1917;
     private static final int COLOR_SHACKLE = 0xFFD4D4D8;
@@ -36,6 +39,14 @@ public class AnimShieldSpeedometerView extends View {
     private final Paint mPaintFill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mPaintText = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mPaintSubText = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+    // Pre-allocated geometry objects (Zero GC churn)
+    private final Path mShieldPath = new Path();
+    private final Path mShacklePath = new Path();
+    private final Path mKeySlotPath = new Path();
+    private final RectF mShackleArcRect = new RectF();
+    private final RectF mLockBodyRect = new RectF(-72f, -8f, 72f, 107f);
+    private final RectF mSpeedArcRect = new RectF();
 
     // Animators & Values
     private float mPulseProgress = 0f;
@@ -65,13 +76,35 @@ public class AnimShieldSpeedometerView extends View {
     }
 
     private void init() {
+        setLayerType(LAYER_TYPE_HARDWARE, null);
+
         mPaintText.setTextAlign(Paint.Align.CENTER);
         mPaintText.setFakeBoldText(true);
 
         mPaintSubText.setTextAlign(Paint.Align.CENTER);
         mPaintSubText.setFakeBoldText(true);
 
+        // Pre-build static shield contour
+        buildShieldPath();
+
+        // Pre-build static keyhole trapezoid
+        mKeySlotPath.moveTo(-6f, 38f);
+        mKeySlotPath.lineTo(-9f, 68f);
+        mKeySlotPath.lineTo(9f, 68f);
+        mKeySlotPath.lineTo(6f, 38f);
+        mKeySlotPath.close();
+
         startPulseAnimation();
+    }
+
+    private void buildShieldPath() {
+        mShieldPath.reset();
+        mShieldPath.moveTo(0, -80);
+        mShieldPath.quadTo(80, -80, 80, 0);
+        mShieldPath.quadTo(80, 60, 0, 90);
+        mShieldPath.quadTo(-80, 60, -80, 0);
+        mShieldPath.quadTo(-80, -80, 0, -80);
+        mShieldPath.close();
     }
 
     public void setMode(int mode) {
@@ -93,7 +126,7 @@ public class AnimShieldSpeedometerView extends View {
     private void startPulseAnimation() {
         if (mPulseAnim != null) mPulseAnim.cancel();
         mPulseAnim = ValueAnimator.ofFloat(0f, 1f);
-        mPulseAnim.setDuration(1200);
+        mPulseAnim.setDuration(1500);
         mPulseAnim.setRepeatCount(ValueAnimator.INFINITE);
         mPulseAnim.setRepeatMode(ValueAnimator.REVERSE);
         mPulseAnim.setInterpolator(new AccelerateDecelerateInterpolator());
@@ -119,7 +152,6 @@ public class AnimShieldSpeedometerView extends View {
         });
         mLockAnim.start();
 
-        // Glow shockwave triggers right as lock snaps
         postDelayed(() -> {
             mGlowAnim = ValueAnimator.ofFloat(1f, 0f);
             mGlowAnim.setDuration(600);
@@ -158,8 +190,6 @@ public class AnimShieldSpeedometerView extends View {
 
         float cx = w / 2f;
         float cy = h / 2f;
-
-        // Scale factor relative to 500x500 design viewport
         float scale = Math.min(w, h) / 500f;
 
         canvas.save();
@@ -182,35 +212,24 @@ public class AnimShieldSpeedometerView extends View {
         float pulse = mPulseProgress;
 
         // Outer pulsing ring
-        mPaintStroke.reset();
-        mPaintStroke.setAntiAlias(true);
         mPaintStroke.setStyle(Paint.Style.STROKE);
         mPaintStroke.setColor(COLOR_AMBER);
         mPaintStroke.setAlpha((int) ((0.20f + pulse * 0.18f) * 255));
         mPaintStroke.setStrokeWidth(3.5f);
         canvas.drawCircle(0, 0, r + pulse * 10f, mPaintStroke);
 
-        // Shield contour
-        Path path = new Path();
-        path.moveTo(0, -80);
-        path.quadTo(80, -80, 80, 0);
-        path.quadTo(80, 60, 0, 90);
-        path.quadTo(-80, 60, -80, 0);
-        path.quadTo(-80, -80, 0, -80);
-        path.close();
-
-        mPaintFill.reset();
-        mPaintFill.setAntiAlias(true);
+        // Shield body
         mPaintFill.setStyle(Paint.Style.FILL);
         mPaintFill.setColor(Color.argb((int)(0.08f * 255), 245, 158, 11));
-        canvas.drawPath(path, mPaintFill);
+        canvas.drawPath(mShieldPath, mPaintFill);
 
+        // Shield border
         mPaintStroke.setColor(COLOR_AMBER);
         mPaintStroke.setAlpha(255);
         mPaintStroke.setStrokeWidth(4f);
         mPaintStroke.setStrokeCap(Paint.Cap.ROUND);
         mPaintStroke.setStrokeJoin(Paint.Join.ROUND);
-        canvas.drawPath(path, mPaintStroke);
+        canvas.drawPath(mShieldPath, mPaintStroke);
 
         // Center Title "AEGS"
         mPaintText.setTextSize(44f);
@@ -224,53 +243,38 @@ public class AnimShieldSpeedometerView extends View {
     }
 
     private void drawLockSnap(Canvas canvas) {
-        // Drop distance: 48 units as in design prototype
         float shackleDrop = 48f * mShackleProgress;
 
-        // Shackle Path: Semi-circle arc at top + two straight vertical legs going INTO lock body!
-        Path shacklePath = new Path();
-        RectF arcRect = new RectF(-46f, -110f + shackleDrop, 46f, -18f + shackleDrop);
-        // Top semi-circle from 180 (left) to 0 (right)
-        shacklePath.arcTo(arcRect, 180f, 180f, false);
-        // Right vertical leg down into body
-        shacklePath.lineTo(46f, 6f);
-        // Left vertical leg down into body
-        shacklePath.moveTo(-46f, -64f + shackleDrop);
-        shacklePath.lineTo(-46f, 6f);
+        // Shackle Path using pre-allocated objects
+        mShacklePath.rewind();
+        mShackleArcRect.set(-46f, -110f + shackleDrop, 46f, -18f + shackleDrop);
+        mShacklePath.arcTo(mShackleArcRect, 180f, 180f, false);
+        mShacklePath.lineTo(46f, 6f);
+        mShacklePath.moveTo(-46f, -64f + shackleDrop);
+        mShacklePath.lineTo(-46f, 6f);
 
-        mPaintStroke.reset();
-        mPaintStroke.setAntiAlias(true);
         mPaintStroke.setStyle(Paint.Style.STROKE);
         mPaintStroke.setColor(COLOR_SHACKLE);
         mPaintStroke.setStrokeWidth(15f);
         mPaintStroke.setStrokeCap(Paint.Cap.ROUND);
-        canvas.drawPath(shacklePath, mPaintStroke);
+        canvas.drawPath(mShacklePath, mPaintStroke);
 
-        // Lock Body: Rounded Rectangle 144 x 115, corner 22
-        RectF bodyRect = new RectF(-72f, -8f, 72f, 107f);
-        mPaintFill.reset();
-        mPaintFill.setAntiAlias(true);
+        // Lock Body Rounded Rectangle
         mPaintFill.setStyle(Paint.Style.FILL);
         mPaintFill.setColor(COLOR_OBSIDIAN_BODY);
-        canvas.drawRoundRect(bodyRect, 22f, 22f, mPaintFill);
+        canvas.drawRoundRect(mLockBodyRect, 22f, 22f, mPaintFill);
 
         // Lock Body Amber Border
         mPaintStroke.setColor(COLOR_AMBER);
         mPaintStroke.setStrokeWidth(3.5f);
-        canvas.drawRoundRect(bodyRect, 22f, 22f, mPaintStroke);
+        canvas.drawRoundRect(mLockBodyRect, 22f, 22f, mPaintStroke);
 
         // Amber Keyhole Circle
         mPaintFill.setColor(COLOR_AMBER);
         canvas.drawCircle(0, 34f, 11f, mPaintFill);
 
         // Amber Keyhole Trapezoid
-        Path keySlot = new Path();
-        keySlot.moveTo(-6f, 38f);
-        keySlot.lineTo(-9f, 68f);
-        keySlot.lineTo(9f, 68f);
-        keySlot.lineTo(6f, 38f);
-        keySlot.close();
-        canvas.drawPath(keySlot, mPaintFill);
+        canvas.drawPath(mKeySlotPath, mPaintFill);
 
         // Shockwave glow on snap
         if (mLockGlow > 0f) {
@@ -283,21 +287,19 @@ public class AnimShieldSpeedometerView extends View {
 
     private void drawSpeedometerGauge(Canvas canvas) {
         float r = 135f;
-        RectF arcRect = new RectF(-r, -r, r, r);
+        mSpeedArcRect.set(-r, -r, r, r);
 
-        // Inactive background track (135 deg to 405 deg)
-        mPaintStroke.reset();
-        mPaintStroke.setAntiAlias(true);
+        // Inactive background track
         mPaintStroke.setStyle(Paint.Style.STROKE);
         mPaintStroke.setStrokeCap(Paint.Cap.ROUND);
         mPaintStroke.setColor(COLOR_TRACK);
         mPaintStroke.setStrokeWidth(18f);
-        canvas.drawArc(arcRect, 135f, 270f, false, mPaintStroke);
+        canvas.drawArc(mSpeedArcRect, 135f, 270f, false, mPaintStroke);
 
         // Active Amber Sweep Arc
         mPaintStroke.setColor(COLOR_AMBER);
         float sweep = 270f * mSpeedProgress;
-        canvas.drawArc(arcRect, 135f, sweep, false, mPaintStroke);
+        canvas.drawArc(mSpeedArcRect, 135f, sweep, false, mPaintStroke);
 
         // 10 radial tick marks
         for (int i = 0; i <= 9; i++) {
@@ -323,8 +325,6 @@ public class AnimShieldSpeedometerView extends View {
         canvas.drawLine(0, 0, nx, ny, mPaintStroke);
 
         // Center hub
-        mPaintFill.reset();
-        mPaintFill.setAntiAlias(true);
         mPaintFill.setStyle(Paint.Style.FILL);
         mPaintFill.setColor(COLOR_AMBER);
         canvas.drawCircle(0, 0, 14f, mPaintFill);
@@ -339,8 +339,9 @@ public class AnimShieldSpeedometerView extends View {
         // Speed subtitle
         mPaintSubText.setTextSize(15f);
         mPaintSubText.setColor(COLOR_AMBER);
-        canvas.drawText("Мбит/с (LTO Turbo)", 0, 82f, mPaintSubText);
+        canvas.drawText("MB/s (LTO Turbo)", 0, 82f, mPaintSubText);
     }
+
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();

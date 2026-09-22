@@ -4,9 +4,8 @@
     android:layout_height="match_parent"
     android:background="#0D0D10">
 
-    <!-- Ambient Floating Translucent Amber Circles -->
+    <!-- Ambient Subtle Glow (Clean, Zero Artifacts) -->
     <com.aegs.titan.WaveCirclesBackgroundView
-        android:id="@+id/bg_wave_circles"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
@@ -14,13 +13,12 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:padding="22dp">
+        android:padding="24dp">
 
-        <!-- Top Header Navigation -->
+        <!-- Top Header: Logo + Brand (Skip button removed per user request) -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
             android:layout_marginBottom="12dp">
 
             <LinearLayout
@@ -52,18 +50,6 @@
                     android:paddingBottom="2dp"
                     android:layout_marginStart="8dp" />
             </LinearLayout>
-
-            <TextView
-                android:id="@+id/btn_skip"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:text="Пропустить"
-                android:textColor="#A8A29E"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:padding="6dp" />
         </RelativeLayout>
 
         <!-- Central Animation Viewport -->
@@ -80,7 +66,7 @@
                 android:layout_height="260dp"
                 android:layout_gravity="center" />
 
-            <!-- Source Choice Cards Container (Shown on Step 3) -->
+            <!-- Key Acquisition Action Cards (Shown on Step 3) -->
             <LinearLayout
                 android:id="@+id/ll_source_selector"
                 android:layout_width="match_parent"
@@ -89,6 +75,7 @@
                 android:orientation="vertical"
                 android:visibility="gone">
 
+                <!-- Action 1: Buy / Get in Bot -->
                 <LinearLayout
                     android:id="@+id/card_source_cloud"
                     android:layout_width="match_parent"
@@ -96,45 +83,52 @@
                     android:background="@drawable/card_obsidian"
                     android:orientation="vertical"
                     android:padding="16dp"
+                    android:clickable="true"
+                    android:focusable="true"
                     android:layout_marginBottom="12dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="AEGS Cloud (Кластер)"
-                        android:textColor="#FFFBEB"
+                        android:text="💎 Купить подписку в Telegram-боте"
+                        android:textColor="#F59E0B"
                         android:textSize="15sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Автоматический выбор оптимального высокоскоростного сервера."
-                        android:textColor="#A8A29E"
+                        android:text="100 RUB / месяц • до 4 устройств одновременно • Anti-DPI"
+                        android:textColor="#D4D4D8"
                         android:textSize="12sp"
                         android:layout_marginTop="4dp" />
                 </LinearLayout>
 
+                <!-- Action 2: Paste Key -->
                 <LinearLayout
                     android:id="@+id/card_source_vps"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:background="@drawable/card_obsidian"
                     android:orientation="vertical"
+                    android:clickable="true"
+                    android:focusable="true"
                     android:padding="16dp">
 
                     <TextView
+                        android:id="@+id/tv_card_paste_title"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Личный сервер VPS"
+                        android:text="📋 Вставить ключ из буфера обмена"
                         android:textColor="#FFFBEB"
                         android:textSize="15sp"
                         android:textStyle="bold" />
 
                     <TextView
+                        android:id="@+id/tv_card_paste_sub"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Подключение по IP адресу, порту и персональному токену."
+                        android:text="Если вы уже скопировали ключ aegs:// или токен в боте"
                         android:textColor="#A8A29E"
                         android:textSize="12sp"
                         android:layout_marginTop="4dp" />
@@ -165,7 +159,7 @@
                 android:id="@+id/tv_subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Свободный и безопасный интернет без цензуры, слежки и замедлений провайдера."
+                android:text="Новейший протокол v6 Titan для надежного обхода DPI и блокировок."
                 android:textColor="#A8A29E"
                 android:textSize="13.5sp"
                 android:lineSpacingExtra="3dp"
@@ -213,7 +207,7 @@
             android:id="@+id/btn_next"
             android:layout_width="match_parent"
             android:layout_height="52dp"
-            android:text="ДАЛЕЕ"
+            android:text="Далее"
             android:textColor="#261102"
             android:textSize="15sp"
             android:textStyle="bold"

@@ -54,7 +54,7 @@ public class AegsVpnService extends VpnService implements Runnable {
     private final Object mTunnelLock = new Object();
     private final AtomicBoolean mRunning = new AtomicBoolean(false);
 
-    private String mServerIp = "185.196.8.10";
+    private String mServerIp = "31.76.9.86";
     private int mServerPort = 50001;
     private String mToken = "aegs_secure_token_titan_v6";
     private boolean mSplitTunnel = true;
@@ -321,24 +321,45 @@ public class AegsVpnService extends VpnService implements Runnable {
 
             if (mSplitTunnel && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 PackageManager pm = getPackageManager();
-                java.util.Set<String> allBypass = new java.util.HashSet<>(java.util.Arrays.asList(BYPASS_PACKAGES));
-                try {
-                    android.content.SharedPreferences prefs = getSharedPreferences("aegs_prefs", Context.MODE_PRIVATE);
-                    java.util.Set<String> custom = prefs.getStringSet("custom_bypass_packages", null);
-                    if (custom != null) allBypass.addAll(custom);
-                } catch (Exception ignored) {}
+                android.content.SharedPreferences prefs = getSharedPreferences("aegs_prefs", Context.MODE_PRIVATE);
+                int routingMode = prefs.getInt("routing_mode", 0); // 0 = Bypass selected, 1 = VPN only for selected
 
-                for (String pkg : allBypass) {
-                    try {
-                        pm.getPackageInfo(pkg, 0);
-                        builder.addDisallowedApplication(pkg);
-                    } catch (PackageManager.NameNotFoundException ignored) {}
+                if (routingMode == 0) {
+                    // Mode 0: Selected apps bypass the VPN (direct domestic connection)
+                    java.util.Set<String> customBypass = prefs.getStringSet("custom_bypass_packages", null);
+                    java.util.Set<String> bypassList;
+                    if (customBypass != null) {
+                        bypassList = new java.util.HashSet<>(customBypass);
+                    } else {
+                        // First run default before user customized: built-in Russian packages list
+                        bypassList = new java.util.HashSet<>(java.util.Arrays.asList(BYPASS_PACKAGES));
+                    }
+
+                    for (String pkg : bypassList) {
+                        try {
+                            pm.getPackageInfo(pkg, 0);
+                            builder.addDisallowedApplication(pkg);
+                            Log.d(TAG, "[AEGS] Split-tunnel bypass app: " + pkg);
+                        } catch (PackageManager.NameNotFoundException ignored) {}
+                    }
+                } else {
+                    // Mode 1: Whitelist mode - ONLY selected apps go through VPN
+                    java.util.Set<String> customVpn = prefs.getStringSet("custom_vpn_packages", null);
+                    if (customVpn != null && !customVpn.isEmpty()) {
+                        for (String pkg : customVpn) {
+                            try {
+                                pm.getPackageInfo(pkg, 0);
+                                builder.addAllowedApplication(pkg);
+                                Log.d(TAG, "[AEGS] Split-tunnel allowed VPN app: " + pkg);
+                            } catch (PackageManager.NameNotFoundException ignored) {}
+                        }
+                    }
                 }
 
                 // Domain Split-Tunneling: Exclude direct routes for bypass domains on Android 13+ (API 33)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     try {
-                        android.content.SharedPreferences prefs = getSharedPreferences("aegs_prefs", Context.MODE_PRIVATE);
+                        prefs = getSharedPreferences("aegs_prefs", Context.MODE_PRIVATE);
                         java.util.Set<String> bypassDomains = prefs.getStringSet("custom_bypass_domains", null);
                         if (bypassDomains == null) {
                             bypassDomains = new java.util.HashSet<>(java.util.Arrays.asList(

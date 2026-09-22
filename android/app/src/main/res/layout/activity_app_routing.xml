@@ -3,8 +3,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/bg_main"
-    android:paddingTop="24dp">
+    android:background="#0D0D10"
+    android:paddingTop="18dp">
 
     <!-- Header Toolbar -->
     <LinearLayout
@@ -14,18 +14,19 @@
         android:gravity="center_vertical"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
-        android:paddingBottom="14dp">
+        android:paddingBottom="12dp">
 
         <ImageView
             android:id="@+id/btn_back_routing"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:background="@drawable/bg_input_rounded"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:background="@drawable/card_obsidian"
             android:src="@drawable/ic_arrow_back"
             android:padding="8dp"
             android:tint="@color/amber_primary"
             android:clickable="true"
-            android:focusable="true" />
+            android:focusable="true"
+            android:contentDescription="Назад" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -38,8 +39,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Маршрутизация приложений"
-                android:textColor="@color/text_primary"
-                android:textSize="17sp"
+                android:textColor="#FFFBEB"
+                android:textSize="17.5sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -47,10 +48,104 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Загрузка списка приложений..."
-                android:textColor="@color/text_secondary"
+                android:textColor="#A8A29E"
                 android:textSize="12sp"
                 android:layout_marginTop="2dp" />
         </LinearLayout>
+    </LinearLayout>
+
+    <!-- Smart Analysis Banner Card for Russian Services -->
+    <LinearLayout
+        android:id="@+id/card_smart_analysis"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/card_obsidian"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:padding="14dp"
+        android:visibility="gone"
+        android:layout_marginBottom="10dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="6dp">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_shield"
+                android:tint="@color/amber_primary"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/tv_smart_analysis_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Умный анализ: сервисы РФ"
+                android:textColor="#F59E0B"
+                android:textSize="13.5sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_smart_analysis_desc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Обнаружены российские сервисы (банки, Госуслуги, доставка). Рекомендуется настроить их в прямой обход VPN."
+            android:textColor="#D4D4D8"
+            android:textSize="12sp"
+            android:lineSpacingExtra="2dp"
+            android:layout_marginBottom="10dp" />
+
+        <Button
+            android:id="@+id/btn_apply_smart_ru"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:text="⚡ Настроить сервисы РФ в обход VPN"
+            android:textColor="#18181B"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:background="@drawable/btn_amber_gradient" />
+    </LinearLayout>
+
+    <!-- Routing Mode RadioGroup -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/card_obsidian"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:padding="10dp"
+        android:layout_marginBottom="10dp">
+
+        <RadioGroup
+            android:id="@+id/rg_routing_mode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <RadioButton
+                android:id="@+id/rb_mode_bypass"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Обход VPN для выбранных (Direct)"
+                android:textColor="#FFFBEB"
+                android:textSize="12.5sp"
+                android:checked="true" />
+
+            <RadioButton
+                android:id="@+id/rb_mode_vpn_only"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="VPN только для выбранных (VPN Only)"
+                android:textColor="#FFFBEB"
+                android:textSize="12.5sp" />
+        </RadioGroup>
     </LinearLayout>
 
     <!-- Search Input Box -->
@@ -66,29 +161,29 @@
         android:paddingEnd="12dp"
         android:paddingTop="8dp"
         android:paddingBottom="8dp"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="8dp">
 
         <EditText
             android:id="@+id/et_search_apps"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@null"
-            android:hint="Поиск по названию или пакету..."
-            android:textColor="@color/text_primary"
-            android:textColorHint="@color/text_secondary"
+            android:hint="Поиск приложения или пакета..."
+            android:textColor="#FFFBEB"
+            android:textColorHint="#71717A"
             android:textSize="13sp"
             android:singleLine="true"
             android:imeOptions="actionDone" />
     </LinearLayout>
 
-    <!-- Filter Buttons Bar -->
+    <!-- Filter Buttons Bar (4 Tabs) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="8dp">
 
         <TextView
             android:id="@+id/btn_filter_all"
@@ -97,10 +192,10 @@
             android:layout_weight="1"
             android:gravity="center"
             android:padding="8dp"
-            android:background="@drawable/bg_btn_amber"
+            android:background="@drawable/btn_amber_gradient"
             android:text="Все"
-            android:textColor="@color/bg_main"
-            android:textSize="12sp"
+            android:textColor="#18181B"
+            android:textSize="11.5sp"
             android:textStyle="bold"
             android:clickable="true"
             android:focusable="true"
@@ -113,10 +208,10 @@
             android:layout_weight="1"
             android:gravity="center"
             android:padding="8dp"
-            android:background="@drawable/bg_input_rounded"
-            android:text="Через VPN"
-            android:textColor="@color/text_primary"
-            android:textSize="12sp"
+            android:background="@drawable/card_obsidian"
+            android:text="В туннеле"
+            android:textColor="#A8A29E"
+            android:textSize="11.5sp"
             android:clickable="true"
             android:focusable="true"
             android:layout_marginEnd="4dp" />
@@ -128,10 +223,80 @@
             android:layout_weight="1"
             android:gravity="center"
             android:padding="8dp"
-            android:background="@drawable/bg_input_rounded"
+            android:background="@drawable/card_obsidian"
             android:text="Напрямую"
-            android:textColor="@color/text_primary"
-            android:textSize="12sp"
+            android:textColor="#A8A29E"
+            android:textSize="11.5sp"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginEnd="4dp" />
+
+        <TextView
+            android:id="@+id/btn_filter_ru"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1.2"
+            android:gravity="center"
+            android:padding="8dp"
+            android:background="@drawable/card_obsidian"
+            android:text="🇷🇺 РФ сервисы"
+            android:textColor="#F59E0B"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+
+    <!-- Quick Batch Actions Row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:id="@+id/btn_quick_all_vpn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Все через VPN"
+            android:textColor="#F59E0B"
+            android:textSize="11sp"
+            android:gravity="center"
+            android:padding="6dp"
+            android:background="@drawable/card_obsidian"
+            android:layout_marginEnd="4dp"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/btn_quick_all_direct"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Все напрямую"
+            android:textColor="#A8A29E"
+            android:textSize="11sp"
+            android:gravity="center"
+            android:padding="6dp"
+            android:background="@drawable/card_obsidian"
+            android:layout_marginEnd="4dp"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/btn_quick_select_ru"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="РФ напрямую"
+            android:textColor="#34D399"
+            android:textSize="11sp"
+            android:gravity="center"
+            android:padding="6dp"
+            android:background="@drawable/card_obsidian"
             android:clickable="true"
             android:focusable="true" />
     </LinearLayout>
