@@ -6,7 +6,7 @@
 
 class TunInterface {
 public:
-    TunInterface(const std::string& iface_name, const std::string& ip_cidr, int mtu = 1400);
+    TunInterface(const std::string& iface_name, const std::string& ip_cidr, int mtu = 1280);
     ~TunInterface();
 
     bool open();

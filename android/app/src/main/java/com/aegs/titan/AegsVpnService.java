@@ -203,6 +203,8 @@ public class AegsVpnService extends VpnService implements Runnable {
                 .setContentText(text)
                 .setSmallIcon(R.drawable.ic_shield)
                 .setContentIntent(piMain)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_SERVICE)
                 .addAction(R.drawable.ic_shield, mIsPaused ? "Возобновить" : "Пауза 5 мин", piPause)
                 .addAction(R.drawable.ic_shield, "Отключить", piStop)
                 .setOngoing(true);
@@ -323,7 +325,7 @@ public class AegsVpnService extends VpnService implements Runnable {
             builder.addDnsServer("10.8.0.1"); // Enforce tunnel DNS to prevent leaks
             builder.addDnsServer("1.1.1.1");
             builder.addRoute("0.0.0.0", 0);
-            builder.setMtu(mSession.mtu);
+            builder.setMtu(Math.min(mSession.mtu, 1280));
 
             // Hardware kernel-level Kill-Switch: prevents plaintext traffic leaks during roaming
             if (mKillSwitch && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -486,13 +488,15 @@ public class AegsVpnService extends VpnService implements Runnable {
                     long sleepMs = 800;
 
                     if (mAdaptiveChaff) {
-                        if (idleMs > 30000) {
-                            sleepMs = 15000; // Deep idle: 15s interval
-                        } else if (idleMs > 10000) {
-                            sleepMs = 5000;  // Moderate idle: 5s interval
+                        if (idleMs > 20000) {
+                            sleepMs = 8000;  // Deep idle: 8s interval (prevents 15-30s carrier CGNAT drops)
+                        } else if (idleMs > 5000) {
+                            sleepMs = 3000;  // Moderate idle: 3s interval
                         } else {
                             sleepMs = 800;   // Active stream: 800ms
                         }
+                    } else {
+                        sleepMs = 1500;
                     }
 
                     Thread.sleep(sleepMs);

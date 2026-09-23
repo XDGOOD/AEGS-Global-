@@ -521,11 +521,11 @@ public final class AegsProtocol {
 
         // MTU is little-endian in C++ kernel
         int mtu = (configPlain[4] & 0xFF) | ((configPlain[5] & 0xFF) << 8);
-        if (mtu < 576 || mtu > 9000) {
+        if (mtu < 576 || mtu > 1500) {
             // Check big-endian fallback
             mtu = ((configPlain[4] & 0xFF) << 8) | (configPlain[5] & 0xFF);
         }
-        if (mtu < 576 || mtu > 9000) mtu = 1360;
+        if (mtu < 576 || mtu > 1500) mtu = 1280;
 
         HandshakeResult res = new HandshakeResult();
         res.sessionId = sessionId;
@@ -546,12 +546,13 @@ public final class AegsProtocol {
                                          byte[] sendKey, long txSeq, boolean isChaff) {
         int targetLen;
         if (ipLen <= 200) {
-            targetLen = 256 + (CSPRNG.nextInt(33) - 16); // 256 + 16
+            targetLen = 256 + (CSPRNG.nextInt(33) - 16); // 256 ± 16
         } else {
-            targetLen = 1350 + (CSPRNG.nextInt(65) - 32); // 1350 + 32
+            // Target ~1240 bytes so that with 56B outer headers + 16B tag + 28B IP/UDP wire packet stays <= 1340B (0 carrier fragmentation)
+            targetLen = 1240 + (CSPRNG.nextInt(33) - 16);
         }
         if (CSPRNG.nextInt(100) < 5) {
-            targetLen = 512 + CSPRNG.nextInt(256); // 5% medium jitter to defeat anti-ML bimodal clustering
+            targetLen = 512 + CSPRNG.nextInt(128); // 5% medium jitter to defeat anti-ML bimodal clustering
         }
 
         int padLen = Math.max(0, targetLen - (2 + ipLen));
@@ -609,6 +610,20 @@ public final class AegsProtocol {
 
     public static byte[] parseDataPacket(byte[] packet, int len, byte[] keyId, byte[] maskKey,
                                          byte[] recvKey) throws Exception {
+        // Auto-detect and strip RFC 9000 QUIC mimicry (24-byte Long Header)
+        if (len >= 24 && (packet[0] & 0x80) != 0 && packet[5] == 0x08 && packet[14] == 0x08 && packet[23] == 0x00) {
+            byte[] unwrapped = new byte[len - 24];
+            System.arraycopy(packet, 24, unwrapped, 0, len - 24);
+            packet = unwrapped;
+            len = unwrapped.length;
+        } else if (len >= 45 && packet[0] == 0x16) {
+            byte[] unwrapped = parseTlsRealityPayload(packet, len);
+            if (unwrapped != null) {
+                packet = unwrapped;
+                len = unwrapped.length;
+            }
+        }
+
         if (len < 56) return null;
 
         byte[] hdrIv = new byte[12];

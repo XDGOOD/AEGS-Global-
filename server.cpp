@@ -643,7 +643,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 g_sessions.map_ip(new_ip, s.get());
                 
                 SessionKeys sk;
-                auto resp = hs_server.build_resp(key_id_out, new_ip, 1360, sk);
+                auto resp = hs_server.build_resp(key_id_out, new_ip, 1280, sk);
 
                 s->identity.generation.fetch_add(1, std::memory_order_release);
                 s->identity.session_id = sk.session_id;
@@ -960,7 +960,11 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
 
                     size_t pad_len = shaper.semantic_pad((size_t)n);
                     size_t frame_len = FRAME_HDR + (size_t)n + pad_len;
-                    if (frame_len + TAG_LEN > INTERNAL_BUF_SIZE) { pad_len = 0; frame_len = FRAME_HDR + (size_t)n; }
+                    // Ensure wire packet with outer headers (56B) + tag (16B) never exceeds 1380 bytes to eliminate carrier fragmentation
+                    if (frame_len + 80 > 1380 || frame_len + TAG_LEN > INTERNAL_BUF_SIZE) {
+                        pad_len = 0;
+                        frame_len = FRAME_HDR + (size_t)n;
+                    }
 
                     uint16_t plen_be = htons((uint16_t)n);
                     std::memcpy(dec_buf, &plen_be, 2);

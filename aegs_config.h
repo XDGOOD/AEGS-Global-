@@ -1,21 +1,16 @@
 #pragma once
 // ==============================================================================
-// AEGS v6 "Titan" Global Edition -- Central Configuration & Profiles
+// AEGS v6 "Titan" -- Central Server Configuration
+// ==============================================================================
+// Reads runtime settings from environment variables.
+// Validates and clamps MTU (576 to 9000 Jumbo Frame) and port hopping parameters.
 // ==============================================================================
 #include <cstdint>
 #include <string>
 #include <cstdlib>
-
-enum class AegsProfile {
-    BALANCED,   // Default: standard bimodal shaping, moderate jitter
-    LITE,       // High-Throughput (10+ Gbps): zero-chaff, minimal padding, 0ms jitter
-    STEALTH     // Deep Anti-DPI: aggressive bimodal padding, timing chaff, protocol mimicry
-};
+#include <algorithm>
 
 struct AegsConfig {
-    // --- Performance Profile (Stage 28 / 29) ---------------------------------
-    AegsProfile profile       = AegsProfile::BALANCED;
-
     // --- Network / port hopping (Component 3) --------------------------------
     uint16_t base_port        = 50001;
     int      port_count       = 10;              // number of ports to bind
@@ -24,14 +19,14 @@ struct AegsConfig {
     // --- DPI bypass options (Component 3) ------------------------------------
     bool     quic_mimicry     = false;           // AEGS_QUIC_MIMICRY=1
     bool     traffic_shaping  = false;           // AEGS_TRAFFIC_SHAPING=1
-    bool     semantic_padding = true;            // AEGS_SEMANTIC_PADDING=1 (bimodal shaping)
+    bool     semantic_padding  = true;            // AEGS_SEMANTIC_PADDING=1 (bimodal shaping)
     int      jitter_ms        = 5;               // AEGS_JITTER_MS
 
     // --- TUN / routing -------------------------------------------------------
     std::string tun_name      = "aegs0";
     std::string tun4_cidr     = "10.8.0.1/24";
     std::string tun6_prefix   = "fd00:ae95::/64";
-    int         mtu           = 1400;
+    int         mtu           = 1280;
 
     // --- Persistence / auth --------------------------------------------------
     std::string db_path       = "/app/data/aegis.db";
@@ -60,7 +55,7 @@ struct AegsConfig {
         c.traffic_shaping  = gb("AEGS_TRAFFIC_SHAPING",             false);
         c.semantic_padding = gb("AEGS_SEMANTIC_PADDING",             true);
         c.jitter_ms        = gi("AEGS_JITTER_MS",                   5);
-        c.mtu              = gi("AEGS_MTU",                          1400);
+        c.mtu              = gi("AEGS_MTU",                          1280);
         c.worker_threads   = gi("AEGS_WORKERS",                     0);
         c.recv_batch_size  = gi("AEGS_RECV_BATCH_SIZE",             32);
         c.db_path          = gs("AEGS_DB_PATH",                     "/app/data/aegis.db");
@@ -68,25 +63,10 @@ struct AegsConfig {
         c.session_idle_timeout = (double)gi("AEGS_SESSION_TIMEOUT", 180);
         c.client_isolation     = gb("AEGS_CLIENT_ISOLATION",          true);
 
-        std::string p = gs("AEGS_PROFILE", "balanced");
-        if (p == "lite" || p == "fast") {
-            c.profile = AegsProfile::LITE;
-            c.semantic_padding = false;
-            c.traffic_shaping = false;
-            c.jitter_ms = 0;
-            c.quic_mimicry = false;
-        } else if (p == "stealth") {
-            c.profile = AegsProfile::STEALTH;
-            c.semantic_padding = true;
-            c.traffic_shaping = true;
-            c.jitter_ms = 5;
-            c.quic_mimicry = true;
-        } else {
-            c.profile = AegsProfile::BALANCED;
-        }
-
         if (c.port_count < 1)  c.port_count = 1;
         if (c.port_count > 64) c.port_count = 64;
+        if (c.mtu < 576)       c.mtu = 576;
+        if (c.mtu > 9000)      c.mtu = 9000;
         return c;
     }
 };
