@@ -1,6 +1,6 @@
 #pragma once
 // ==============================================================================
-// AEGS v6 "Titan" -- Session Resumption Token Manager (Fast & PFS Resume)
+// AEGS v5 "Pantheon" -- Session Resumption Token Manager (Fast & PFS Resume)
 // Allows reconnect in <5ms instead of ~1s PBKDF2 handshake
 // Fast Resume (0x04): Token verification with nonce-derived keys (0-RTT)
 // PFS Resume (0x05): Token verification + fresh Ephemeral X25519 ECDH (Full PFS)

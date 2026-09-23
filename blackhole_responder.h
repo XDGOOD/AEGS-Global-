@@ -1,6 +1,6 @@
 #pragma once
 // ==============================================================================
-// AEGS v6 "Titan" -- Cryptographic Blackhole Responder (Anti Active Probing)
+// AEGS v4 "Pantheon" -- Cryptographic Blackhole Responder (Anti Active Probing)
 // ==============================================================================
 // When the server receives an invalid/probe packet that fails authentication,
 // instead of silently dropping or sending a generic error, it responds with

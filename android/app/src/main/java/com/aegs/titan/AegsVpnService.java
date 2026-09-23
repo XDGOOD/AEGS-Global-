@@ -280,8 +280,14 @@ public class AegsVpnService extends VpnService implements Runnable {
                         byte[] respBytes = new byte[readBytes];
                         respBuf.get(respBytes);
 
-                        // If response is wrapped in Reality ECH frame, unwrap it
-                        if (readBytes >= 45 && respBytes[0] == 0x16) {
+                        // If response is wrapped in RFC 9000 QUIC mimicry or Reality ECH frame, unwrap it
+                        if (readBytes >= 24 + 80 && (respBytes[0] & 0x80) != 0 && (respBytes[5] & 0xFF) == 0x08 && (respBytes[14] & 0xFF) == 0x08 && respBytes[23] == 0x00) {
+                            byte[] unwrapped = new byte[readBytes - 24];
+                            System.arraycopy(respBytes, 24, unwrapped, 0, readBytes - 24);
+                            respBytes = unwrapped;
+                            readBytes = unwrapped.length;
+                            Log.i(TAG, "[AEGS] Successfully unwrapped Handshake Response from QUIC mimicry");
+                        } else if (readBytes >= 45 && respBytes[0] == 0x16) {
                             byte[] unwrapped = AegsProtocol.parseTlsRealityPayload(respBytes, readBytes);
                             if (unwrapped != null) {
                                 respBytes = unwrapped;

@@ -47,7 +47,7 @@ uint16_t generate_junk_len() {
 }
 
 void usage(const char* argv0) {
-    std::cerr << "usage: " << argv0 << " <server_ip> <server_port> <token> [--no-tun] [--kill-switch] [--dns-protect]\n";
+    std::cerr << "usage: " << argv0 << " <server_ip> <server_port> <token> [--no-tun] [--kill-switch] [--dns-protect] [--quic-mimicry]\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -59,11 +59,13 @@ int main(int argc, char* argv[]) {
     bool use_tun = true;
     bool enable_kill_switch = (std::getenv("AEGS_KILL_SWITCH") != nullptr && std::string(std::getenv("AEGS_KILL_SWITCH")) == "1");
     bool enable_dns_protect = (std::getenv("AEGS_DNS_PROTECT") != nullptr && std::string(std::getenv("AEGS_DNS_PROTECT")) == "1");
+    bool enable_quic_mimicry = (std::getenv("AEGS_QUIC_MIMICRY") != nullptr && std::string(std::getenv("AEGS_QUIC_MIMICRY")) == "1");
 
     for (int i = 4; i < argc; ++i) {
         if (!strcmp(argv[i], "--no-tun")) use_tun = false;
         else if (!strcmp(argv[i], "--kill-switch")) enable_kill_switch = true;
         else if (!strcmp(argv[i], "--dns-protect")) enable_dns_protect = true;
+        else if (!strcmp(argv[i], "--quic-mimicry")) enable_quic_mimicry = true;
     }
 
     uint8_t raw_kid[8];
@@ -138,14 +140,18 @@ int main(int argc, char* argv[]) {
         HandshakeClient hc(raw_kid, master_key);
         std::vector<uint8_t> init_pkt = hc.build_init();
         if (init_pkt.empty()) {
-            std::cerr << "[AEGS v3] Failed to build handshake init packet\n";
+            std::cerr << "[AEGS v6 Titan] Failed to build handshake init packet\n";
             close(fd);
             return 1;
         }
-        uint8_t mimicked_init[512];
-        std::memcpy(mimicked_init, init_pkt.data(), init_pkt.size());
-        size_t mlen = ProtocolMimicry::wrap_quic_initial(mimicked_init, init_pkt.size(), sizeof(mimicked_init));
-        sendto(fd, mimicked_init, mlen, 0, (struct sockaddr*)&s_addr, sizeof(s_addr));
+        if (enable_quic_mimicry) {
+            uint8_t mimicked_init[512];
+            std::memcpy(mimicked_init, init_pkt.data(), init_pkt.size());
+            size_t mlen = ProtocolMimicry::wrap_quic_initial(mimicked_init, init_pkt.size(), sizeof(mimicked_init), raw_kid);
+            sendto(fd, mimicked_init, mlen, 0, (struct sockaddr*)&s_addr, sizeof(s_addr));
+        } else {
+            sendto(fd, init_pkt.data(), init_pkt.size(), 0, (struct sockaddr*)&s_addr, sizeof(s_addr));
+        }
 
         struct pollfd pfd;
         pfd.fd = fd; pfd.events = POLLIN;
@@ -160,21 +166,17 @@ int main(int argc, char* argv[]) {
                 assigned_ip = session_keys.assigned_ip;
                 mtu = session_keys.mtu;
                 handshake_ok = true;
-                std::cout << "[AEGS v3] Handshake successful. IP: " << IpPool::to_string(assigned_ip) << "\n";
+                std::cout << "[AEGS v6 Titan] Handshake successful. IP: " << IpPool::to_string(assigned_ip) << "\n";
             }
         }
         if (!handshake_ok && attempt < HANDSHAKE_MAX_RETRIES - 1) {
-            std::cerr << "[AEGS v3] Handshake attempt " << (attempt + 1) << " failed, retrying...\n";
+            std::cerr << "[AEGS v6 Titan] Handshake attempt " << (attempt + 1) << " failed, retrying...\n";
         }
     }
 
     if (!handshake_ok) {
-        // FIX CRIT-4: Explicit failure instead of silent PSK fallback.
-        // Falling back to pre-shared symmetric keys would:
-        //   1. Lose Perfect Forward Secrecy (the whole point of ECDH handshake)
-        //   2. Use the same key for send and recv (breaks context separation)
-        //   3. Be trivially forced by any active attacker who drops HANDSHAKE_RESP
-        std::cerr << "[AEGS v3] ERROR: Handshake failed after " << HANDSHAKE_MAX_RETRIES
+        // Explicit failure instead of silent PSK fallback.
+        std::cerr << "[AEGS v6 Titan] ERROR: Handshake failed after " << HANDSHAKE_MAX_RETRIES
                   << " attempts. Aborting — PSK fallback disabled (would lose PFS).\n";
         close(fd);
         return 1;
@@ -187,7 +189,7 @@ int main(int argc, char* argv[]) {
     if (pc_env) port_count = std::atoi(pc_env);
     if (hi_env) hop_interval = std::atoi(hi_env);
     PortHopper hopper((uint16_t)s_port, port_count, (uint32_t)hop_interval);
-    std::cout << "[AEGS v4] Port hopping active: base=" << s_port << " count=" << port_count << " interval=" << hop_interval << "s\n";
+    std::cout << "[AEGS v6 Titan] Port hopping active: base=" << s_port << " count=" << port_count << " interval=" << hop_interval << "s\n";
 
     ResumptionToken resumption_token;
     bool has_resumption_token = false;
@@ -197,15 +199,13 @@ int main(int argc, char* argv[]) {
         std::string ip_cidr = IpPool::to_string(assigned_ip) + "/24";
         tun = std::make_unique<TunInterface>("aegs0", ip_cidr, mtu);
         if (tun->open()) {
-            // FIX: Removed tun->add_route("0.0.0.0/0"); 
-            // Routing 0.0.0.0/0 into TUN without a bypass route for the server IP causes an infinite routing loop and BSOD!
-            std::cout << "[AEGS v3] TUN interface ready: aegs0 = " << ip_cidr << "\n";
+            std::cout << "[AEGS v6 Titan] TUN interface ready: aegs0 = " << ip_cidr << "\n";
         } else {
             std::cerr << "Failed to open TUN interface.\n";
             return 1;
         }
     } else {
-        std::cout << "[AEGS v2 Client] Obfuscated tunnel active. SOCKS/WG proxy on 127.0.0.1:51821\n";
+        std::cout << "[AEGS v6 Titan] Obfuscated tunnel active. SOCKS/WG proxy on 127.0.0.1:51821\n";
     }
 
     struct sockaddr_in wg_addr {}; bool has_wg = false;
@@ -234,10 +234,19 @@ int main(int argc, char* argv[]) {
     BackpressureController backpressure;
 
     if (enable_kill_switch) {
-        kill_switch.enable(s_host, (uint16_t)s_port, port_count, "aegs0");
+        if (!kill_switch.enable(s_host, (uint16_t)s_port, port_count, "aegs0")) {
+            std::cerr << "[AEGS v6 FATAL] KillSwitch activation failed! Aborting immediately to prevent unencrypted traffic leaks.\n";
+            close(fd);
+            return 1;
+        }
     }
     if (enable_dns_protect) {
-        dns_shield.enable("aegs0", "10.8.0.1");
+        if (!dns_shield.enable("aegs0", "10.8.0.1")) {
+            std::cerr << "[AEGS v6 FATAL] DNS Leak Shield activation failed! Aborting immediately to prevent DNS leaks.\n";
+            if (enable_kill_switch) kill_switch.disable();
+            close(fd);
+            return 1;
+        }
     }
 
     while (true) {
@@ -309,13 +318,16 @@ int main(int argc, char* argv[]) {
                     const uint8_t* aead_nonce = rx_data + aead_offset;
                     uint64_t rx_seq = 0;
                     std::memcpy(&rx_seq, aead_nonce, sizeof(uint64_t));
-                    if (replay_filter.check_and_update(rx_seq)) continue;
+                    // Two-phase anti-replay Phase 1: Read-only check before decrypt
+                    if (replay_filter.check_peek(rx_seq)) continue;
 
                     const uint8_t* ct = rx_data + aead_offset + 12;
                     size_t ct_len = len - (aead_offset + 12);
 
                     size_t dlen = 0;
                     if (chacha20_poly1305_decrypt(ct, ct_len, session_keys.recv_key, aead_nonce, pbuf.data(), dlen, rx_data, aead_offset)) {
+                        // Two-phase anti-replay Phase 2: Commit sequence number only after AEAD succeeds!
+                        replay_filter.update_commit(rx_seq);
                         transport_detector.record_success();
                         if (dlen < 2) continue;
                         uint16_t plen = (pbuf[0] << 8) | pbuf[1];
@@ -372,7 +384,14 @@ int main(int argc, char* argv[]) {
                     out_len += elen;
 
                     s_addr.sin_port = htons(hopper.current_port(session_keys.send_key));
-                    sendto(fd, out_buf.data(), out_len, 0, (struct sockaddr*)&s_addr, sizeof(s_addr));
+                    if (enable_quic_mimicry) {
+                        uint8_t mimicked_out[BUFFER_SIZE];
+                        std::memcpy(mimicked_out, out_buf.data(), out_len);
+                        size_t mlen = ProtocolMimicry::wrap_quic_initial(mimicked_out, out_len, sizeof(mimicked_out), raw_kid);
+                        sendto(fd, mimicked_out, mlen, 0, (struct sockaddr*)&s_addr, sizeof(s_addr));
+                    } else {
+                        sendto(fd, out_buf.data(), out_len, 0, (struct sockaddr*)&s_addr, sizeof(s_addr));
+                    }
                     chaff_engine.mark_real_packet();
                 }
             }
@@ -380,6 +399,7 @@ int main(int argc, char* argv[]) {
 
         // TUN fd readable: high-speed batch read and sendmmsg pipeline (300-900+ Mbps)
         if (use_tun && tun && (pfds[1].revents & POLLIN)) {
+            backpressure.apply_pacing();
             if (!backpressure.should_pause_tun()) {
                 auto& scratch = get_packet_scratch();
                 constexpr size_t CLIENT_TUN_BATCH = 32;
@@ -427,7 +447,11 @@ int main(int argc, char* argv[]) {
                     out_len += elen;
 
                     s_addr.sin_port = htons(hopper.current_port(session_keys.send_key));
-                    scratch.queue_tx_mimicry(fd, s_addr, scratch.tx_buf, out_len);
+                    if (enable_quic_mimicry) {
+                        scratch.queue_tx_mimicry(fd, s_addr, scratch.tx_buf, out_len, raw_kid);
+                    } else {
+                        scratch.queue_tx(fd, s_addr, scratch.tx_buf, out_len);
+                    }
                     chaff_engine.mark_real_packet();
                 }
                 size_t sent = scratch.flush_tx();

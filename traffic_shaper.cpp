@@ -1,5 +1,5 @@
 // ==============================================================================
-// AEGS v6 "Titan" -- Traffic Shaper Implementation
+// AEGS v4 "Pantheon" -- Traffic Shaper Implementation
 // ==============================================================================
 // thread_local mt19937 is seeded exactly once per OS thread on first call.
 // Seeding uses std::random_device (syscall) for entropy; subsequent calls

@@ -467,6 +467,20 @@ public final class AegsProtocol {
     public static HandshakeResult processHandshakeResp(
             byte[] resp, int len, byte[] keyId, byte[] masterKey, byte[] clientPriv) throws Exception {
 
+        // Auto-detect and strip RFC 9000 QUIC mimicry (24-byte Long Header)
+        if (len >= 24 + 80 && (resp[0] & 0x80) != 0 && (resp[5] & 0xFF) == 0x08 && (resp[14] & 0xFF) == 0x08 && resp[23] == 0x00) {
+            byte[] unwrapped = new byte[len - 24];
+            System.arraycopy(resp, 24, unwrapped, 0, len - 24);
+            resp = unwrapped;
+            len = unwrapped.length;
+        } else if (len >= 45 && resp[0] == 0x16) {
+            byte[] unwrapped = parseTlsRealityPayload(resp, len);
+            if (unwrapped != null) {
+                resp = unwrapped;
+                len = unwrapped.length;
+            }
+        }
+
         if (len < 80) {
             throw new IllegalArgumentException("Handshake response too short: " + len);
         }

@@ -1,6 +1,6 @@
 #pragma once
 // ==============================================================================
-// AEGS v6 "Titan" -- Traffic Shaping / Jitter (Component 3: DPI bypass)
+// AEGS v4 "Pantheon" -- Traffic Shaping / Jitter (Component 3: DPI bypass)
 // ==============================================================================
 // Adds a uniform random delay [0, jitter_ms * 1000] microseconds before each
 // outbound packet to break packet-timing fingerprints used by advanced DPI.

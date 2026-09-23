@@ -2,6 +2,7 @@
 // ==============================================================================
 // AEGS v6 "Titan" Global Edition -- Zero-Allocation Scratchpad & TX Batching
 // Pre-allocated TLS buffers eliminating heap churn and enabling zero-copy sendmmsg()
+// Supports Jumbo MTU up to 9000 bytes (TX_SLOT_SIZE = 9216)
 // ==============================================================================
 #include <cstdint>
 #include <cstddef>
@@ -15,6 +16,7 @@
 struct PacketScratch {
     static constexpr size_t MAX_PKT_SIZE = 65535;
     static constexpr size_t MAX_BATCH    = 64;
+    static constexpr size_t TX_SLOT_SIZE = 9216; // Supports 9000 Jumbo frame MTU + headers
 
     // Aligned scratchpad arenas
     alignas(64) uint8_t rx_buf[MAX_PKT_SIZE];
@@ -24,7 +26,7 @@ struct PacketScratch {
 
     // Batch TX slot
     struct TxSlot {
-        alignas(16) uint8_t data[2048];
+        alignas(16) uint8_t data[TX_SLOT_SIZE];
         size_t len = 0;
         struct sockaddr_in addr{};
         int fd = -1;
@@ -37,13 +39,18 @@ struct PacketScratch {
     alignas(64) std::array<struct mmsghdr, MAX_BATCH> batch_msgs;
 #endif
     size_t tx_count = 0;
+    size_t dropped_oversized = 0;
 
     void reset_tx() noexcept {
         tx_count = 0;
     }
 
     void queue_tx(int fd, const struct sockaddr_in& addr, const uint8_t* payload, size_t len) noexcept {
-        if (tx_count >= MAX_BATCH || len > 2048) return;
+        if (tx_count >= MAX_BATCH) return;
+        if (len > TX_SLOT_SIZE) {
+            dropped_oversized++;
+            return;
+        }
         auto& slot = tx_slots[tx_count];
         slot.fd = fd;
         slot.addr = addr;
@@ -66,7 +73,11 @@ struct PacketScratch {
     }
 
     void queue_tx_mimicry(int fd, const struct sockaddr_in& addr, const uint8_t* payload, size_t len, const uint8_t session_seed[2] = nullptr) noexcept {
-        if (tx_count >= MAX_BATCH || len + 24 > 2048) return;
+        if (tx_count >= MAX_BATCH) return;
+        if (len + 24 > TX_SLOT_SIZE) {
+            dropped_oversized++;
+            return;
+        }
         auto& slot = tx_slots[tx_count];
         slot.fd = fd;
         slot.addr = addr;

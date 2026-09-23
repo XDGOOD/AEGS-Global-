@@ -1,5 +1,5 @@
 // ==============================================================================
-// AEGS v6 "Titan" -- Protocol Mimicry Implementation
+// AEGS v4 "Pantheon" -- Protocol Mimicry Implementation
 // ==============================================================================
 // wrap_quic_initial() performs a single memmove to make room for the 24-byte
 // RFC 9000 header — no heap allocation occurs.
@@ -37,11 +37,13 @@ size_t ProtocolMimicry::wrap_quic_initial(uint8_t*       buf,
     if (data_len + kQuicHeaderSize > buf_capacity)
         return data_len; // Cannot prepend — return unchanged length as a safe fallback
 
-    // Shift payload right to make room (overlapping move, so memmove)
-    std::memmove(buf + kQuicHeaderSize, buf, data_len);
-
     uint8_t rand_bytes[18];
-    if (RAND_bytes(rand_bytes, sizeof(rand_bytes)) != 1) return data_len;
+    if (RAND_bytes(rand_bytes, sizeof(rand_bytes)) != 1) {
+        return data_len; // RAND failure: return unchanged buffer without memory corruption
+    }
+
+    // Shift payload right to make room (overlapping move, so memmove) only after entropy verified
+    std::memmove(buf + kQuicHeaderSize, buf, data_len);
 
     // Dynamic Version Selection per RFC 9000 / RFC 9369
     uint32_t version = quic_version;

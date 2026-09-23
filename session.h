@@ -136,22 +136,6 @@ struct Session {
         return r ? r->has_client : false;
     }
 
-    struct sockaddr_in client_addr() const noexcept {
-        auto r = get_routing();
-        return r ? r->client_addr : sockaddr_in{};
-    }
-
-    void update_client_endpoint(const struct sockaddr_in& caddr, int fd, bool mimicry) {
-        std::lock_guard<std::mutex> lk(routing_mu_);
-        auto cur = routing_snap_;
-        auto next = cur ? std::make_shared<SessionRouting>(*cur) : std::make_shared<SessionRouting>();
-        next->client_addr = caddr;
-        next->has_client = true;
-        next->last_server_fd = fd;
-        next->uses_mimicry = mimicry;
-        std::atomic_store(&routing_snap_, std::shared_ptr<const SessionRouting>(next));
-    }
-
     bool enter_reader() noexcept {
         if (is_recycling_.load(std::memory_order_acquire)) {
             return false;
@@ -184,6 +168,23 @@ struct Session {
     Session(const Session&) = delete;
     Session& operator=(const Session&) = delete;
 
+    // Phase 1: Read-only replay check before decryption (does not commit seq or update window)
+    bool check_replay_peek(const uint8_t* n_bytes) const {
+        std::lock_guard<std::mutex> lk(mu);
+        uint64_t seq = 0;
+        std::memcpy(&seq, n_bytes, sizeof(uint64_t));
+        return replay_filter.check_peek(seq);
+    }
+
+    // Phase 2: Commits sequence number and updates window ONLY after AEAD authentication succeeds
+    void commit_replay(const uint8_t* n_bytes) {
+        std::lock_guard<std::mutex> lk(mu);
+        uint64_t seq = 0;
+        std::memcpy(&seq, n_bytes, sizeof(uint64_t));
+        replay_filter.update_commit(seq);
+    }
+
+    // Combined check & update (for backwards compatibility)
     bool check_replay(const uint8_t* n_bytes) {
         std::lock_guard<std::mutex> lk(mu);
         uint64_t seq = 0;

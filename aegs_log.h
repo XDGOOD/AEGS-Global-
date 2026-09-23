@@ -1,6 +1,6 @@
 #pragma once
 // ==============================================================================
-// AEGS v6 "Titan" Global Edition -- Stage 20: Structured Non-Blocking Logging
+// AEGS v5 "Pantheon" Global Edition -- Stage 20: Structured Non-Blocking Logging
 // Prevents stdout/stderr contention from bottlenecking packet forwarding
 // ==============================================================================
 #include <iostream>

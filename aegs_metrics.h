@@ -1,6 +1,6 @@
 #pragma once
 // ==============================================================================
-// AEGS v6 "Titan" Global Edition -- Stage 19: Observability & Metrics
+// AEGS v5 "Pantheon" Global Edition -- Stage 19: Observability & Metrics
 // Cache-line aligned, zero-lock lock-free atomic counters for data plane
 // ==============================================================================
 #include <atomic>

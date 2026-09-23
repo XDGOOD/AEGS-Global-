@@ -22,7 +22,7 @@ static uint32_t stun_crc32(const uint8_t* data, size_t len) {
     return crc ^ 0xFFFFFFFF;
 }
 
-std::vector<uint8_t> IllusionPreBypass::generate_stun_binding() {
+std::vector<uint8_t> IllusionPreBypass::generate_stun_binding(const uint8_t* session_seed) {
     // RFC 5389 compliant STUN Binding Request with USERNAME and FINGERPRINT attributes.
     // Real WebRTC / ICE clients include these attributes; bare 20-byte requests are anomalous.
     // Total size: 20-byte header + 12-byte USERNAME + 8-byte FINGERPRINT = 40 bytes.
@@ -38,8 +38,12 @@ std::vector<uint8_t> IllusionPreBypass::generate_stun_binding() {
     pkt[5] = 0x12;
     pkt[6] = 0xA4;
     pkt[7] = 0x42;
-    // Transaction ID: 12 random bytes
+    // Transaction ID: 12 random bytes mixed with session_seed for session consistency
     if (RAND_bytes(&pkt[8], 12) != 1) return {};
+    if (session_seed) {
+        pkt[8] ^= session_seed[0];
+        pkt[9] ^= session_seed[1];
+    }
 
     // Attribute 1: USERNAME (0x0006), Length: 8 bytes (simulating WebRTC ICE ufrag)
     pkt[20] = 0x00;
@@ -69,7 +73,7 @@ std::vector<uint8_t> IllusionPreBypass::generate_stun_binding() {
     return pkt;
 }
 
-std::vector<uint8_t> IllusionPreBypass::generate_quic_initial() {
+std::vector<uint8_t> IllusionPreBypass::generate_quic_initial(const uint8_t* session_seed) {
     // RFC 9000 QUIC Initial packet (minimum MTU 1200 bytes)
     std::vector<uint8_t> pkt(1200, 0);
     // 0xC3: Long header, type 0x00 (Initial), 4-byte packet number (0x03)
@@ -80,9 +84,13 @@ std::vector<uint8_t> IllusionPreBypass::generate_quic_initial() {
     pkt[3] = 0x00;
     pkt[4] = 0x01;
     
-    // DCID length 8
+    // DCID length 8 mixed with session_seed
     pkt[5] = 8;
     if (RAND_bytes(&pkt[6], 8) != 1) return {};
+    if (session_seed) {
+        pkt[6] ^= session_seed[0];
+        pkt[7] ^= session_seed[1];
+    }
     // SCID length 8
     pkt[14] = 8;
     if (RAND_bytes(&pkt[15], 8) != 1) return {};
@@ -105,9 +113,8 @@ std::vector<uint8_t> IllusionPreBypass::generate_quic_initial() {
 }
 
 void IllusionPreBypass::send_illusion_sequence(int fd, const struct sockaddr_in& server_addr, const uint8_t* session_seed) {
-    (void)session_seed;
     std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
-    std::uniform_int_distribution<int> count_dist(1, 3);
+    std::uniform_int_distribution<int> count_dist(1, 2);
     int count = count_dist(rng);
 
     for (int i = 0; i < count; ++i) {
@@ -115,19 +122,19 @@ void IllusionPreBypass::send_illusion_sequence(int fd, const struct sockaddr_in&
         int type = type_dist(rng);
         std::vector<uint8_t> pkt;
         if (type == 0) {
-            pkt = generate_stun_binding();
+            pkt = generate_stun_binding(session_seed);
         } else {
-            pkt = generate_quic_initial();
+            pkt = generate_quic_initial(session_seed);
         }
+        if (pkt.empty()) continue;
         sendto(fd, (const char*)pkt.data(), pkt.size(), 0, (struct sockaddr*)&server_addr, sizeof(server_addr));
 
-        // Short non-blocking poll/recvfrom to drain any server/blackhole response
-        // and create realistic RTT timing on the wire for stateful DPI tracking.
+        // Fast non-blocking poll/recvfrom (5-15ms) to drain probe responses without latency penalties
         struct pollfd pfd;
         pfd.fd = fd;
         pfd.events = POLLIN;
         pfd.revents = 0;
-        int poll_timeout_ms = 25 + (rng() % 35); // 25-60ms realistic network RTT
+        int poll_timeout_ms = 5 + (rng() % 10);
         int pr = poll(&pfd, 1, poll_timeout_ms);
         if (pr > 0 && (pfd.revents & POLLIN)) {
             uint8_t drain_buf[2048];

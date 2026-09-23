@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstring>
 #include <vector>
+#include <deque>
 #include <unordered_map>
 #include <unordered_set>
 #include <mutex>
@@ -130,6 +131,7 @@ private:
     // which created a vulnerability window where replayed HANDSHAKE_INIT packets
     // within the 30-second window were accepted again after the wipe.
     std::unordered_map<HandshakeSeenKey, uint64_t, HandshakeSeenKeyHash> m_seen_timestamps;
+    std::deque<std::pair<HandshakeSeenKey, uint64_t>> m_seen_order; // O(1) time-ordered queue
     uint64_t m_last_prune_time;
 
     struct ClientState {
@@ -137,6 +139,7 @@ private:
         uint64_t timestamp;
     };
     std::unordered_map<uint64_t, ClientState> m_pending_clients;
+    std::deque<std::pair<uint64_t, uint64_t>> m_pending_order; // O(1) pending client queue
 
     void load_or_generate_key();
     void prune_timestamps(uint64_t now_ms);

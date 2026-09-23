@@ -1,5 +1,5 @@
 // ==============================================================================
-// AEGS v6 "Titan" -- Cryptographic Blackhole Responder Implementation
+// AEGS v4 "Pantheon" -- Cryptographic Blackhole Responder Implementation
 // ==============================================================================
 // Each response strategy constructs a standards-compliant QUIC packet using
 // entropy extracted from the probe itself (DCID, SCID bytes).  This makes
@@ -204,7 +204,7 @@ std::vector<uint8_t> BlackholeResponder::quic_retry(
 
     if (probe_len >= 6 && (probe_data[0] & 0x80)) {
         probe_dcid_len = probe_data[5];
-        if (probe_dcid_len > 20) probe_dcid_len = 8;
+        if (probe_dcid_len > 8) probe_dcid_len = 8; // Strictly enforce <= 55B total response to guarantee < 3x amplification
         if (probe_len >= 6u + probe_dcid_len)
             probe_dcid = probe_data + 6;
     }

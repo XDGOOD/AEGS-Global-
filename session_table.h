@@ -1,6 +1,6 @@
 #pragma once
 // ==============================================================================
-// AEGS v6 "Titan" Global Edition -- 64-Shard Partitioned Session Table
+// AEGS v5 "Pantheon" Global Edition -- 64-Shard Partitioned Session Table
 // Features:
 // 1. 64 independent shards for KeyID and Endpoint lookups
 // 2. Lock-free Copy-On-Write (COW/RCU) Route Table for TUN /32 IP lookups
@@ -115,45 +115,6 @@ public:
         size_t shard = shard_idx(ep_key);
         std::unique_lock<std::shared_mutex> lk(ep_shards_[shard].mu);
         ep_shards_[shard].by_endpoint.erase(ep_key);
-    }
-
-    // Atomic endpoint migration: removes old_ep_key and inserts new_ep_key
-    // with deadlock-free multi-shard locking order (lowest shard index first).
-    void migrate_endpoint(uint64_t old_ep_key, uint64_t new_ep_key, Session* s) {
-        if (!s || new_ep_key == 0) return;
-        if (old_ep_key == new_ep_key) {
-            update_endpoint(new_ep_key, s);
-            return;
-        }
-        if (old_ep_key == 0) {
-            update_endpoint(new_ep_key, s);
-            return;
-        }
-
-        size_t s_old = shard_idx(old_ep_key);
-        size_t s_new = shard_idx(new_ep_key);
-        if (s_old == s_new) {
-            std::unique_lock<std::shared_mutex> lk(ep_shards_[s_old].mu);
-            ep_shards_[s_old].by_endpoint.erase(old_ep_key);
-            ep_shards_[s_new].by_endpoint[new_ep_key] = s;
-        } else {
-            size_t s1 = std::min(s_old, s_new);
-            size_t s2 = std::max(s_old, s_new);
-            std::unique_lock<std::shared_mutex> lk1(ep_shards_[s1].mu);
-            std::unique_lock<std::shared_mutex> lk2(ep_shards_[s2].mu);
-            ep_shards_[s_old].by_endpoint.erase(old_ep_key);
-            ep_shards_[s_new].by_endpoint[new_ep_key] = s;
-        }
-    }
-
-    // Atomically migrate session routing snapshot and endpoint table mapping
-    void migrate_session_endpoint(Session* s, uint64_t old_ep_key, uint64_t new_ep_key,
-                                  const struct sockaddr_in& new_caddr, int new_fd, bool new_mimicry) {
-        if (!s || new_ep_key == 0) return;
-        // 1. Update session client_addr and routing snapshot atomically
-        s->update_client_endpoint(new_caddr, new_fd, new_mimicry);
-        // 2. Migrate endpoint table mapping
-        migrate_endpoint(old_ep_key, new_ep_key, s);
     }
 
     void cleanup_idle_endpoints(double now, double timeout_sec) {
