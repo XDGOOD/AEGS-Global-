@@ -2,6 +2,7 @@
 // ==============================================================================
 // AEGS v6 "Titan" Global Edition -- Safe Direct Process Execution Helper
 // Eliminates std::system() and subshell (/bin/sh -c) invocation in privileged code
+// Provides vector<string> argv execution immune to shell quote injection
 // ==============================================================================
 
 #include <string>
@@ -19,40 +20,8 @@
 #include <fcntl.h>
 #endif
 
-inline int safe_exec(const std::string& cmd_str) noexcept {
-    if (cmd_str.empty()) return 0;
-
-    // Parse command line into arguments without invoking a shell
-    std::vector<std::string> tokens;
-    std::string cur;
-    bool in_quotes = false;
-    bool suppress_output = false;
-
-    for (size_t i = 0; i < cmd_str.size(); ++i) {
-        char c = cmd_str[i];
-        if (c == '"' || c == 0x27) {
-            in_quotes = !in_quotes;
-        } else if (std::isspace(static_cast<unsigned char>(c)) && !in_quotes) {
-            if (!cur.empty()) {
-                if (cur == ">/dev/null" || cur == "2>&1") {
-                    suppress_output = true;
-                } else {
-                    tokens.push_back(cur);
-                }
-                cur.clear();
-            }
-        } else {
-            cur += c;
-        }
-    }
-    if (!cur.empty()) {
-        if (cur == ">/dev/null" || cur == "2>&1") {
-            suppress_output = true;
-        } else {
-            tokens.push_back(cur);
-        }
-    }
-
+// Safe argv-vector execution without shell invocation or quote injection risks
+inline int safe_exec(const std::vector<std::string>& tokens, bool suppress_output = false) noexcept {
     if (tokens.empty()) return 0;
 
 #ifdef _WIN32
@@ -71,7 +40,7 @@ inline int safe_exec(const std::string& cmd_str) noexcept {
     if (pid < 0) {
         return -1;
     } else if (pid == 0) {
-        // Child: optionally redirect stdout/stderr if command had redirection
+        // Child: optionally redirect stdout/stderr if requested
         if (suppress_output) {
             int null_fd = open("/dev/null", O_WRONLY);
             if (null_fd >= 0) {
@@ -94,4 +63,41 @@ inline int safe_exec(const std::string& cmd_str) noexcept {
     if (WIFEXITED(status)) return WEXITSTATUS(status);
     return -1;
 #endif
+}
+
+// Tokenizing wrapper that parses string command and delegates to vector<string> safe_exec
+inline int safe_exec(const std::string& cmd_str) noexcept {
+    if (cmd_str.empty()) return 0;
+
+    std::vector<std::string> tokens;
+    std::string cur;
+    bool in_quotes = false;
+    bool suppress_output = false;
+
+    for (size_t i = 0; i < cmd_str.size(); ++i) {
+        char c = cmd_str[i];
+        if (c == '"' || c == 0x27) {
+            in_quotes = !in_quotes;
+        } else if (std::isspace(static_cast<unsigned char>(c)) && !in_quotes) {
+            if (!cur.empty()) {
+                if (cur == ">/dev/null" || cur == "2>&1" || cur == "2>/dev/null" || cur == "1>/dev/null") {
+                    suppress_output = true;
+                } else {
+                    tokens.push_back(cur);
+                }
+                cur.clear();
+            }
+        } else {
+            cur += c;
+        }
+    }
+    if (!cur.empty()) {
+        if (cur == ">/dev/null" || cur == "2>&1" || cur == "2>/dev/null" || cur == "1>/dev/null") {
+            suppress_output = true;
+        } else {
+            tokens.push_back(cur);
+        }
+    }
+
+    return safe_exec(tokens, suppress_output);
 }

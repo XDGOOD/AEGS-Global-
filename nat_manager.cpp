@@ -42,9 +42,9 @@ bool NatManager::setup() {
     }
 
     // 2 & 3. POSTROUTING MASQUERADE
-    std::string rule_masq = "-t nat POSTROUTING -s " + subnet_ + " -o " + out_iface_ + " -j MASQUERADE";
-    if (run_cmd("iptables -C " + rule_masq + " 2>/dev/null") != 0) {
-        run_cmd("iptables -t nat -A POSTROUTING -s " + subnet_ + " -o " + out_iface_ + " -j MASQUERADE");
+    std::string rule_masq = "-t nat -A POSTROUTING -s " + subnet_ + " -o " + out_iface_ + " -j MASQUERADE";
+    if (run_cmd("iptables -t nat -C POSTROUTING -s " + subnet_ + " -o " + out_iface_ + " -j MASQUERADE 2>/dev/null") != 0) {
+        run_cmd("iptables " + rule_masq);
     }
 
     // 4. FORWARD ACCEPT in

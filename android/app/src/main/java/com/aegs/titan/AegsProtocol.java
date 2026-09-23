@@ -510,7 +510,14 @@ public final class AegsProtocol {
         int b2 = configPlain[1] & 0xFF;
         int b3 = configPlain[2] & 0xFF;
         int b4 = configPlain[3] & 0xFF;
-        String assignedIp = b1 + "." + b2 + "." + b3 + "." + b4;
+        String assignedIp;
+        if (b1 == 10 && b2 == 8) {
+            assignedIp = b1 + "." + b2 + "." + b3 + "." + b4;
+        } else if (b4 == 10 && b3 == 8) {
+            assignedIp = b4 + "." + b3 + "." + b2 + "." + b1;
+        } else {
+            assignedIp = b1 + "." + b2 + "." + b3 + "." + b4;
+        }
 
         // MTU is little-endian in C++ kernel
         int mtu = (configPlain[4] & 0xFF) | ((configPlain[5] & 0xFF) << 8);
@@ -518,7 +525,7 @@ public final class AegsProtocol {
             // Check big-endian fallback
             mtu = ((configPlain[4] & 0xFF) << 8) | (configPlain[5] & 0xFF);
         }
-        if (mtu < 576 || mtu > 9000) mtu = 1400;
+        if (mtu < 576 || mtu > 9000) mtu = 1360;
 
         HandshakeResult res = new HandshakeResult();
         res.sessionId = sessionId;

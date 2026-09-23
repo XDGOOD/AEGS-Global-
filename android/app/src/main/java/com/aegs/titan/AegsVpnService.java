@@ -90,7 +90,7 @@ public class AegsVpnService extends VpnService implements Runnable {
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
             String action = intent.getAction();
-            if ("STOP".equals(action)) {
+            if ("STOP".equals(action) || "DISCONNECT".equals(action)) {
                 stopVpn();
                 return START_NOT_STICKY;
             }
@@ -252,15 +252,24 @@ public class AegsVpnService extends VpnService implements Runnable {
             Selector selector = Selector.open();
             mTunnel.register(selector, SelectionKey.OP_READ);
 
-            for (int attempt = 0; attempt < 3 && mRunning.get(); attempt++) {
-                byte[] currentPkt = initPkt;
-                if (mProtocolMode == SettingsActivity.PROTO_HYBRID_AUTO && attempt > 0) {
-                    currentPkt = AegsProtocol.buildTlsRealityClientHello(rawInitPkt, AegsProtocol.DEFAULT_REALITY_SNI);
-                    Log.i(TAG, "[AEGS] Hybrid Auto: Active blocking detected, auto-switched to Reality ECH fallback on attempt " + (attempt + 1));
+            for (int attempt = 0; attempt < 4 && mRunning.get(); attempt++) {
+                byte[] currentPkt;
+                if (attempt == 0) {
+                    currentPkt = initPkt;
+                } else if (attempt == 1) {
+                    if (mProtocolMode == SettingsActivity.PROTO_EMERGENCY) {
+                        currentPkt = rawInitPkt;
+                        Log.i(TAG, "[AEGS] Attempt 2: Auto-fallback to direct raw handshake");
+                    } else {
+                        currentPkt = AegsProtocol.buildTlsRealityClientHello(rawInitPkt, AegsProtocol.DEFAULT_REALITY_SNI);
+                        Log.i(TAG, "[AEGS] Attempt 2: Auto-fallback to Reality ECH");
+                    }
+                } else {
+                    currentPkt = rawInitPkt;
                 }
                 mTunnel.write(ByteBuffer.wrap(currentPkt));
 
-                if (selector.select(2500) > 0) {
+                if (selector.select(3000) > 0) {
                     selector.selectedKeys().clear();
                     respBuf.clear();
                     int readBytes = mTunnel.read(respBuf);
@@ -300,6 +309,9 @@ public class AegsVpnService extends VpnService implements Runnable {
 
             if (!handshakeOk || mSession == null) {
                 Log.e(TAG, "[AEGS] Failed to complete handshake with server");
+                Notification notif = buildNotification("Ошибка подключения к серверу • Проверьте сеть");
+                NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                if (nm != null) nm.notify(NOTIF_ID, notif);
                 stopVpn();
                 return;
             }

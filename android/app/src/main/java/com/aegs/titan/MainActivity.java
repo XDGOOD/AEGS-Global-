@@ -578,7 +578,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void disconnectVpn() {
         Intent intent = new Intent(this, AegsVpnService.class);
-        intent.setAction("DISCONNECT");
+        intent.setAction("STOP");
         startService(intent);
 
         mIsConnected = false;

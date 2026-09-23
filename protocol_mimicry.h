@@ -1,6 +1,6 @@
 #pragma once
 // ==============================================================================
-// AEGS v6 "Titan" -- Protocol Mimicry (Component 3: DPI bypass)
+// AEGS v4 "Pantheon" -- Protocol Mimicry (Component 3: DPI bypass)
 // ==============================================================================
 // Wraps outbound UDP packets with a dynamic QUIC Initial or Version Negotiation
 // header so that stateless DPI engines classify the flow as benign QUIC traffic.
@@ -77,6 +77,55 @@ public:
         if (is_quic_mimicry(buf, len)) {
             buf += kQuicHeaderSize;
             len -= kQuicHeaderSize;
+            return true;
+        }
+        return false;
+    }
+
+    // Checks whether an incoming buffer contains a TLS 1.3 Reality ECH wrapper
+    static inline bool is_tls_reality_mimicry(const uint8_t* buf, size_t len) noexcept {
+        if (!buf || len < 45 || buf[0] != 0x16) return false;
+        for (size_t i = 5; i + 10 <= len; ++i) {
+            if (buf[i] == 0xFE && buf[i + 1] == 0x0D) {
+                size_t ext_len = (static_cast<size_t>(buf[i + 2]) << 8) | buf[i + 3];
+                size_t ext_end = (i + 4 + ext_len < len) ? (i + 4 + ext_len) : len;
+                for (size_t j = i + 4; j + 4 <= ext_end; ++j) {
+                    if (buf[j] == 'A' && buf[j + 1] == 'E' && buf[j + 2] == 'G' && buf[j + 3] == '1') {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // In-place zero-copy unwrap for TLS 1.3 Reality ECH
+    static inline bool strip_tls_reality_mimicry(const uint8_t*& buf, size_t& len) noexcept {
+        if (!buf || len < 45 || buf[0] != 0x16) return false;
+        for (size_t i = 5; i + 10 <= len; ++i) {
+            if (buf[i] == 0xFE && buf[i + 1] == 0x0D) {
+                size_t ext_len = (static_cast<size_t>(buf[i + 2]) << 8) | buf[i + 3];
+                size_t ext_end = (i + 4 + ext_len < len) ? (i + 4 + ext_len) : len;
+                for (size_t j = i + 4; j + 4 <= ext_end; ++j) {
+                    if (buf[j] == 'A' && buf[j + 1] == 'E' && buf[j + 2] == 'G' && buf[j + 3] == '1') {
+                        size_t payload_start = j + 4;
+                        if (payload_start < ext_end) {
+                            size_t payload_len = ext_end - payload_start;
+                            buf += payload_start;
+                            len = payload_len;
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    static inline bool strip_tls_reality_mimicry(uint8_t*& buf, size_t& len) noexcept {
+        const uint8_t* cbuf = buf;
+        if (strip_tls_reality_mimicry(cbuf, len)) {
+            buf = const_cast<uint8_t*>(cbuf);
             return true;
         }
         return false;

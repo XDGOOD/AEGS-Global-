@@ -219,16 +219,29 @@ HandshakeServer::~HandshakeServer() {
     for (auto& kv : m_pending_clients) {
         EVP_PKEY_free(kv.second.client_ephemeral_pkey);
     }
+    m_seen_order.clear();
+    m_pending_order.clear();
 }
 
 void HandshakeServer::load_or_generate_key() {
     std::string path = "server_key.bin";
     std::ifstream is(path, std::ios::binary);
+    bool loaded = false;
     if (is) {
         uint8_t priv[32];
         is.read((char*)priv, 32);
-        m_static_pkey = EVP_PKEY_new_raw_private_key(EVP_PKEY_X25519, NULL, priv, 32);
-    } else {
+        if (is.gcount() == 32) {
+            m_static_pkey = EVP_PKEY_new_raw_private_key(EVP_PKEY_X25519, NULL, priv, 32);
+            if (m_static_pkey) {
+                loaded = true;
+#ifndef _WIN32
+                // Ensure existing loaded key is strictly owner-only (0600)
+                chmod(path.c_str(), 0600);
+#endif
+            }
+        }
+    }
+    if (!loaded) {
         m_static_pkey = generate_x25519();
         if (!m_static_pkey) {
             std::cerr << "[AEGS] FATAL: Failed to generate server static key\n";
@@ -251,32 +264,28 @@ std::vector<uint8_t> HandshakeServer::get_pubkey() const {
     return extract_x25519_pub(m_static_pkey);
 }
 
-// FIX Audit: Evict only timestamps older than 35,000 ms.
-// Since valid timestamps must be within 30s (now - ts <= 30000), any timestamp
-// older than 35s will be rejected by the timestamp validity check anyway.
-// Retaining them for 35s completely closes the replay attack window.
+// O(1) sliding window eviction: pops expired timestamps (>35s) from front of time-ordered deque
 void HandshakeServer::prune_timestamps(uint64_t now_ms) {
     if (now_ms - m_last_prune_time < 5000) return; // run every 5 seconds
     m_last_prune_time = now_ms;
-    for (auto it = m_seen_timestamps.begin(); it != m_seen_timestamps.end(); ) {
-        if (now_ms - it->second > 35000) {
-            it = m_seen_timestamps.erase(it);
-        } else {
-            ++it;
-        }
+    while (!m_seen_order.empty() && now_ms - m_seen_order.front().second > 35000) {
+        m_seen_timestamps.erase(m_seen_order.front().first);
+        m_seen_order.pop_front();
     }
 }
 
-// FIX CRIT-5: Evict pending handshake states older than PENDING_CLIENT_TTL_MS.
-// Without this cleanup, an attacker flooding HANDSHAKE_INIT (each allocates an
-// EVP_PKEY + map entry) causes unbounded memory growth → OOM.
+// O(1) pending client eviction: pops expired pending states (>30s TTL) from front of queue
 void HandshakeServer::prune_pending(uint64_t now_ms) {
-    for (auto it = m_pending_clients.begin(); it != m_pending_clients.end(); ) {
-        if (now_ms - it->second.timestamp > PENDING_CLIENT_TTL_MS) {
-            EVP_PKEY_free(it->second.client_ephemeral_pkey);
-            it = m_pending_clients.erase(it);
-        } else {
-            ++it;
+    while (!m_pending_order.empty() && now_ms - m_pending_order.front().second > PENDING_CLIENT_TTL_MS) {
+        uint64_t kid = m_pending_order.front().first;
+        uint64_t ts = m_pending_order.front().second;
+        m_pending_order.pop_front();
+        auto it = m_pending_clients.find(kid);
+        if (it != m_pending_clients.end() && it->second.timestamp == ts) {
+            if (it->second.client_ephemeral_pkey) {
+                EVP_PKEY_free(it->second.client_ephemeral_pkey);
+            }
+            m_pending_clients.erase(it);
         }
     }
 }
@@ -285,16 +294,13 @@ void HandshakeServer::prune_pending(uint64_t now_ms) {
 // server's public key (public knowledge). This ensures that only someone
 // who possesses the token can generate a valid HANDSHAKE_INIT.
 //
-// FIX CRIT-5: Rejects if pending state exceeds MAX_PENDING_CLIENTS or
-// seen timestamps exceed MAX_SEEN_TIMESTAMPS.
+// O(1) DoS Hardening: Queue-backed eviction prevents latency spikes on 100k records.
 bool HandshakeServer::process_init(const uint8_t* init, size_t len, uint64_t& key_id_out) {
     if (len < 72 || init[0] != 0x01) return false;
 
     memcpy(&key_id_out, &init[8], 8);
 
     // FIX CRIT-1: Look up user's MasterKey by KeyID for MAC verification.
-    // Old code: verified MAC with server's public key — any attacker who
-    // knows the public key could pass this check without the token.
     auto mk_it = m_master_keys.find(key_id_out);
     if (mk_it == m_master_keys.end()) return false; // Unknown KeyID
     auto mac = compute_mac(init, 56, mk_it->second.data(), mk_it->second.size());
@@ -307,45 +313,38 @@ bool HandshakeServer::process_init(const uint8_t* init, size_t len, uint64_t& ke
     uint64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
     
-    if (now < ts || now - ts > 30000) return false; // 30 seconds
+    int64_t diff = static_cast<int64_t>(now) - static_cast<int64_t>(ts);
+    if (diff < -60000 || diff > 60000) return false; // ±60 seconds clock skew window for mobile networks
 
     std::lock_guard<std::mutex> lock(m_mutex);
     prune_timestamps(now);
-    prune_pending(now); // FIX CRIT-5: clean stale pending states
+    prune_pending(now); // O(1) clean stale pending states
 
-    // FIX DoS Hardening: Instead of hard-rejecting when capacity is reached
-    // (which allows an attacker flooding 1024 dummy packets to permanently lock
-    // out legitimate users), evict the oldest pending entry (LRU eviction).
-    if (m_pending_clients.size() >= MAX_PENDING_CLIENTS) {
-        auto oldest_it = m_pending_clients.begin();
-        for (auto it = m_pending_clients.begin(); it != m_pending_clients.end(); ++it) {
-            if (it->second.timestamp < oldest_it->second.timestamp) {
-                oldest_it = it;
+    // O(1) LRU eviction when pending capacity is reached
+    while (m_pending_clients.size() >= MAX_PENDING_CLIENTS && !m_pending_order.empty()) {
+        uint64_t kid = m_pending_order.front().first;
+        m_pending_order.pop_front();
+        auto it = m_pending_clients.find(kid);
+        if (it != m_pending_clients.end()) {
+            if (it->second.client_ephemeral_pkey) {
+                EVP_PKEY_free(it->second.client_ephemeral_pkey);
             }
-        }
-        if (oldest_it != m_pending_clients.end()) {
-            if (oldest_it->second.client_ephemeral_pkey) {
-                EVP_PKEY_free(oldest_it->second.client_ephemeral_pkey);
-            }
-            m_pending_clients.erase(oldest_it);
+            m_pending_clients.erase(it);
         }
     }
 
-    if (m_seen_timestamps.size() >= MAX_SEEN_TIMESTAMPS) {
-        auto oldest_ts = m_seen_timestamps.begin();
-        for (auto it = m_seen_timestamps.begin(); it != m_seen_timestamps.end(); ++it) {
-            if (it->second < oldest_ts->second) {
-                oldest_ts = it;
-            }
-        }
-        if (oldest_ts != m_seen_timestamps.end()) {
-            m_seen_timestamps.erase(oldest_ts);
-        }
+    // O(1) LRU eviction when seen timestamps capacity is reached
+    while (m_seen_timestamps.size() >= MAX_SEEN_TIMESTAMPS && !m_seen_order.empty()) {
+        m_seen_timestamps.erase(m_seen_order.front().first);
+        m_seen_order.pop_front();
     }
 
     HandshakeSeenKey seen_key{key_id_out, ts};
-    if (m_seen_timestamps.find(seen_key) != m_seen_timestamps.end()) return false;
-    m_seen_timestamps[seen_key] = now;
+    bool is_retransmit = (m_seen_timestamps.find(seen_key) != m_seen_timestamps.end());
+    if (!is_retransmit) {
+        m_seen_timestamps[seen_key] = now;
+        m_seen_order.emplace_back(seen_key, now);
+    }
 
     // Free any stale ephemeral key from a previous abandoned handshake for this key_id
     auto existing = m_pending_clients.find(key_id_out);
@@ -356,6 +355,7 @@ bool HandshakeServer::process_init(const uint8_t* init, size_t len, uint64_t& ke
     EVP_PKEY* client_pub = EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, NULL, &init[16], 32);
     if (!client_pub) return false; // FIX MED-6: check for failure
     m_pending_clients[key_id_out] = {client_pub, now};
+    m_pending_order.emplace_back(key_id_out, now);
 
     return true;
 }
@@ -421,10 +421,10 @@ std::vector<uint8_t> HandshakeServer::build_resp(uint64_t key_id, uint32_t assig
     // session_id, server_ephemeral_pub) so any tampering with the server ephemeral
     // key or session ID causes AEAD tag verification failure.
     uint8_t plain_config[16] = {0};
-    plain_config[0] = assigned_ip & 0xFF;
-    plain_config[1] = (assigned_ip >> 8) & 0xFF;
-    plain_config[2] = (assigned_ip >> 16) & 0xFF;
-    plain_config[3] = (assigned_ip >> 24) & 0xFF;
+    plain_config[0] = (assigned_ip >> 24) & 0xFF;
+    plain_config[1] = (assigned_ip >> 16) & 0xFF;
+    plain_config[2] = (assigned_ip >> 8) & 0xFF;
+    plain_config[3] = assigned_ip & 0xFF;
     plain_config[4] = mtu & 0xFF;
     plain_config[5] = (mtu >> 8) & 0xFF;
 
