@@ -503,7 +503,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
             sr.has_client = true;
             sr.last_server_fd = fd;
             sr.assigned_ip = assigned;
-            sr.uses_mimicry = is_mimicked || cfg.quic_mimicry;
+            sr.uses_mimicry = is_mimicked;
             s->set_routing(sr);
 
             update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s.get());
@@ -516,7 +516,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 uint8_t rpkt[97];
                 rpkt[0] = OP_FAST_RESUME_RESP;
                 memcpy(rpkt + 1, &new_tok, 96);
-                send_reply(rpkt, 97, is_mimicked || cfg.quic_mimicry, rtok.key_id);
+                send_reply(rpkt, 97, is_mimicked, rtok.key_id);
             }
             metrics.resume_fast_ok.fetch_add(1, std::memory_order_relaxed);
             AegsLog::info("[FAST-RESUME] Session resumed for ", inet_ntoa(caddr.sin_addr), " (", IpPool::to_string(assigned), ")");
@@ -587,7 +587,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
             sr.has_client = true;
             sr.last_server_fd = fd;
             sr.assigned_ip = assigned;
-            sr.uses_mimicry = is_mimicked || cfg.quic_mimicry;
+            sr.uses_mimicry = is_mimicked;
             s->set_routing(sr);
 
             update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s.get());
@@ -601,7 +601,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
             std::memcpy(resp.server_ephemeral_pub, s_pub, 32);
             if (g_resumption.issue(s->identity.session_id, assigned, cur_c->master_key, resp.new_token, (const uint8_t*)&s->identity.key_id_raw)) {
                 ResumptionManager::compute_pfs_resp_tag(reinterpret_cast<const uint8_t*>(&resp), 1 + 32 + 96, cur_c->master_key, resp.auth_tag);
-                send_reply(&resp, sizeof(resp), is_mimicked || cfg.quic_mimicry, rtok.key_id);
+                send_reply(&resp, sizeof(resp), is_mimicked, rtok.key_id);
             }
 
             metrics.resume_pfs_ok.fetch_add(1, std::memory_order_relaxed);
@@ -664,13 +664,13 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                 nr.client_addr = caddr;
                 nr.has_client = true;
                 nr.last_server_fd = fd;
-                nr.uses_mimicry = is_mimicked || cfg.quic_mimicry;
+                nr.uses_mimicry = is_mimicked;
                 s->set_routing(nr);
 
                 // Register in O(1) fast-path cache
                 update_endpoint_cache(make_endpoint_key(ip_num, caddr.sin_port), s.get());
                 metrics.handshake_ok.fetch_add(1, std::memory_order_relaxed);
-                send_reply(resp.data(), resp.size(), is_mimicked || cfg.quic_mimicry, (const uint8_t*)&key_id_out);
+                send_reply(resp.data(), resp.size(), is_mimicked, (const uint8_t*)&key_id_out);
                 AegsLog::info("[HS] Client ", inet_ntoa(caddr.sin_addr), " assigned ", IpPool::to_string(new_ip));
                 
                 ResumptionToken rtok;
@@ -678,7 +678,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                     uint8_t rtok_pkt[97];
                     rtok_pkt[0] = 0x03; // RESUMPTION_TOKEN
                     memcpy(rtok_pkt + 1, &rtok, 96);
-                    send_reply(rtok_pkt, 97, is_mimicked || cfg.quic_mimicry, (const uint8_t*)&key_id_out);
+                    send_reply(rtok_pkt, 97, is_mimicked, (const uint8_t*)&key_id_out);
                     std::cout << "[HS] Resumption token issued for " << inet_ntoa(caddr.sin_addr) << "\n";
                 }
             } else {
@@ -1013,7 +1013,7 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
                                 }
                             }
                             // FIX Phase 3: Queue to symmetric sendmmsg batch pipeline
-                            if (routing->uses_mimicry || cfg.quic_mimicry) {
+                            if (routing->uses_mimicry) {
                                 scratch.queue_tx_mimicry(send_fd, client_addr, out_buf, out_len, (const uint8_t*)&s_key_id_raw);
                             } else {
                                 scratch.queue_tx(send_fd, client_addr, out_buf, out_len);
