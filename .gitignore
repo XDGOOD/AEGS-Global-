@@ -29,3 +29,16 @@ test_run_*/
 
 !releases/*.apk
 !AEGS-v6.0-titan.apk
+
+# Tools & Private Bots
+tools/
+tools/telegram_bot/
+scratch/
+MANUAL_AND_TROUBLESHOOTING.md
+
+# .NET & Windows Build Artifacts
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+.vs/

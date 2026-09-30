@@ -75,7 +75,7 @@
             android:id="@+id/tv_routing_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Через VPN"
+            android:text="Через AEGS"
             android:textColor="#F59E0B"
             android:textSize="11sp"
             android:layout_marginTop="2dp" />

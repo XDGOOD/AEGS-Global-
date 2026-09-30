@@ -90,7 +90,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="💎 Купить подписку в Telegram-боте"
+                        android:text="🔑 Получить персональный ключ доступа"
                         android:textColor="#F59E0B"
                         android:textSize="15sp"
                         android:textStyle="bold" />
@@ -98,7 +98,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="100 RUB / месяц • до 4 устройств одновременно • Anti-DPI"
+                        android:text="Персональный доступ • до 4 устройств • Высокая скорость"
                         android:textColor="#D4D4D8"
                         android:textSize="12sp"
                         android:layout_marginTop="4dp" />
@@ -159,7 +159,7 @@
                 android:id="@+id/tv_subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Новейший протокол v6 Titan для надежного обхода DPI и блокировок."
+                android:text="Новейший высокоскоростной протокол v6 Titan для защищенной передачи данных."
                 android:textColor="#A8A29E"
                 android:textSize="13.5sp"
                 android:lineSpacingExtra="3dp"

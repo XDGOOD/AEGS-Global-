@@ -37,7 +37,8 @@ public class AegsTileService extends TileService {
             } else {
                 SharedPreferences prefs = getSharedPreferences("aegs_prefs", MODE_PRIVATE);
                 String host = prefs.getString("server_ip", "31.76.9.86");
-                int port = prefs.getInt("server_port", 50001);
+                int port = prefs.getInt("server_port", 443);
+                if (port == 50001) port = 443;
                 String token = prefs.getString("token", "aegs_secure_token_titan_v6");
                 int proto = prefs.getInt("protocol_mode", 0);
                 boolean chaff = prefs.getBoolean("adaptive_chaff", true);

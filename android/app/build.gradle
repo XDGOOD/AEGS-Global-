@@ -10,8 +10,8 @@ android {
         applicationId "com.aegs.titan"
         minSdk 24
         targetSdk 34
-        versionCode 600
-        versionName "6.0-titan"
+        versionCode 650
+        versionName "6.5-titan"
     }
 
     buildTypes {

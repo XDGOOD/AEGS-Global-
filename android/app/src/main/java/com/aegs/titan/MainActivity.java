@@ -7,9 +7,12 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.net.VpnService;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -39,7 +42,7 @@ public class MainActivity extends AppCompatActivity {
     public static final String KEY_HAS_ACTIVE_KEY = "has_active_key";
 
     public static final String DEFAULT_SERVER_IP = "31.76.9.86";
-    public static final int DEFAULT_SERVER_PORT = 50001;
+    public static final int DEFAULT_SERVER_PORT = 443;
     public static final String BOT_USERNAME = "aegs_support_bot";
 
     // Views: Header & Status
@@ -86,22 +89,52 @@ public class MainActivity extends AppCompatActivity {
     private String mLastClipboardText = "";
 
     private final Handler mPingHandler = new Handler(Looper.getMainLooper());
-    private final Random mRandom = new Random();
+    private final java.util.concurrent.ExecutorService mPingExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
     private final Runnable mPingRunnable = new Runnable() {
         @Override
         public void run() {
             if (mIsConnected) {
-                float basePing = 18.0f;
-                float jitter = (mRandom.nextFloat() - 0.5f) * 3.5f;
-                float currentPing = Math.max(12.0f, basePing + jitter);
+                final String targetIp = (mServerIp != null && !mServerIp.isEmpty()) ? mServerIp : DEFAULT_SERVER_IP;
+                final int targetPort = mServerPort > 0 ? mServerPort : DEFAULT_SERVER_PORT;
+                mPingExecutor.execute(() -> {
+                    long start = System.nanoTime();
+                    boolean probeOk = false;
+                    try {
+                        java.net.Socket sock = new java.net.Socket();
+                        sock.connect(new java.net.InetSocketAddress(targetIp, 22), 1200);
+                        sock.close();
+                        probeOk = true;
+                    } catch (Exception e) {
+                        try {
+                            java.net.InetAddress addr = java.net.InetAddress.getByName(targetIp);
+                            probeOk = addr.isReachable(1000);
+                        } catch (Exception ignored) {}
+                    }
+                    long end = System.nanoTime();
+                    final float measuredLatency = probeOk ? Math.max(5.0f, (end - start) / 1_000_000.0f) : -1.0f;
 
-                if (mTvPing != null) {
-                    mTvPing.setText(String.format("Пинг к серверу: %.0f мс", currentPing));
-                }
-                if (mMetricsGraph != null) {
-                    mMetricsGraph.addSample(currentPing);
-                }
-                mPingHandler.postDelayed(this, 1500);
+                    runOnUiThread(() -> {
+                        if (!mIsConnected) return;
+                        if (measuredLatency > 0) {
+                            if (mTvPing != null) {
+                                mTvPing.setText(String.format(java.util.Locale.US, "Пинг к серверу: %.0f мс", measuredLatency));
+                            }
+                            if (mMetricsGraph != null) {
+                                mMetricsGraph.addSample(measuredLatency);
+                            }
+                        } else {
+                            if (mTvPing != null) {
+                                mTvPing.setText("Пинг к серверу: >120 мс");
+                            }
+                            if (mMetricsGraph != null) {
+                                mMetricsGraph.addSample(120.0f);
+                            }
+                        }
+                        if (mIsConnected) {
+                            mPingHandler.postDelayed(mPingRunnable, 2000);
+                        }
+                    });
+                });
             }
         }
     };
@@ -221,6 +254,46 @@ public class MainActivity extends AppCompatActivity {
         updateProtoBadge();
         updateKeyViews();
         handleIncomingIntent(getIntent());
+        checkBatteryOptimization();
+        checkNotificationPermission();
+    }
+
+    private void checkNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1002);
+            }
+        }
+    }
+
+    private void checkBatteryOptimization() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                if (pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName())) {
+                    boolean alreadyPrompted = mPrefs.getBoolean("battery_opt_prompted", false);
+                    if (!alreadyPrompted) {
+                        mPrefs.edit().putBoolean("battery_opt_prompted", true).apply();
+                        new androidx.appcompat.app.AlertDialog.Builder(this)
+                                .setTitle("Фоновая работа службы AEGS")
+                                .setMessage("Для стабильной работы соединения при выключенном экране и предотвращения разрывов (Doze Mode), разрешите приложению работу в фоне без ограничений батареи.")
+                                .setPositiveButton("Разрешить", (dialog, which) -> {
+                                    try {
+                                        Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                                        intent.setData(Uri.parse("package:" + getPackageName()));
+                                        startActivity(intent);
+                                    } catch (Exception e) {
+                                        try {
+                                            startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+                                        } catch (Exception ignored) {}
+                                    }
+                                })
+                                .setNegativeButton("Позже", null)
+                                .show();
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
     }
 
     @Override
@@ -234,12 +307,19 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         mPingHandler.removeCallbacks(mPingRunnable);
+        try {
+            mPingExecutor.shutdownNow();
+        } catch (Exception ignored) {}
     }
 
     private void loadSavedKey() {
         mToken = mPrefs.getString(KEY_TOKEN, "");
         mServerIp = mPrefs.getString(KEY_SERVER_IP, DEFAULT_SERVER_IP);
         mServerPort = mPrefs.getInt(KEY_SERVER_PORT, DEFAULT_SERVER_PORT);
+        if (mServerPort == 50001) {
+            mServerPort = 443;
+            mPrefs.edit().putInt(KEY_SERVER_PORT, 443).apply();
+        }
         mKeyId = mPrefs.getString(KEY_KEY_ID, "");
 
         if (mToken.equals("client_default_token")) {
@@ -274,10 +354,17 @@ public class MainActivity extends AppCompatActivity {
 
             if (mTvActiveKeyId != null) {
                 String masked = mKeyId.length() >= 8 ? mKeyId.substring(0, 8) + "..." : mKeyId;
-                mTvActiveKeyId.setText("KeyID: " + masked);
+                String slotInfo = "";
+                if (mToken != null && mToken.contains("#")) {
+                    slotInfo = " [Слот " + mToken.substring(mToken.indexOf("#") + 1) + "]";
+                }
+                mTvActiveKeyId.setText("KeyID: " + masked + slotInfo);
             }
             if (mTvActiveServer != null) {
-                mTvActiveServer.setText("Сервер: " + mServerIp + ":" + mServerPort + " (AEGS Titan-01)");
+                String slotNotice = (mToken != null && mToken.contains("#")) 
+                        ? " • Слот " + mToken.substring(mToken.indexOf("#") + 1) 
+                        : " • Слот 1";
+                mTvActiveServer.setText("Сервер: " + mServerIp + ":" + mServerPort + slotNotice);
             }
 
             if (!mIsConnected) {
@@ -353,7 +440,7 @@ public class MainActivity extends AppCompatActivity {
         if (mEtAccessKey != null) {
             mEtAccessKey.requestFocus();
         }
-        Toast.makeText(this, "Введите новый ключ или ссылку подписки", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Введите новый ключ доступа", Toast.LENGTH_SHORT).show();
     }
 
     public boolean parseAndSaveKey(String input) {
@@ -381,6 +468,10 @@ public class MainActivity extends AppCompatActivity {
                         if (!path.isEmpty()) token = path;
                     }
                 }
+                String frag = uri.getFragment();
+                if (frag != null && !frag.isEmpty() && token != null && !token.contains("#")) {
+                    token = token + "#" + frag;
+                }
             } catch (Exception e) {
                 Log.e(TAG, "Error parsing URI", e);
             }
@@ -396,6 +487,10 @@ public class MainActivity extends AppCompatActivity {
                     String path = uri.getPath();
                     if (path != null && path.startsWith("/")) path = path.substring(1);
                     if (path != null && !path.isEmpty()) token = path;
+                    String frag = uri.getFragment();
+                    if (frag != null && !frag.isEmpty() && token != null && !token.contains("#")) {
+                        token = token + "#" + frag;
+                    }
                 } catch (Exception ignored) {}
             }
             if (token == null) {
@@ -507,7 +602,7 @@ public class MainActivity extends AppCompatActivity {
     private void shareActiveKey() {
         if (!hasActiveKey()) return;
         String uri = "aegs://" + mServerIp + ":" + mServerPort + "?token=" + mToken + "&proto=titan_quic&key_id=" + mKeyId;
-        String shareBody = "🔑 Персональный ключ доступа AEGS Titan VPN:\n\n" +
+        String shareBody = "🔑 Персональный ключ доступа AEGS Titan:\n\n" +
                 uri + "\n\n" +
                 "📱 Лимит: до 4 устройств одновременно (ПК, Android, iOS)\n" +
                 "📥 Скачать приложение: https://github.com/XDGOOD/AEGS-Global-";
@@ -599,10 +694,10 @@ public class MainActivity extends AppCompatActivity {
             if (routingMode == 1) {
                 java.util.Set<String> customVpn = mPrefs.getStringSet("custom_vpn_packages", null);
                 int count = (customVpn != null) ? customVpn.size() : 0;
-                mTvSplitStatus.setText("Режим: Только " + count + " выбранных приложений идут через VPN.");
+                mTvSplitStatus.setText("Режим: Только " + count + " выбранных приложений идут через защищенный туннель.");
             } else {
                 int count = (customBypass != null) ? customBypass.size() : 9;
-                mTvSplitStatus.setText("Обход VPN активен для " + count + " приложений (банки и сервисы РФ напрямую).");
+                mTvSplitStatus.setText("Прямой доступ активен для " + count + " приложений (банки и сервисы РФ напрямую).");
             }
         } catch (Exception ignored) {}
     }

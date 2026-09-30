@@ -33,7 +33,7 @@ public class SettingsActivity extends AppCompatActivity {
     public static final String KEY_DYNAMIC_THEME = "dynamic_theme";
     public static final String KEY_CUSTOM_BYPASS_DOMAINS = "custom_bypass_domains";
 
-    public static final int PROTO_EMERGENCY = 0;       // Аварийное (при блокировках • Reality ECH)
+    public static final int PROTO_EMERGENCY = 0;       // Стелс-режим (высокая маскировка • Reality ECH)
     public static final int PROTO_FAST_EMERGENCY = 1;  // Быстрый аварийный (0-RTT + IAT Shaper)
     public static final int PROTO_TURBO_PQC = 2;       // Скоростной и Защищенный (Turbo UDP + Kyber-768)
     public static final int PROTO_HYBRID_AUTO = 3;     // Универсальный (Все варианты • Адаптивный авто-выбор)
@@ -190,12 +190,13 @@ public class SettingsActivity extends AppCompatActivity {
         if (tv == null) return;
         Set<String> custom = mPrefs.getStringSet(KEY_CUSTOM_BYPASS_DOMAINS, null);
         int count = custom != null ? custom.size() : DEFAULT_DOMAINS.length;
-        tv.setText("Сайты и домены в обход VPN (" + count + " настроено)");
+        tv.setText("Сайты прямого доступа Direct (" + count + " настроено)");
     }
 
     private static final String[] DEFAULT_DOMAINS = {
-            "gosuslugi.ru", "sberbank.ru", "tbank.ru", "vtb.ru",
-            "ya.ru", "yandex.ru", "kinopoisk.ru", "ozon.ru", "wildberries.ru"
+            "gosuslugi.ru", "sberbank.ru", "tbank.ru", "vtb.ru", "alfabank.ru",
+            "ya.ru", "yandex.ru", "kinopoisk.ru", "ozon.ru", "wildberries.ru",
+            "vk.com", "mail.ru", "avito.ru", "rutube.ru"
     };
 
     private void showDomainSelectionDialog() {
@@ -211,7 +212,7 @@ public class SettingsActivity extends AppCompatActivity {
         Arrays.fill(checked, true);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Сайты и домены в обход VPN");
+        builder.setTitle("Сайты прямого доступа (Direct)");
 
         builder.setMultiChoiceItems(domainList.toArray(new CharSequence[0]), checked, (dialog, which, isChecked) -> {
             checked[which] = isChecked;
@@ -232,7 +233,7 @@ public class SettingsActivity extends AppCompatActivity {
             }
             mPrefs.edit().putStringSet(KEY_CUSTOM_BYPASS_DOMAINS, resultSet).apply();
             updateBypassDomainsLabel();
-            Toast.makeText(this, "Сохранено доменов в обход: " + resultSet.size(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Сохранено доменов прямого доступа: " + resultSet.size(), Toast.LENGTH_SHORT).show();
         });
 
         builder.setNegativeButton("Отмена", null);
@@ -241,11 +242,19 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void showLicenseDialog() {
         new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle("AEGS Non-Commercial Community License v1.0")
-                .setMessage("Правообладатель и автор протокола: XDGOOD\n\n" +
-                        "Протокол AEGS и мобильный клиент распространяются исключительно для некоммерческого, исследовательского и личного использования.\n\n" +
-                        "Любое коммерческое использование, перепродажа, продажа платных VPN-подписок и интеграция в коммерческие маршрутизаторы без прямого предварительного письменного согласия автора (XDGOOD) СТРОГО ЗАПРЕЩЕНЫ.\n\n" +
-                        "Все права защищены.")
+                .setTitle("MIT License")
+                .setMessage("Copyright (c) 2026 XDGOOD\n\n" +
+                        "Permission is hereby granted, free of charge, to any person obtaining a copy " +
+                        "of this software and associated documentation files (the \"Software\"), to deal " +
+                        "in the Software without restriction, including without limitation the rights " +
+                        "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell " +
+                        "copies of the Software, and to permit persons to whom the Software is " +
+                        "furnished to do so, subject to the following conditions:\n\n" +
+                        "The above copyright notice and this permission notice shall be included in all " +
+                        "copies or substantial portions of the Software.\n\n" +
+                        "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR " +
+                        "IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, " +
+                        "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.")
                 .setPositiveButton("Понятно", null)
                 .show();
     }

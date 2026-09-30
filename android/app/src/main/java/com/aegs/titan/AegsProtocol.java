@@ -51,6 +51,7 @@ public final class AegsProtocol {
         public byte[] sendKey; // C2S_Key
         public byte[] recvKey; // S2C_Key
         public byte[] maskKey;
+        public byte[] altMaskKey;
         public byte[] keyId;
     }
 
@@ -467,8 +468,16 @@ public final class AegsProtocol {
     public static HandshakeResult processHandshakeResp(
             byte[] resp, int len, byte[] keyId, byte[] masterKey, byte[] clientPriv) throws Exception {
 
-        // Auto-detect and strip RFC 9000 QUIC mimicry (24-byte Long Header)
-        if (len >= 24 + 80 && (resp[0] & 0x80) != 0 && (resp[5] & 0xFF) == 0x08 && (resp[14] & 0xFF) == 0x08 && resp[23] == 0x00) {
+        // Auto-detect and strip TLS 1.3 Application Data framing (5-byte Record Header 0x17 0x03 0x03)
+        if (len >= 5 + 80 && resp[0] == 0x17 && resp[1] == 0x03 && resp[2] == 0x03) {
+            int recLen = ((resp[3] & 0xFF) << 8) | (resp[4] & 0xFF);
+            if (recLen >= 80 && recLen <= len - 5) {
+                byte[] unwrapped = new byte[recLen];
+                System.arraycopy(resp, 5, unwrapped, 0, recLen);
+                resp = unwrapped;
+                len = unwrapped.length;
+            }
+        } else if (len >= 24 + 80 && (resp[0] & 0x80) != 0 && (resp[5] & 0xFF) == 0x08 && (resp[14] & 0xFF) == 0x08 && resp[23] == 0x00) {
             byte[] unwrapped = new byte[len - 24];
             System.arraycopy(resp, 24, unwrapped, 0, len - 24);
             resp = unwrapped;
@@ -498,10 +507,11 @@ public final class AegsProtocol {
         byte[] sharedSecret = x25519ScalarMult(clientPriv, serverEphemeralPub);
 
         // Derive session keys per PROTOCOL.md
-        byte[] configKey = hkdf(sharedSecret, masterKey, "aegs-cfg", 32);
-        byte[] c2sKey    = hkdf(sharedSecret, masterKey, "aegs-c2s", 32);
-        byte[] s2cKey    = hkdf(sharedSecret, masterKey, "aegs-s2c", 32);
-        byte[] maskKey   = hkdf(masterKey, "aegis-v2-salt".getBytes(StandardCharsets.UTF_8), "aegs-v2-header-mask", 32);
+        byte[] configKey  = hkdf(sharedSecret, masterKey, "aegs-cfg", 32);
+        byte[] c2sKey     = hkdf(sharedSecret, masterKey, "aegs-c2s", 32);
+        byte[] s2cKey     = hkdf(sharedSecret, masterKey, "aegs-s2c", 32);
+        byte[] maskKey    = hkdf(masterKey, "aegis-v2-salt".getBytes(StandardCharsets.UTF_8), "aegis-v2-header-mask", 32);
+        byte[] altMaskKey = hkdf(masterKey, "aegis-v2-salt".getBytes(StandardCharsets.UTF_8), "aegs-v2-header-mask", 32);
 
         // Decrypt EncryptedConfig (offset 48, len 16 ciphertext + 16 tag = 32 bytes)
         byte[] encryptedConfigWithTag = new byte[32];
@@ -548,6 +558,7 @@ public final class AegsProtocol {
         res.sendKey = c2sKey;
         res.recvKey = s2cKey;
         res.maskKey = maskKey;
+        res.altMaskKey = altMaskKey;
         res.keyId = keyId;
         return res;
     }
@@ -621,11 +632,23 @@ public final class AegsProtocol {
         System.arraycopy(cipherWithTag, 0, wirePacket, outerHdr.length + 12, cipherWithTag.length);
         return wirePacket;
     }
+    public static byte[] parseDataPacket(byte[] packet, int len, byte[] keyId, byte[] maskKey,
+                                         byte[] recvKey) throws Exception {
+        return parseDataPacket(packet, len, keyId, maskKey, null, recvKey);
+    }
 
     public static byte[] parseDataPacket(byte[] packet, int len, byte[] keyId, byte[] maskKey,
-                                         byte[] recvKey) throws Exception {
-        // Auto-detect and strip RFC 9000 QUIC mimicry (24-byte Long Header)
-        if (len >= 24 && (packet[0] & 0x80) != 0 && packet[5] == 0x08 && packet[14] == 0x08 && packet[23] == 0x00) {
+                                         byte[] altMaskKey, byte[] recvKey) throws Exception {
+        // Auto-detect and strip TLS 1.3 Application Data framing (5-byte Record Header 0x17 0x03 0x03)
+        if (len >= 5 && packet[0] == 0x17 && packet[1] == 0x03 && packet[2] == 0x03) {
+            int recLen = ((packet[3] & 0xFF) << 8) | (packet[4] & 0xFF);
+            if (recLen > 0 && recLen <= len - 5) {
+                byte[] unwrapped = new byte[recLen];
+                System.arraycopy(packet, 5, unwrapped, 0, recLen);
+                packet = unwrapped;
+                len = unwrapped.length;
+            }
+        } else if (len >= 24 && (packet[0] & 0x80) != 0 && packet[5] == 0x08 && packet[14] == 0x08 && packet[23] == 0x00) {
             byte[] unwrapped = new byte[len - 24];
             System.arraycopy(packet, 24, unwrapped, 0, len - 24);
             packet = unwrapped;
@@ -647,15 +670,27 @@ public final class AegsProtocol {
         System.arraycopy(packet, 12, maskedHdr, 0, 16);
 
         byte[] plainHdr = maskUnmaskHeader(maskedHdr, maskKey, hdrIv);
-
-        // Verify KeyID & VER_MAGIC
+        boolean hdrOk = true;
         for (int i = 0; i < 8; i++) {
-            if (plainHdr[i] != keyId[i]) return null;
+            if (plainHdr[i] != keyId[i]) { hdrOk = false; break; }
         }
-        if (plainHdr[12] != VER_MAGIC[0] || plainHdr[13] != VER_MAGIC[1] ||
-                plainHdr[14] != VER_MAGIC[2] || plainHdr[15] != VER_MAGIC[3]) {
-            return null;
+        if (hdrOk && (plainHdr[12] != VER_MAGIC[0] || plainHdr[13] != VER_MAGIC[1] ||
+                plainHdr[14] != VER_MAGIC[2] || plainHdr[15] != VER_MAGIC[3])) {
+            hdrOk = false;
         }
+
+        if (!hdrOk && altMaskKey != null && altMaskKey.length == 32) {
+            plainHdr = maskUnmaskHeader(maskedHdr, altMaskKey, hdrIv);
+            hdrOk = true;
+            for (int i = 0; i < 8; i++) {
+                if (plainHdr[i] != keyId[i]) { hdrOk = false; break; }
+            }
+            if (hdrOk && (plainHdr[12] != VER_MAGIC[0] || plainHdr[13] != VER_MAGIC[1] ||
+                    plainHdr[14] != VER_MAGIC[2] || plainHdr[15] != VER_MAGIC[3])) {
+                hdrOk = false;
+            }
+        }
+        if (!hdrOk) return null;
 
         // Chaff packet drop (anti-timing dummy frames)
         if ((plainHdr[10] & CHAFF_FLAG) != 0) {
@@ -731,10 +766,46 @@ public final class AegsProtocol {
     // =========================================================================
     // TLS 1.3 Reality Camouflage Engine with Encrypted Client Hello (ECH)
     // =========================================================================
-    public static final String DEFAULT_REALITY_SNI = "www.cloudflare.com";
+    public static final String DEFAULT_REALITY_SNI = "vk.com";
+    public static final String[] WHITELIST_SNI_POOL = new String[]{
+            "vk.com",
+            "ya.ru",
+            "yastatic.net",
+            "dl.google.com"
+    };
+
+    public static String getRandomWhitelistSni() {
+        return WHITELIST_SNI_POOL[CSPRNG.nextInt(WHITELIST_SNI_POOL.length)];
+    }
+
+    public static byte[] wrapTlsAppData(byte[] payload, int len) {
+        if (payload == null || len <= 0 || len > 0xFFFF) return payload;
+        byte[] record = new byte[5 + len];
+        record[0] = 0x17; // TLS 1.3 Application Data ContentType
+        record[1] = 0x03; // Legacy Version 0x0303 (TLS 1.2 wire format per RFC 8446)
+        record[2] = 0x03;
+        record[3] = (byte) ((len >> 8) & 0xFF);
+        record[4] = (byte) (len & 0xFF);
+        System.arraycopy(payload, 0, record, 5, len);
+        return record;
+    }
+
+    public static byte[] stripTlsAppData(byte[] packet, int len) {
+        if (packet != null && len >= 5 && packet[0] == 0x17 && packet[1] == 0x03 && packet[2] == 0x03) {
+            int recLen = ((packet[3] & 0xFF) << 8) | (packet[4] & 0xFF);
+            if (recLen > 0 && recLen <= len - 5) {
+                byte[] unwrapped = new byte[recLen];
+                System.arraycopy(packet, 5, unwrapped, 0, recLen);
+                return unwrapped;
+            }
+        }
+        return null;
+    }
 
     public static byte[] buildTlsRealityClientHello(byte[] innerAegsPayload, String sni) {
-        if (sni == null || sni.isEmpty()) sni = DEFAULT_REALITY_SNI;
+        if (sni == null || sni.isEmpty() || "www.cloudflare.com".equals(sni)) {
+            sni = getRandomWhitelistSni();
+        }
         try {
             java.io.ByteArrayOutputStream ext = new java.io.ByteArrayOutputStream();
 
@@ -772,16 +843,14 @@ public final class AegsProtocol {
             ext.write(0x02);
             ext.write(0x03); ext.write(0x04);
 
-            // 5. Encrypted Client Hello (ECH, 0xfe0d) encapsulating AEGS Handshake / Frame!
+            // 5. Encrypted Client Hello (ECH, 0xfe0d) encapsulating AEGS Handshake / Frame (Zero Static Signatures)
             ext.write(0xfe); ext.write(0x0d);
-            byte[] magic = new byte[]{'A', 'E', 'G', '1'};
-            int echDataLen = 6 + magic.length + innerAegsPayload.length;
+            int echDataLen = 6 + innerAegsPayload.length;
             ext.write((echDataLen >> 8) & 0xFF); ext.write(echDataLen & 0xFF);
             ext.write(0x00);
             ext.write(0x00); ext.write(0x20);
             ext.write(0x00); ext.write(0x01);
             ext.write(0x01);
-            ext.write(magic);
             ext.write(innerAegsPayload);
 
             byte[] extBytes = ext.toByteArray();
@@ -845,9 +914,16 @@ public final class AegsProtocol {
             if ((packet[i] & 0xFF) == 0xFE && (packet[i + 1] & 0xFF) == 0x0D) {
                 int extLen = ((packet[i + 2] & 0xFF) << 8) | (packet[i + 3] & 0xFF);
                 int extEnd = Math.min(len, i + 4 + extLen);
-                for (int j = i + 4; j + 4 <= extEnd; j++) {
-                    if (packet[j] == 'A' && packet[j + 1] == 'E' && packet[j + 2] == 'G' && packet[j + 3] == '1') {
-                        int payloadStart = j + 4;
+                if (extLen >= 6 && i + 4 + 6 <= extEnd) {
+                    if ((packet[i + 4] & 0xFF) == 0x00 &&
+                        (packet[i + 5] & 0xFF) == 0x00 &&
+                        (packet[i + 6] & 0xFF) == 0x20) {
+                        int payloadStart = i + 10;
+                        if (payloadStart + 4 <= extEnd &&
+                            packet[payloadStart] == 'A' && packet[payloadStart + 1] == 'E' &&
+                            packet[payloadStart + 2] == 'G' && packet[payloadStart + 3] == '1') {
+                            payloadStart += 4;
+                        }
                         int payloadLen = extEnd - payloadStart;
                         if (payloadLen > 0) {
                             return java.util.Arrays.copyOfRange(packet, payloadStart, payloadStart + payloadLen);

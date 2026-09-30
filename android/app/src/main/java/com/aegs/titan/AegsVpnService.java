@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Full-Duplex Bi-Directional AEGS v6 Titan VPN Service
+ * Full-Duplex Bi-Directional AEGS v6 Titan Tunnel Service
  *
  * Implements:
  * - Option 3: Chrome 128+ TLS 1.3 Reality ECH Camouflage (open SNI www.cloudflare.com, ECH 0xfe0d)
@@ -41,13 +41,17 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class AegsVpnService extends VpnService implements Runnable {
     private static final String TAG = "AegsVpnService";
-    private static final String CHANNEL_ID = "aegs_vpn_channel";
+    private static final String CHANNEL_ID = "aegs_titan_channel";
     private static final int NOTIF_ID = 1001;
 
     private Thread mMainThread;
     private Thread mTunToUdpThread;
     private Thread mUdpToTunThread;
     private Thread mChaffThread;
+    private Thread mSpeedTickerThread;
+
+    private final AtomicLong mRxBytes = new AtomicLong(0);
+    private final AtomicLong mTxBytes = new AtomicLong(0);
 
     private ParcelFileDescriptor mInterface;
     private DatagramChannel mTunnel;
@@ -55,7 +59,7 @@ public class AegsVpnService extends VpnService implements Runnable {
     private final AtomicBoolean mRunning = new AtomicBoolean(false);
 
     private String mServerIp = "31.76.9.86";
-    private int mServerPort = 50001;
+    private int mServerPort = 443;
     private String mToken = "aegs_secure_token_titan_v6";
     private boolean mSplitTunnel = true;
     private boolean mAdaptiveChaff = true;
@@ -75,15 +79,25 @@ public class AegsVpnService extends VpnService implements Runnable {
     private AegsProtocol.HandshakeResult mSession;
 
     private static final String[] BYPASS_PACKAGES = {
-            "ru.sberbankmobile",
-            "com.idamob.tinkoff.android",
-            "ru.vtb24.mobilebanking",
-            "ru.alfabank.mobile.android",
-            "ru.gosuslugi.net",
-            "ru.yandex.searchplugin",
-            "com.vkontakte.android",
-            "ru.ozon.app.android",
-            "com.wildberries.ru"
+            "ru.sberbankmobile",           // СберБанк
+            "com.idamob.tinkoff.android",   // Т-Банк
+            "ru.vtb24.mobilebanking",      // ВТБ
+            "ru.alfabank.mobile.android",  // Альфа-Банк
+            "com.finserv.pochtabank",      // Почта Банк
+            "ru.raiffeisennews",           // Райффайзенбанк
+            "ru.nspk.mirpay",              // Mir Pay
+            "ru.gosuslugi.net",            // Госуслуги
+            "ru.yandex.searchplugin",      // Яндекс
+            "ru.yandex.yandexmaps",        // Яндекс Карты
+            "ru.yandex.taxi",              // Яндекс Go
+            "com.vkontakte.android",       // ВКонтакте
+            "ru.ozon.app.android",         // Ozon
+            "com.wildberries.ru",          // Wildberries
+            "ru.avito",                    // Авито
+            "ru.kinopoisk",                // Кинопоиск
+            "ru.dostavka.samokat",         // Самокат
+            "com.deliveryclub",            // Маркет Деливери
+            "ru.rutube.app"                // Rutube
     };
 
     @Override
@@ -91,7 +105,7 @@ public class AegsVpnService extends VpnService implements Runnable {
         if (intent != null) {
             String action = intent.getAction();
             if ("STOP".equals(action) || "DISCONNECT".equals(action)) {
-                stopVpn();
+                stopTunnel();
                 return START_NOT_STICKY;
             }
             if ("PAUSE_5MIN".equals(action)) {
@@ -103,7 +117,7 @@ public class AegsVpnService extends VpnService implements Runnable {
                 return START_STICKY;
             }
             if (intent.hasExtra("SERVER_IP")) mServerIp = intent.getStringExtra("SERVER_IP");
-            if (intent.hasExtra("SERVER_PORT")) mServerPort = intent.getIntExtra("SERVER_PORT", 50001);
+            if (intent.hasExtra("SERVER_PORT")) mServerPort = intent.getIntExtra("SERVER_PORT", 443);
             if (intent.hasExtra("TOKEN")) mToken = intent.getStringExtra("TOKEN");
             if (intent.hasExtra("SPLIT_TUNNEL")) mSplitTunnel = intent.getBooleanExtra("SPLIT_TUNNEL", true);
             if (intent.hasExtra("ADAPTIVE_CHAFF")) mAdaptiveChaff = intent.getBooleanExtra("ADAPTIVE_CHAFF", true);
@@ -140,10 +154,13 @@ public class AegsVpnService extends VpnService implements Runnable {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    "AEGS VPN Status",
-                    NotificationManager.IMPORTANCE_LOW
+                    "AEGS Titan Status",
+                    NotificationManager.IMPORTANCE_DEFAULT
             );
-            channel.setDescription("Статус защищенного туннеля AEGS Titan");
+            channel.setDescription("Статус защищенного соединения AEGS Titan");
+            channel.setSound(null, null);
+            channel.enableVibration(false);
+            channel.setShowBadge(true);
             NotificationManager nm = getSystemService(NotificationManager.class);
             if (nm != null) {
                 nm.createNotificationChannel(channel);
@@ -203,11 +220,15 @@ public class AegsVpnService extends VpnService implements Runnable {
                 .setContentText(text)
                 .setSmallIcon(R.drawable.ic_shield)
                 .setContentIntent(piMain)
-                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setCategory(NotificationCompat.CATEGORY_SERVICE)
+                .setOnlyAlertOnce(true)
                 .addAction(R.drawable.ic_shield, mIsPaused ? "Возобновить" : "Пауза 5 мин", piPause)
                 .addAction(R.drawable.ic_shield, "Отключить", piStop)
                 .setOngoing(true);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            b.setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE);
+        }
         return b.build();
     }
 
@@ -320,7 +341,7 @@ public class AegsVpnService extends VpnService implements Runnable {
                 Notification notif = buildNotification("Ошибка подключения к серверу • Проверьте сеть");
                 NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
                 if (nm != null) nm.notify(NOTIF_ID, notif);
-                stopVpn();
+                stopTunnel();
                 return;
             }
 
@@ -329,7 +350,8 @@ public class AegsVpnService extends VpnService implements Runnable {
             builder.setSession("AEGS Titan (" + mSession.assignedIp + ")");
             builder.addAddress(mSession.assignedIp, 24);
             builder.addDnsServer("10.8.0.1"); // Enforce tunnel DNS to prevent leaks
-            builder.addDnsServer("1.1.1.1");
+            builder.addDnsServer("8.8.8.8");
+            builder.addDnsServer("77.88.8.8");
             builder.addRoute("0.0.0.0", 0);
             builder.setMtu(Math.min(mSession.mtu, 1280));
 
@@ -383,23 +405,35 @@ public class AegsVpnService extends VpnService implements Runnable {
                         java.util.Set<String> bypassDomains = prefs.getStringSet("custom_bypass_domains", null);
                         if (bypassDomains == null) {
                             bypassDomains = new java.util.HashSet<>(java.util.Arrays.asList(
-                                    "gosuslugi.ru", "sberbank.ru", "tbank.ru", "vtb.ru",
-                                    "ya.ru", "yandex.ru", "kinopoisk.ru", "ozon.ru", "wildberries.ru"
+                                    "gosuslugi.ru", "sberbank.ru", "sber.ru", "tbank.ru", "tinkoff.ru",
+                                    "vtb.ru", "alfabank.ru", "raiffeisen.ru", "pochtabank.ru", "mirpay.ru",
+                                    "nspk.ru", "sbp.nspk.ru", "nalog.gov.ru", "mos.ru", "ya.ru", "yandex.ru",
+                                    "yandex.net", "kinopoisk.ru", "ozon.ru", "wildberries.ru", "vk.com",
+                                    "vk.ru", "mail.ru", "avito.ru", "rutube.ru", "megamarket.ru", "2gis.ru"
                             ));
                         }
+                        java.util.concurrent.ExecutorService dnsExecutor = java.util.concurrent.Executors.newFixedThreadPool(6);
+                        java.util.List<java.util.concurrent.Future<InetAddress[]>> futures = new java.util.ArrayList<>();
                         for (String domain : bypassDomains) {
+                            futures.add(dnsExecutor.submit(() -> {
+                                try {
+                                    return InetAddress.getAllByName(domain);
+                                } catch (Exception e) {
+                                    return new InetAddress[0];
+                                }
+                            }));
+                        }
+                        for (java.util.concurrent.Future<InetAddress[]> fut : futures) {
                             try {
-                                InetAddress[] addrs = InetAddress.getAllByName(domain);
+                                InetAddress[] addrs = fut.get(250, java.util.concurrent.TimeUnit.MILLISECONDS);
                                 for (InetAddress addr : addrs) {
                                     if (addr instanceof Inet4Address) {
                                         builder.excludeRoute(new IpPrefix(addr, 32));
-                                        Log.d(TAG, "[AEGS] Excluded direct route for bypass domain: " + domain + " -> " + addr.getHostAddress());
                                     }
                                 }
-                            } catch (Exception e) {
-                                Log.w(TAG, "[AEGS] Could not resolve bypass domain " + domain + ": " + e.getMessage());
-                            }
+                            } catch (Exception ignored) {}
                         }
+                        dnsExecutor.shutdownNow();
                     } catch (Exception e) {
                         Log.w(TAG, "[AEGS] Failed to configure domain route exclusion: " + e.getMessage());
                     }
@@ -409,8 +443,12 @@ public class AegsVpnService extends VpnService implements Runnable {
             mInterface = builder.establish();
             if (mInterface == null) {
                 Log.e(TAG, "[AEGS] Failed to establish TUN interface");
-                stopVpn();
+                stopTunnel();
                 return;
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+                setUnderlyingNetworks(null); // Seamless Wi-Fi <-> LTE network handover
             }
 
             mTunnel.configureBlocking(true);
@@ -419,8 +457,8 @@ public class AegsVpnService extends VpnService implements Runnable {
             startWorkers();
 
         } catch (Exception e) {
-            Log.e(TAG, "[AEGS] Fatal VPN error: " + e.getMessage(), e);
-            stopVpn();
+            Log.e(TAG, "[AEGS] Fatal tunnel error: " + e.getMessage(), e);
+            stopTunnel();
         }
     }
 
@@ -436,11 +474,15 @@ public class AegsVpnService extends VpnService implements Runnable {
                     int len = in.read(ipBuf);
                     if (len > 0) {
                         long seq = mTxSeq.incrementAndGet();
+                        mTxBytes.addAndGet(len);
                         mLastActivityTime.set(System.currentTimeMillis());
 
                         byte[] wire = AegsProtocol.buildDataPacket(
                                 ipBuf, len, mSession.keyId, mSession.maskKey,
                                 mSession.sendKey, seq, false);
+                        if (mProtocolMode == SettingsActivity.PROTO_EMERGENCY || mProtocolMode == SettingsActivity.PROTO_REALITY_ECH || mServerPort == 443) {
+                            wire = AegsProtocol.wrapTlsAppData(wire, wire.length);
+                        }
 
                         synchronized (mTunnelLock) {
                             if (mTunnel != null && mTunnel.isOpen()) {
@@ -469,10 +511,11 @@ public class AegsVpnService extends VpnService implements Runnable {
                         udpBuf.get(rawPacket);
 
                         byte[] plainIp = AegsProtocol.parseDataPacket(
-                                rawPacket, readBytes, mSession.keyId, mSession.maskKey, mSession.recvKey);
+                                rawPacket, readBytes, mSession.keyId, mSession.maskKey, mSession.altMaskKey, mSession.recvKey);
 
                         if (plainIp != null) {
                             if (plainIp.length > 0) {
+                                mRxBytes.addAndGet(plainIp.length);
                                 out.write(plainIp);
                             }
                             mLastActivityTime.set(System.currentTimeMillis());
@@ -512,6 +555,9 @@ public class AegsVpnService extends VpnService implements Runnable {
                         byte[] chaffPkt = AegsProtocol.buildDataPacket(
                                 new byte[0], 0, mSession.keyId, mSession.maskKey,
                                 mSession.sendKey, seq, true);
+                        if (mProtocolMode == SettingsActivity.PROTO_EMERGENCY || mProtocolMode == SettingsActivity.PROTO_REALITY_ECH || mServerPort == 443) {
+                            chaffPkt = AegsProtocol.wrapTlsAppData(chaffPkt, chaffPkt.length);
+                        }
 
                         synchronized (mTunnelLock) {
                             if (mTunnel != null && mTunnel.isOpen()) {
@@ -521,18 +567,66 @@ public class AegsVpnService extends VpnService implements Runnable {
                     }
                 } catch (InterruptedException e) {
                     break;
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    Log.w(TAG, "[AEGS] Chaff heartbeat error: " + e.getMessage());
+                }
             }
         }, "AegsChaffEngine");
         mChaffThread.start();
+
+        // Worker 4: Live Speed & Notification Ticker (AmneziaVPN style)
+        mSpeedTickerThread = new Thread(() -> {
+            long lastRx = mRxBytes.get();
+            long lastTx = mTxBytes.get();
+            while (mRunning.get()) {
+                try {
+                    Thread.sleep(1000);
+                    if (!mRunning.get()) break;
+
+                    long curRx = mRxBytes.get();
+                    long curTx = mTxBytes.get();
+                    long rxDelta = Math.max(0, curRx - lastRx);
+                    long txDelta = Math.max(0, curTx - lastTx);
+                    lastRx = curRx;
+                    lastTx = curTx;
+
+                    if (!mIsPaused) {
+                        String rxStr = formatBytesSpeed(rxDelta);
+                        String txStr = formatBytesSpeed(txDelta);
+                        String ipStr = (mSession != null && mSession.assignedIp != null) ? " • " + mSession.assignedIp : "";
+                        String speedText = "↓ " + rxStr + "   ↑ " + txStr + ipStr;
+
+                        Notification notif = buildNotification(speedText);
+                        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                        if (nm != null) {
+                            nm.notify(NOTIF_ID, notif);
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    break;
+                } catch (Exception ignored) {}
+            }
+        }, "AegsSpeedTicker");
+        mSpeedTickerThread.start();
     }
 
-    private void stopVpn() {
+    private static String formatBytesSpeed(long bytesPerSec) {
+        if (bytesPerSec >= 1_048_576) {
+            return String.format(java.util.Locale.US, "%.1f МБ/с", bytesPerSec / 1_048_576.0);
+        } else if (bytesPerSec >= 1024) {
+            return String.format(java.util.Locale.US, "%.0f КБ/с", bytesPerSec / 1024.0);
+        } else {
+            return bytesPerSec + " Б/с";
+        }
+    }
+
+    private void stopTunnel() {
         mRunning.set(false);
         if (mMainThread != null) mMainThread.interrupt();
         if (mTunToUdpThread != null) mTunToUdpThread.interrupt();
         if (mUdpToTunThread != null) mUdpToTunThread.interrupt();
         if (mChaffThread != null) mChaffThread.interrupt();
+        if (mSpeedTickerThread != null) mSpeedTickerThread.interrupt();
 
         cleanup();
 
@@ -568,7 +662,7 @@ public class AegsVpnService extends VpnService implements Runnable {
 
     @Override
     public void onDestroy() {
-        stopVpn();
+        stopTunnel();
         super.onDestroy();
     }
 }

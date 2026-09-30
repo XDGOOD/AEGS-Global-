@@ -1,0 +1,141 @@
+<Window x:Class="AegsTitan.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AEGS Titan Desktop v6.5" Height="620" Width="440"
+        WindowStartupLocation="CenterScreen"
+        Background="#09090B" Foreground="#FFFBEB"
+        ResizeMode="CanMinimize"
+        FontFamily="Segoe UI">
+    
+    <Window.Resources>
+        <LinearGradientBrush x:Key="AmberGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#F59E0B" Offset="0"/>
+            <GradientStop Color="#D97706" Offset="1"/>
+        </LinearGradientBrush>
+        
+        <LinearGradientBrush x:Key="GreenGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#10B981" Offset="0"/>
+            <GradientStop Color="#059669" Offset="1"/>
+        </LinearGradientBrush>
+
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="Background" Value="#18181B"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="BorderBrush" Value="#27272A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="14"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,16">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="🛡️" FontSize="22" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Text="AEGS" FontWeight="Bold" FontSize="20" Foreground="#F59E0B"/>
+                <TextBlock Text=" TITAN" FontWeight="Bold" FontSize="20" Foreground="#FAFAFA"/>
+            </StackPanel>
+            <TextBlock Text="v6.5 Desktop" Foreground="#71717A" VerticalAlignment="Center" HorizontalAlignment="Right" FontSize="12"/>
+        </DockPanel>
+
+        <!-- Main Connect Shield Card -->
+        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+            <StackPanel HorizontalAlignment="Center">
+                <!-- Connect Toggle Button -->
+                <Button x:Name="BtnConnect" Width="110" Height="110" Click="BtnConnect_Click" Cursor="Hand" Margin="0,8,0,12">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Grid>
+                                <Ellipse x:Name="OuterGlow" Fill="#27272A" Stroke="#3F3F46" StrokeThickness="2"/>
+                                <Ellipse x:Name="InnerCore" Width="84" Height="84" Fill="#18181B"/>
+                                <TextBlock x:Name="BtnIcon" Text="⚡" FontSize="36" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="OuterGlow" Property="Stroke" Value="#F59E0B"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+
+                <!-- Status Label -->
+                <TextBlock x:Name="TxtStatus" Text="Служба готова к запуску" FontSize="14" FontWeight="SemiBold" 
+                           Foreground="#A1A1AA" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                <TextBlock x:Name="TxtSubStatus" Text="TLS 1.3 Reality ECH • Порт 443" FontSize="11" 
+                           Foreground="#71717A" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Live Metrics & Controls -->
+        <StackPanel Grid.Row="2">
+            <!-- Metrics Row -->
+            <UniformGrid Columns="3" Margin="0,0,0,14">
+                <Border Style="{StaticResource CardStyle}" Margin="0,0,6,0">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="↓ Входящий" FontSize="11" Foreground="#A1A1AA" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="TxtRxSpeed" Text="0.0 КБ/с" FontSize="14" FontWeight="Bold" Foreground="#10B981" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardStyle}" Margin="3,0,3,0">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="↑ Исходящий" FontSize="11" Foreground="#A1A1AA" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="TxtTxSpeed" Text="0.0 КБ/с" FontSize="14" FontWeight="Bold" Foreground="#F59E0B" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardStyle}" Margin="6,0,0,0">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="Задержка RTT" FontSize="11" Foreground="#A1A1AA" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="TxtPing" Text="-- мс" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <!-- Mode Selector -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="Профиль маскировки трафика" FontSize="12" FontWeight="SemiBold" Foreground="#D4D4D8" Margin="0,0,0,8"/>
+                    <ComboBox x:Name="CmbProfile" Background="#27272A" Foreground="#FAFAFA" BorderBrush="#3F3F46" Padding="6" SelectedIndex="0">
+                        <ComboBoxItem Content="Стелс-режим (TLS 1.3 Reality ECH • 443)"/>
+                        <ComboBoxItem Content="Fast Emergency (0-RTT + IAT Shaper)"/>
+                        <ComboBoxItem Content="Turbo PQC (Direct Quantum UDP)"/>
+                    </ComboBox>
+                </StackPanel>
+            </Border>
+
+            <!-- Split-Routing Switch -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                <DockPanel>
+                    <CheckBox x:Name="ChkSplitRouting" IsChecked="True" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <StackPanel>
+                        <TextBlock Text="Умный Split-Routing (Direct РФ)" FontSize="12" FontWeight="SemiBold" Foreground="#FAFAFA"/>
+                        <TextBlock Text="Банки, Госуслуги, Ozon и маркетплейсы идут напрямую без туннеля." FontSize="11" Foreground="#71717A" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <!-- Server & Key Config Box -->
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,6">
+                        <TextBlock Text="Параметры соединения" FontSize="12" FontWeight="SemiBold" Foreground="#D4D4D8"/>
+                        <TextBlock Text="31.76.9.86:443" Foreground="#F59E0B" FontSize="11" HorizontalAlignment="Right"/>
+                    </DockPanel>
+                    <TextBox x:Name="TxtToken" Background="#27272A" Foreground="#FAFAFA" BorderBrush="#3F3F46" 
+                             Padding="6" FontSize="11" Text="aegs_secure_token_titan_v6" FontFamily="Consolas"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- Footer / Log Ticker -->
+        <TextBlock x:Name="TxtLogTicker" Grid.Row="3" Text="Готово к подключению. Нажмите кнопку выше." 
+                   Foreground="#71717A" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,12,0,0"/>
+    </Grid>
+</Window>

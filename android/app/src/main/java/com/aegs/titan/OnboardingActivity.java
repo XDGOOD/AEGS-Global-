@@ -122,7 +122,7 @@ public class OnboardingActivity extends AppCompatActivity {
         if (text == null || text.isEmpty()) return false;
 
         String ip = "31.76.9.86";
-        int port = 50001;
+        int port = 443;
         String token = null;
 
         if (text.startsWith("aegs://")) {
@@ -191,7 +191,7 @@ public class OnboardingActivity extends AppCompatActivity {
             mAnimView.setMode(AnimShieldSpeedometerView.MODE_WELCOME);
 
             mTvTitle.setText("Добро пожаловать в AEGS");
-            mTvSubtitle.setText("Новейший протокол v6 Titan для надежного обхода DPI и блокировок любого уровня.");
+            mTvSubtitle.setText("Новейший высокоскоростной протокол v6 Titan для защищенной и конфиденциальной связи.");
             mBtnNext.setText("Далее");
 
             setDotState(mDot0, true);
@@ -232,7 +232,7 @@ public class OnboardingActivity extends AppCompatActivity {
             mLlSourceSelector.setVisibility(View.VISIBLE);
 
             mTvTitle.setText("🔑 Ключ доступа к сети");
-            mTvSubtitle.setText("Для работы протокола необходим персональный ключ доступа (100 руб/мес, до 4 устройств). Оформите подписку в боте @aegs_support_bot.");
+            mTvSubtitle.setText("Для работы протокола необходим персональный ключ доступа (до 4 устройств). Получите ключ у администратора или в боте @aegs_support_bot.");
 
             if (mKeyConfigured) {
                 mBtnNext.setText("🚀 Запустить AEGS");

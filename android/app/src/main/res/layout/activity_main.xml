@@ -56,7 +56,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="AEGS VPN"
+                                android:text="AEGS"
                                 android:textColor="#FFFBEB"
                                 android:textSize="20sp"
                                 android:textStyle="bold" />
@@ -180,7 +180,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Для подключения к зашифрованной сети AEGS v6 Titan необходим персональный ключ доступа. Оформите подписку в Telegram-боте @aegs_support_bot всего от 100 руб/мес (до 4 устройств одновременно)."
+                    android:text="Для подключения к защищенной сети AEGS v6 Titan необходим персональный ключ доступа (до 4 устройств одновременно). Получите ключ в Telegram-боте @aegs_support_bot или вставьте готовый токен."
                     android:textColor="#D4D4D8"
                     android:textSize="13sp"
                     android:lineSpacingExtra="2dp"
@@ -191,7 +191,7 @@
                     android:id="@+id/btn_buy_bot"
                     android:layout_width="match_parent"
                     android:layout_height="50dp"
-                    android:text="КУПИТЬ / ПОЛУЧИТЬ КЛЮЧ В БОТЕ"
+                    android:text="ПОЛУЧИТЬ КЛЮЧ В TELEGRAM-БОТЕ"
                     android:textColor="#18181B"
                     android:textSize="13.5sp"
                     android:textStyle="bold"
@@ -210,7 +210,7 @@
                     android:id="@+id/et_access_key"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="aegs://31.76.9.86:50001/... или токен"
+                    android:hint="aegs://31.76.9.86:443/... или токен"
                     android:textColor="#FFFBEB"
                     android:textColorHint="#71717A"
                     android:background="@drawable/bg_input_rounded"
@@ -301,7 +301,7 @@
                     android:id="@+id/tv_active_server"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Сервер: 31.76.9.86:50001 (AEGS Titan-01)"
+                    android:text="Сервер: 31.76.9.86:443 (AEGS Titan-01)"
                     android:textColor="#A8A29E"
                     android:textSize="12sp"
                     android:layout_marginBottom="12dp" />
@@ -327,7 +327,7 @@
                         android:layout_width="0dp"
                         android:layout_height="38dp"
                         android:layout_weight="1"
-                        android:text="Продлить в боте"
+                        android:text="Управление в боте"
                         android:textColor="#F59E0B"
                         android:textSize="11.5sp"
                         android:textStyle="bold"
@@ -488,7 +488,7 @@
                     android:id="@+id/tv_split_status"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Банки РФ, Госуслуги, Ozon, WB работают напрямую в обход VPN."
+                    android:text="Банки РФ, Госуслуги, Ozon, WB работают напрямую на максимальной скорости."
                     android:textColor="#A8A29E"
                     android:textSize="12sp"
                     android:layout_marginTop="4dp" />

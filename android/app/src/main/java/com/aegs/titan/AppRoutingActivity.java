@@ -202,8 +202,8 @@ public class AppRoutingActivity extends AppCompatActivity {
                 mPrefs.edit().putInt("routing_mode", mRoutingMode).apply();
                 applyQueryAndFilter();
                 String modeName = (mRoutingMode == 1)
-                        ? "Режим: Только выбранные приложения идут через VPN"
-                        : "Режим: Выбранные приложения в обход VPN (прямое соединение)";
+                        ? "Режим: Только выбранные приложения идут через туннель"
+                        : "Режим: Выбранные приложения напрямую (Direct)";
                 Toast.makeText(this, modeName, Toast.LENGTH_SHORT).show();
             });
         }
@@ -248,7 +248,7 @@ public class AppRoutingActivity extends AppCompatActivity {
                 }
                 savePreferences();
                 applyQueryAndFilter();
-                Toast.makeText(this, "Все приложения направлены через VPN!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Все приложения направлены через туннель AEGS!", Toast.LENGTH_SHORT).show();
             });
         }
 
@@ -261,7 +261,7 @@ public class AppRoutingActivity extends AppCompatActivity {
                 }
                 savePreferences();
                 applyQueryAndFilter();
-                Toast.makeText(this, "Все приложения пущены напрямую в обход VPN!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Все приложения пущены напрямую (Direct)!", Toast.LENGTH_SHORT).show();
             });
         }
 
@@ -288,9 +288,9 @@ public class AppRoutingActivity extends AppCompatActivity {
         applyQueryAndFilter();
 
         if (mBtnApplySmartRu != null) {
-            mBtnApplySmartRu.setText("✓ " + count + " сервисов РФ настроены в обход VPN");
+            mBtnApplySmartRu.setText("✓ " + count + " сервисов РФ настроены в прямой доступ");
         }
-        Toast.makeText(this, "⚡ " + count + " сервисов РФ переведены в обход VPN (банки, Госуслуги, доставка)", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "⚡ " + count + " сервисов РФ переведены в прямой доступ (банки, Госуслуги, доставка)", Toast.LENGTH_LONG).show();
     }
 
     private void setupSearch() {
@@ -416,10 +416,10 @@ public class AppRoutingActivity extends AppCompatActivity {
                             mTvSmartTitle.setText("🛡️ Умный анализ: найдено " + mDetectedRuCount + " сервисов РФ");
                         }
                         if (mTvSmartDesc != null) {
-                            mTvSmartDesc.setText("Банки РФ, Госуслуги и доставка блокируют иностранные IP. AEGS рекомендует пустить их напрямую в обход VPN.");
+                            mTvSmartDesc.setText("Банки РФ, Госуслуги и доставка работают быстрее и без проверок напрямую. AEGS рекомендует прямой маршрут.");
                         }
                         if (mBtnApplySmartRu != null) {
-                            mBtnApplySmartRu.setText("⚡ Настроить все " + mDetectedRuCount + " сервисов РФ в обход VPN");
+                            mBtnApplySmartRu.setText("⚡ Включить прямой доступ для " + mDetectedRuCount + " сервисов РФ");
                         }
                     } else {
                         mCardSmartAnalysis.setVisibility(View.GONE);
@@ -461,8 +461,8 @@ public class AppRoutingActivity extends AppCompatActivity {
         mAdapter.notifyDataSetChanged();
 
         if (mTvSubtitle != null) {
-            String modePrefix = (mRoutingMode == 1) ? "[VPN Only] " : "[Bypass] ";
-            mTvSubtitle.setText(modePrefix + totalVpn + " через VPN • " + totalDirect + " напрямую • " + mDetectedRuCount + " РФ");
+            String modePrefix = (mRoutingMode == 1) ? "[AEGS Only] " : "[Direct Bypass] ";
+            mTvSubtitle.setText(modePrefix + totalVpn + " через AEGS • " + totalDirect + " напрямую • " + mDetectedRuCount + " РФ");
         }
     }
 
@@ -584,8 +584,8 @@ public class AppRoutingActivity extends AppCompatActivity {
                     for (AppInfo a : mAllApps) {
                         if (a.isDirect) directCount++;
                     }
-                    String modePrefix = (mRoutingMode == 1) ? "[VPN Only] " : "[Bypass] ";
-                    mTvSubtitle.setText(modePrefix + (mAllApps.size() - directCount) + " через VPN • " + directCount + " напрямую • " + mDetectedRuCount + " РФ");
+                    String modePrefix = (mRoutingMode == 1) ? "[AEGS Only] " : "[Direct Bypass] ";
+                    mTvSubtitle.setText(modePrefix + (mAllApps.size() - directCount) + " через AEGS • " + directCount + " напрямую • " + mDetectedRuCount + " РФ");
                 }
             });
 
@@ -595,21 +595,21 @@ public class AppRoutingActivity extends AppCompatActivity {
         private void updateItemStatusText(TextView tvStatus, boolean isDirect) {
             if (tvStatus == null) return;
             if (mRoutingMode == 1) {
-                // VPN only mode
+                // Tunnel only mode
                 if (!isDirect) {
-                    tvStatus.setText("⚡ В туннеле VPN");
+                    tvStatus.setText("⚡ В туннеле AEGS");
                     tvStatus.setTextColor(Color.parseColor("#F59E0B"));
                 } else {
-                    tvStatus.setText("➡️ Вне VPN (напрямую)");
+                    tvStatus.setText("➡️ Прямой доступ (Direct)");
                     tvStatus.setTextColor(Color.parseColor("#A8A29E"));
                 }
             } else {
                 // Bypass mode
                 if (!isDirect) {
-                    tvStatus.setText("⚡ Через VPN");
+                    tvStatus.setText("⚡ Через AEGS");
                     tvStatus.setTextColor(Color.parseColor("#F59E0B"));
                 } else {
-                    tvStatus.setText("➡️ Напрямую (обход VPN)");
+                    tvStatus.setText("➡️ Напрямую (Direct)");
                     tvStatus.setTextColor(Color.parseColor("#34D399"));
                 }
             }
