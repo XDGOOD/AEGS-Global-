@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -16,9 +15,6 @@ namespace AegsTitan
 
         private readonly DispatcherTimer _sessionTimer;
         private DateTime _connectedTime;
-        private readonly List<double> _rxHistory = new();
-        private readonly List<double> _txHistory = new();
-        private const int MaxHistoryPoints = 25;
 
         public MainWindow()
         {
@@ -34,14 +30,18 @@ namespace AegsTitan
                 Interval = TimeSpan.FromSeconds(1)
             };
             _sessionTimer.Tick += SessionTimer_Tick;
+        }
 
-            // Initialize empty graph points
-            for (int i = 0; i < MaxHistoryPoints; i++)
-            {
-                _rxHistory.Add(0);
-                _txHistory.Add(0);
-            }
-            RedrawGraph();
+        private void BtnOpenSettings_Click(object sender, RoutedEventArgs e)
+        {
+            DashboardView.Visibility = Visibility.Collapsed;
+            SettingsView.Visibility = Visibility.Visible;
+        }
+
+        private void BtnBackToDashboard_Click(object sender, RoutedEventArgs e)
+        {
+            SettingsView.Visibility = Visibility.Collapsed;
+            DashboardView.Visibility = Visibility.Visible;
         }
 
         private async void BtnConnect_Click(object sender, RoutedEventArgs e)
@@ -53,10 +53,9 @@ namespace AegsTitan
             else
             {
                 BtnConnect.IsEnabled = false;
-                TxtStatusTitle.Text = "CONNECTING...";
-                TxtStatusTitle.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"));
-                TxtStatus.Text = "Установка защищённого соединения...";
-                TxtSessionTimer.Text = "Подключение к узлу...";
+                TxtStatus.Text = "Подключение...";
+                TxtStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E3B341"));
+                TxtSessionTimer.Text = "Установка защищённого соединения...";
 
                 string token = TxtToken.Text.Trim();
                 if (string.IsNullOrEmpty(token)) token = "aegs_secure_token_titan_v6";
@@ -67,9 +66,8 @@ namespace AegsTitan
 
                 if (!success)
                 {
-                    TxtStatusTitle.Text = "ERROR";
-                    TxtStatusTitle.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
-                    TxtStatus.Text = "Ошибка подключения к серверу";
+                    TxtStatus.Text = "Ошибка подключения";
+                    TxtStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F85149"));
                     TxtSessionTimer.Text = "Повторите попытку";
                 }
             }
@@ -84,48 +82,32 @@ namespace AegsTitan
                     _connectedTime = DateTime.Now;
                     _sessionTimer.Start();
 
-                    TxtStatusTitle.Text = "SECURE";
-                    TxtStatusTitle.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#00F2FE"));
-                    TxtStatus.Text = "Статус: Защита активна (Connected)";
+                    TxtStatus.Text = "Защита активна";
+                    TxtStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3FB950"));
                     TxtSubStatus.Text = $"IP: {_engine.Session?.AssignedIp ?? "10.8.0.2"} • Reality ECH 443";
 
-                    ShieldGlowContainer.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#064E3B"));
-                    ShieldGlowContainer.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"));
-                    ShieldIconText.Text = "🛡️";
-
-                    BtnConnectText.Text = "DISCONNECT";
-                    BtnConnectText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
-                    BtnActionIcon.Text = "⏹";
+                    ShieldCircle.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0D2818"));
+                    ShieldCircle.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3FB950"));
+                    BtnActionText.Text = "СТОП";
+                    BtnActionText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F85149"));
                 }
                 else
                 {
                     _sessionTimer.Stop();
 
-                    TxtStatusTitle.Text = "STANDBY";
-                    TxtStatusTitle.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94A3B8"));
-                    TxtStatus.Text = "Статус: Готово к запуску";
-                    TxtSubStatus.Text = "TLS 1.3 Reality ECH • 0-RTT • Порт 443";
-                    TxtSessionTimer.Text = "Нажмите для старта";
+                    TxtStatus.Text = "Готово к подключению";
+                    TxtStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E6EDF3"));
+                    TxtSubStatus.Text = "TLS 1.3 Reality ECH • 0-RTT";
+                    TxtSessionTimer.Text = "Нажмите щит для старта";
 
-                    ShieldGlowContainer.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#182338"));
-                    ShieldGlowContainer.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#00F2FE"));
-                    ShieldIconText.Text = "🛡️";
-
-                    BtnConnectText.Text = "CONNECT";
-                    BtnConnectText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#00F2FE"));
-                    BtnActionIcon.Text = "⚡";
+                    ShieldCircle.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#111827"));
+                    ShieldCircle.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1F2937"));
+                    BtnActionText.Text = "СТАРТ";
+                    BtnActionText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#00F2FE"));
 
                     TxtRxSpeed.Text = "0.0 КБ/с";
                     TxtTxSpeed.Text = "0.0 КБ/с";
                     TxtPing.Text = "-- мс";
-
-                    // Reset graph
-                    for (int i = 0; i < MaxHistoryPoints; i++)
-                    {
-                        _rxHistory[i] = 0;
-                        _txHistory[i] = 0;
-                    }
-                    RedrawGraph();
                 }
             });
         }
@@ -143,44 +125,7 @@ namespace AegsTitan
                 TxtRxSpeed.Text = FormatSpeed(rxBytesSec);
                 TxtTxSpeed.Text = FormatSpeed(txBytesSec);
                 TxtPing.Text = $"{pingMs} мс";
-
-                // Add to history and redraw wave graph
-                _rxHistory.Add(rxBytesSec);
-                if (_rxHistory.Count > MaxHistoryPoints) _rxHistory.RemoveAt(0);
-
-                _txHistory.Add(txBytesSec);
-                if (_txHistory.Count > MaxHistoryPoints) _txHistory.RemoveAt(0);
-
-                RedrawGraph();
             });
-        }
-
-        private void RedrawGraph()
-        {
-            double width = GraphCanvas.ActualWidth > 50 ? GraphCanvas.ActualWidth : 420;
-            double height = GraphCanvas.ActualHeight > 50 ? GraphCanvas.ActualHeight : 140;
-
-            double maxVal = 1024 * 100; // minimum scale 100 KB/s
-            foreach (var v in _rxHistory) if (v > maxVal) maxVal = v;
-            foreach (var v in _txHistory) if (v > maxVal) maxVal = v;
-
-            var rxPoints = new PointCollection();
-            var txPoints = new PointCollection();
-
-            double stepX = width / (MaxHistoryPoints - 1);
-
-            for (int i = 0; i < MaxHistoryPoints; i++)
-            {
-                double x = i * stepX;
-                double rxY = height - 10 - (_rxHistory[i] / maxVal) * (height - 25);
-                double txY = height - 10 - (_txHistory[i] / maxVal) * (height - 25);
-
-                rxPoints.Add(new Point(x, Math.Max(5, Math.Min(height - 5, rxY))));
-                txPoints.Add(new Point(x, Math.Max(5, Math.Min(height - 5, txY))));
-            }
-
-            PolyDownload.Points = rxPoints;
-            PolyUpload.Points = txPoints;
         }
 
         private void Engine_OnLog(string msg)
