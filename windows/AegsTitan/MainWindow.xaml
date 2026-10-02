@@ -1,141 +1,279 @@
-<Window x:Class="AegsTitan.MainWindow"
+<ui:FluentWindow x:Class="AegsTitan.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="AEGS Titan Desktop v6.5" Height="620" Width="440"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Title="AEGS Titan Desktop v6.5" Height="700" Width="920"
+        MinHeight="620" MinWidth="860"
         WindowStartupLocation="CenterScreen"
-        Background="#09090B" Foreground="#FFFBEB"
-        ResizeMode="CanMinimize"
-        FontFamily="Segoe UI">
+        ExtendsContentIntoTitleBar="True"
+        WindowBackdropType="Mica"
+        WindowCornerPreference="Round"
+        Background="#0B0D13" Foreground="#F4F4F5"
+        FontFamily="Segoe UI Variable, Segoe UI, sans-serif">
     
-    <Window.Resources>
-        <LinearGradientBrush x:Key="AmberGradient" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#F59E0B" Offset="0"/>
-            <GradientStop Color="#D97706" Offset="1"/>
-        </LinearGradientBrush>
-        
-        <LinearGradientBrush x:Key="GreenGradient" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#10B981" Offset="0"/>
-            <GradientStop Color="#059669" Offset="1"/>
+    <ui:FluentWindow.Resources>
+        <!-- Accent Gradients -->
+        <LinearGradientBrush x:Key="CyanGlowBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#00F2FE" Offset="0"/>
+            <GradientStop Color="#4FACFE" Offset="1"/>
         </LinearGradientBrush>
 
-        <Style x:Key="CardStyle" TargetType="Border">
-            <Setter Property="Background" Value="#18181B"/>
-            <Setter Property="CornerRadius" Value="12"/>
-            <Setter Property="BorderBrush" Value="#27272A"/>
+        <LinearGradientBrush x:Key="GraphFillBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#3000F2FE" Offset="0"/>
+            <GradientStop Color="#000B0D13" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="PurpleGraphBrush" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#00F2FE" Offset="0"/>
+            <GradientStop Color="#8B5CF6" Offset="1"/>
+        </LinearGradientBrush>
+
+        <!-- Glass Card Style -->
+        <Style x:Key="MicaCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="#131722"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="BorderBrush" Value="#22283A"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="14"/>
+            <Setter Property="Padding" Value="16"/>
         </Style>
-    </Window.Resources>
 
-    <Grid Margin="20">
+        <Style x:Key="SubtleHeader" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+    </ui:FluentWindow.Resources>
+
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <DockPanel Grid.Row="0" Margin="0,0,0,16">
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="🛡️" FontSize="22" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock Text="AEGS" FontWeight="Bold" FontSize="20" Foreground="#F59E0B"/>
-                <TextBlock Text=" TITAN" FontWeight="Bold" FontSize="20" Foreground="#FAFAFA"/>
-            </StackPanel>
-            <TextBlock Text="v6.5 Desktop" Foreground="#71717A" VerticalAlignment="Center" HorizontalAlignment="Right" FontSize="12"/>
-        </DockPanel>
+        <!-- Modern Fluent TitleBar -->
+        <ui:TitleBar Grid.Row="0" Title="AEGS TITAN Desktop — Next-Gen Transport v6.5" 
+                     Margin="12,4,12,0"/>
 
-        <!-- Main Connect Shield Card -->
-        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,16">
-            <StackPanel HorizontalAlignment="Center">
-                <!-- Connect Toggle Button -->
-                <Button x:Name="BtnConnect" Width="110" Height="110" Click="BtnConnect_Click" Cursor="Hand" Margin="0,8,0,12">
-                    <Button.Template>
-                        <ControlTemplate TargetType="Button">
+        <!-- Main 2-Column Layout (Dashboard on Left, Settings on Right) -->
+        <Grid Grid.Row="1" Margin="20,10,20,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.1*"/>
+                <ColumnDefinition Width="20"/>
+                <ColumnDefinition Width="1*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- LEFT COLUMN: Dashboard -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Status Shield Card -->
+                <Border Grid.Row="0" Style="{StaticResource MicaCardStyle}" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Glowing Shield Icon Container -->
+                        <Border x:Name="ShieldGlowContainer" Width="64" Height="64" CornerRadius="18" 
+                                Background="#182338" BorderBrush="#00F2FE" BorderThickness="1.5" 
+                                VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock x:Name="ShieldIconText" Text="🛡️" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="TxtStatusTitle" Text="SECURE" FontWeight="Bold" FontSize="20" Foreground="#00F2FE"/>
+                            <TextBlock x:Name="TxtStatus" Text="Статус: Готово к запуску" FontSize="13" Foreground="#94A3B8" Margin="0,2,0,0"/>
+                            <TextBlock x:Name="TxtSubStatus" Text="TLS 1.3 Reality ECH • 0-RTT • Порт 443" FontSize="11" Foreground="#64748B" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Live Network Activity Card -->
+                <Border Grid.Row="1" Style="{StaticResource MicaCardStyle}" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <DockPanel Grid.Row="0" Margin="0,0,0,10">
+                            <TextBlock Text="Network Activity" FontSize="14" FontWeight="SemiBold" Foreground="#F1F5F9" VerticalAlignment="Center"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <TextBlock Text="● Исх: " FontSize="11" Foreground="#00F2FE" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="TxtTxSpeed" Text="0.0 КБ/с" FontSize="11" FontWeight="Bold" Foreground="#00F2FE" Margin="0,0,12,0"/>
+                                <TextBlock Text="● Вх: " FontSize="11" Foreground="#8B5CF6" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="TxtRxSpeed" Text="0.0 КБ/с" FontSize="11" FontWeight="Bold" Foreground="#8B5CF6"/>
+                            </StackPanel>
+                        </DockPanel>
+
+                        <!-- Dynamic Telemetry Wave Canvas -->
+                        <Border Grid.Row="1" Background="#0C0F17" CornerRadius="8" ClipToBounds="True" Margin="0,0,0,8" Height="140">
+                            <Canvas x:Name="GraphCanvas" ClipToBounds="True">
+                                <!-- Background Grid Lines -->
+                                <Line X1="0" Y1="35" X2="450" Y2="35" Stroke="#1E293B" StrokeThickness="1" StrokeDashArray="2,2"/>
+                                <Line X1="0" Y1="70" X2="450" Y2="70" Stroke="#1E293B" StrokeThickness="1" StrokeDashArray="2,2"/>
+                                <Line X1="0" Y1="105" X2="450" Y2="105" Stroke="#1E293B" StrokeThickness="1" StrokeDashArray="2,2"/>
+
+                                <!-- Smooth Telemetry Waves -->
+                                <Polyline x:Name="PolyDownload" Stroke="{StaticResource PurpleGraphBrush}" StrokeThickness="2.5"/>
+                                <Polyline x:Name="PolyUpload" Stroke="#00F2FE" StrokeThickness="1.5"/>
+                            </Canvas>
+                        </Border>
+
+                        <DockPanel Grid.Row="2">
+                            <TextBlock Text="0s" FontSize="10" Foreground="#475569"/>
+                            <TextBlock Text="15s" FontSize="10" Foreground="#475569" HorizontalAlignment="Center"/>
+                            <TextBlock Text="30s" FontSize="10" Foreground="#475569" HorizontalAlignment="Center"/>
+                            <TextBlock Text="45s" FontSize="10" Foreground="#475569" HorizontalAlignment="Center"/>
+                            <TextBlock Text="60s" FontSize="10" Foreground="#475569" HorizontalAlignment="Right"/>
+                        </DockPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Ping & Connect Action Row -->
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="1.2*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Latency Ping Card -->
+                    <Border Grid.Column="0" Style="{StaticResource MicaCardStyle}">
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Latency Ping" FontSize="11" Foreground="#94A3B8"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,2">
+                                <Ellipse Width="8" Height="8" Fill="#10B981" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="TxtPing" Text="-- мс" FontSize="18" FontWeight="Bold" Foreground="#F8FAFC"/>
+                            </StackPanel>
+                            <TextBlock Text="AEGS Ultra Node • 31.76.9.86" FontSize="10" Foreground="#64748B"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Connect Action Button / Toggle -->
+                    <Border Grid.Column="2" Style="{StaticResource MicaCardStyle}" Background="#162033" BorderBrush="#00F2FE">
+                        <Button x:Name="BtnConnect" Click="BtnConnect_Click" Cursor="Hand" Background="Transparent" BorderThickness="0" Padding="0" HorizontalContentAlignment="Stretch">
                             <Grid>
-                                <Ellipse x:Name="OuterGlow" Fill="#27272A" Stroke="#3F3F46" StrokeThickness="2"/>
-                                <Ellipse x:Name="InnerCore" Width="84" Height="84" Fill="#18181B"/>
-                                <TextBlock x:Name="BtnIcon" Text="⚡" FontSize="36" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center" Margin="8,0,0,0">
+                                    <TextBlock x:Name="BtnConnectText" Text="CONNECT" FontWeight="Bold" FontSize="16" Foreground="#00F2FE"/>
+                                    <TextBlock x:Name="TxtSessionTimer" Text="Нажмите для старта" FontSize="11" Foreground="#94A3B8"/>
+                                </StackPanel>
+                                <Border Grid.Column="1" Width="44" Height="44" CornerRadius="22" Background="#00F2FE" VerticalAlignment="Center" Margin="0,0,6,0">
+                                    <TextBlock x:Name="BtnActionIcon" Text="⚡" FontSize="20" Foreground="#0B0D13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
                             </Grid>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="OuterGlow" Property="Stroke" Value="#F59E0B"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Button.Template>
-                </Button>
+                        </Button>
+                    </Border>
+                </Grid>
+            </Grid>
 
-                <!-- Status Label -->
-                <TextBlock x:Name="TxtStatus" Text="Служба готова к запуску" FontSize="14" FontWeight="SemiBold" 
-                           Foreground="#A1A1AA" HorizontalAlignment="Center" Margin="0,0,0,4"/>
-                <TextBlock x:Name="TxtSubStatus" Text="TLS 1.3 Reality ECH • Порт 443" FontSize="11" 
-                           Foreground="#71717A" HorizontalAlignment="Center"/>
-            </StackPanel>
-        </Border>
-
-        <!-- Live Metrics & Controls -->
-        <StackPanel Grid.Row="2">
-            <!-- Metrics Row -->
-            <UniformGrid Columns="3" Margin="0,0,0,14">
-                <Border Style="{StaticResource CardStyle}" Margin="0,0,6,0">
-                    <StackPanel HorizontalAlignment="Center">
-                        <TextBlock Text="↓ Входящий" FontSize="11" Foreground="#A1A1AA" HorizontalAlignment="Center"/>
-                        <TextBlock x:Name="TxtRxSpeed" Text="0.0 КБ/с" FontSize="14" FontWeight="Bold" Foreground="#10B981" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-                    </StackPanel>
-                </Border>
-                <Border Style="{StaticResource CardStyle}" Margin="3,0,3,0">
-                    <StackPanel HorizontalAlignment="Center">
-                        <TextBlock Text="↑ Исходящий" FontSize="11" Foreground="#A1A1AA" HorizontalAlignment="Center"/>
-                        <TextBlock x:Name="TxtTxSpeed" Text="0.0 КБ/с" FontSize="14" FontWeight="Bold" Foreground="#F59E0B" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-                    </StackPanel>
-                </Border>
-                <Border Style="{StaticResource CardStyle}" Margin="6,0,0,0">
-                    <StackPanel HorizontalAlignment="Center">
-                        <TextBlock Text="Задержка RTT" FontSize="11" Foreground="#A1A1AA" HorizontalAlignment="Center"/>
-                        <TextBlock x:Name="TxtPing" Text="-- мс" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-                    </StackPanel>
-                </Border>
-            </UniformGrid>
-
-            <!-- Mode Selector -->
-            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
-                <StackPanel>
-                    <TextBlock Text="Профиль маскировки трафика" FontSize="12" FontWeight="SemiBold" Foreground="#D4D4D8" Margin="0,0,0,8"/>
-                    <ComboBox x:Name="CmbProfile" Background="#27272A" Foreground="#FAFAFA" BorderBrush="#3F3F46" Padding="6" SelectedIndex="0">
-                        <ComboBoxItem Content="Стелс-режим (TLS 1.3 Reality ECH • 443)"/>
-                        <ComboBoxItem Content="Fast Emergency (0-RTT + IAT Shaper)"/>
-                        <ComboBoxItem Content="Turbo PQC (Direct Quantum UDP)"/>
-                    </ComboBox>
-                </StackPanel>
-            </Border>
-
-            <!-- Split-Routing Switch -->
-            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
-                <DockPanel>
-                    <CheckBox x:Name="ChkSplitRouting" IsChecked="True" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <!-- RIGHT COLUMN: Settings Panel -->
+            <Border Grid.Column="2" Style="{StaticResource MicaCardStyle}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <TextBlock Text="Умный Split-Routing (Direct РФ)" FontSize="12" FontWeight="SemiBold" Foreground="#FAFAFA"/>
-                        <TextBlock Text="Банки, Госуслуги, Ozon и маркетплейсы идут напрямую без туннеля." FontSize="11" Foreground="#71717A" Margin="0,2,0,0"/>
+                        <!-- Header with back/settings icon -->
+                        <DockPanel Margin="0,0,0,16">
+                            <TextBlock Text="⚙️ НАСТРОЙКИ" FontWeight="Bold" FontSize="15" Foreground="#F8FAFC" VerticalAlignment="Center"/>
+                            <TextBlock Text="TITAN V6.5" FontSize="11" Foreground="#64748B" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        </DockPanel>
+
+                        <!-- Group: GENERAL -->
+                        <TextBlock Text="ОСНОВНЫЕ (GENERAL)" Style="{StaticResource SubtleHeader}"/>
+                        <Border Background="#0E121B" CornerRadius="8" Padding="12,10" Margin="0,0,0,14">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,8">
+                                    <TextBlock Text="Запуск вместе с Windows" FontSize="12" Foreground="#E2E8F0" VerticalAlignment="Center"/>
+                                    <ui:ToggleSwitch x:Name="TglStartup" HorizontalAlignment="Right" IsChecked="False"/>
+                                </DockPanel>
+                                <Separator Background="#1E293B" Margin="0,4,0,8"/>
+                                <DockPanel>
+                                    <TextBlock Text="Автоподключение при старте" FontSize="12" Foreground="#E2E8F0" VerticalAlignment="Center"/>
+                                    <ui:ToggleSwitch x:Name="TglAutoConnect" HorizontalAlignment="Right" IsChecked="False"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Group: CONNECTION -->
+                        <TextBlock Text="СОЕДИНЕНИЕ (CONNECTION)" Style="{StaticResource SubtleHeader}"/>
+                        <Border Background="#0E121B" CornerRadius="8" Padding="12,10" Margin="0,0,0,14">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,8">
+                                    <StackPanel VerticalAlignment="Center" Width="230">
+                                        <TextBlock Text="Stealth Obfuscation (TLS Reality ECH)" FontSize="12" Foreground="#E2E8F0"/>
+                                        <TextBlock Text="Маскировка трафика от DPI и провайдеров" FontSize="10" Foreground="#64748B"/>
+                                    </StackPanel>
+                                    <ui:ToggleSwitch x:Name="TglObfuscation" HorizontalAlignment="Right" IsChecked="True"/>
+                                </DockPanel>
+                                <Separator Background="#1E293B" Margin="0,4,0,8"/>
+                                <DockPanel Margin="0,0,0,8">
+                                    <StackPanel VerticalAlignment="Center" Width="230">
+                                        <TextBlock Text="Kill Switch" FontSize="12" Foreground="#E2E8F0"/>
+                                        <TextBlock Text="Блокировать интернет при обрыве туннеля" FontSize="10" Foreground="#64748B"/>
+                                    </StackPanel>
+                                    <ui:ToggleSwitch x:Name="TglKillSwitch" HorizontalAlignment="Right" IsChecked="True"/>
+                                </DockPanel>
+                                <Separator Background="#1E293B" Margin="0,4,0,8"/>
+                                <DockPanel>
+                                    <StackPanel VerticalAlignment="Center" Width="230">
+                                        <TextBlock Text="Split Tunneling (Direct РФ)" FontSize="12" Foreground="#E2E8F0"/>
+                                        <TextBlock Text="Банки, Госуслуги и Ozon идут напрямую" FontSize="10" Foreground="#64748B"/>
+                                    </StackPanel>
+                                    <ui:ToggleSwitch x:Name="TglSplitRouting" HorizontalAlignment="Right" IsChecked="True"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Group: NETWORK & PROFILES -->
+                        <TextBlock Text="СЕТЕВЫЕ ПАРАМЕТРЫ (NETWORK)" Style="{StaticResource SubtleHeader}"/>
+                        <Border Background="#0E121B" CornerRadius="8" Padding="12,10" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="Профиль маскировки трафика" FontSize="11" Foreground="#94A3B8" Margin="0,0,0,6"/>
+                                <ComboBox x:Name="CmbProfile" Background="#161C28" Foreground="#FAFAFA" BorderBrush="#242F45" SelectedIndex="0" Margin="0,0,0,10">
+                                    <ComboBoxItem Content="Стелс-режим (TLS 1.3 Reality ECH • 443)"/>
+                                    <ComboBoxItem Content="Fast Emergency (0-RTT + IAT Shaper)"/>
+                                    <ComboBoxItem Content="Turbo PQC (Direct Quantum UDP)"/>
+                                </ComboBox>
+
+                                <TextBlock Text="Защищенный DNS Resolver" FontSize="11" Foreground="#94A3B8" Margin="0,0,0,6"/>
+                                <ComboBox x:Name="CmbDns" Background="#161C28" Foreground="#FAFAFA" BorderBrush="#242F45" SelectedIndex="0">
+                                    <ComboBoxItem Content="Cloudflare DoH (1.1.1.1 / 1.0.0.1)"/>
+                                    <ComboBoxItem Content="AdGuard DNS (Anti-Track + Block Ads)"/>
+                                    <ComboBoxItem Content="Системный DNS по умолчанию"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Token & Key Box -->
+                        <TextBlock Text="КЛЮЧ ДОСТУПА" Style="{StaticResource SubtleHeader}"/>
+                        <Border Background="#0E121B" CornerRadius="8" Padding="12,10">
+                            <TextBox x:Name="TxtToken" Background="#161C28" Foreground="#00F2FE" BorderBrush="#242F45" 
+                                     Padding="8,6" FontSize="11" Text="aegs_secure_token_titan_v6" FontFamily="Consolas"/>
+                        </Border>
                     </StackPanel>
-                </DockPanel>
+                </ScrollViewer>
             </Border>
+        </Grid>
 
-            <!-- Server & Key Config Box -->
-            <Border Style="{StaticResource CardStyle}">
-                <StackPanel>
-                    <DockPanel Margin="0,0,0,6">
-                        <TextBlock Text="Параметры соединения" FontSize="12" FontWeight="SemiBold" Foreground="#D4D4D8"/>
-                        <TextBlock Text="31.76.9.86:443" Foreground="#F59E0B" FontSize="11" HorizontalAlignment="Right"/>
-                    </DockPanel>
-                    <TextBox x:Name="TxtToken" Background="#27272A" Foreground="#FAFAFA" BorderBrush="#3F3F46" 
-                             Padding="6" FontSize="11" Text="aegs_secure_token_titan_v6" FontFamily="Consolas"/>
-                </StackPanel>
-            </Border>
-        </StackPanel>
-
-        <!-- Footer / Log Ticker -->
-        <TextBlock x:Name="TxtLogTicker" Grid.Row="3" Text="Готово к подключению. Нажмите кнопку выше." 
-                   Foreground="#71717A" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,12,0,0"/>
+        <!-- Bottom Footer Log Ticker -->
+        <Border Grid.Row="2" Background="#090B0F" BorderBrush="#1E2433" BorderThickness="0,1,0,0" Padding="16,6">
+            <DockPanel>
+                <TextBlock Text="● AEGS Core: " Foreground="#10B981" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <TextBlock x:Name="TxtLogTicker" Text="Служба готова. Нажмите CONNECT для безопасного соединения." 
+                           Foreground="#94A3B8" FontSize="11" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                <TextBlock Text="v6.5-titan" Foreground="#475569" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            </DockPanel>
+        </Border>
     </Grid>
-</Window>
+</ui:FluentWindow>
