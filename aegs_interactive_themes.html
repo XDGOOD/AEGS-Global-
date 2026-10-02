@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AEGS Titan — 5 гармоничных архитектурных стилей</title>
+  <title>AEGS Titan — 5 фундаментально разных дизайн-архитектур</title>
   
-  <!-- Google Fonts: 5 distinct curated typefaces -->
+  <!-- Curated Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Syne:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   
   <style>
     /* ==========================================================================
-       RESET & BASE ARCHITECTURE
+       GLOBAL RESET & SHELL
        ========================================================================== */
     * {
       box-sizing: border-box;
@@ -20,7 +20,6 @@
       padding: 0;
       user-select: none;
       -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
     }
 
     body {
@@ -29,165 +28,33 @@
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      padding: 28px 16px 48px;
-      transition: background 0.4s ease, color 0.3s ease;
-      background: var(--bg-base);
-      color: var(--text-primary);
-      font-family: var(--font-stack);
+      padding: 24px 16px 48px;
+      background: #0B0D11;
+      color: #EDF1F7;
+      font-family: 'Inter', sans-serif;
     }
 
-    /* ==========================================================================
-       COLOR HARMONY PALETTES (Strict Color Theory, Zero Neon, Zero Glow)
-       ========================================================================== */
-
-    /* ТЕМА 1: Nordic Sage & Deep Pine (Аналоговая природная гармония) */
-    body.theme-1 {
-      --bg-base: #0E1412;
-      --surface-1: #151E1B;
-      --surface-2: #1B2623;
-      --border-subtle: #24332F;
-      --border-focus: #446158;
-      --accent: #5E9382;
-      --accent-muted: #3D6155;
-      --secondary: #C49768;
-      --status-active: #5E9382;
-      --text-primary: #EDF3F0;
-      --text-secondary: #8E9F98;
-      --text-tertiary: #5C6A64;
-      --canvas-line-rx: #5E9382;
-      --canvas-line-tx: #C49768;
-      --canvas-bg: #111815;
-      --canvas-grid: #1A2521;
-      --radius-sm: 6px;
-      --radius-md: 12px;
-      --radius-lg: 16px;
-      --font-stack: 'Plus Jakarta Sans', sans-serif;
-      --theme-name: '1. Nordic Sage';
-    }
-
-    /* ТЕМА 2: Swiss Minimalist & Terracotta (Сбалансированный комплементарный контраст) */
-    body.theme-2 {
-      --bg-base: #111215;
-      --surface-1: #191B1F;
-      --surface-2: #22252B;
-      --border-subtle: #2C3038;
-      --border-focus: #414754;
-      --accent: #D95D39;
-      --accent-muted: #8E3A21;
-      --secondary: #4A6FA5;
-      --status-active: #D95D39;
-      --text-primary: #F2F4F8;
-      --text-secondary: #9BA3AF;
-      --text-tertiary: #636A78;
-      --canvas-line-rx: #D95D39;
-      --canvas-line-tx: #4A6FA5;
-      --canvas-bg: #15171B;
-      --canvas-grid: #20232A;
-      --radius-sm: 4px;
-      --radius-md: 8px;
-      --radius-lg: 10px;
-      --font-stack: 'Space Grotesk', sans-serif;
-      --theme-name: '2. Swiss Terracotta';
-    }
-
-    /* ТЕМА 3: Oxford Slate & Warm Champagne (Классическая сплит-комплементарная гармония) */
-    body.theme-3 {
-      --bg-base: #0D1117;
-      --surface-1: #141A24;
-      --surface-2: #1D2533;
-      --border-subtle: #273142;
-      --border-focus: #3D4C66;
-      --accent: #4B6BFB;
-      --accent-muted: #2E45A8;
-      --secondary: #D4AF37;
-      --status-active: #4B6BFB;
-      --text-primary: #F0F4FA;
-      --text-secondary: #8E9AB0;
-      --text-tertiary: #5B6578;
-      --canvas-line-rx: #4B6BFB;
-      --canvas-line-tx: #D4AF37;
-      --canvas-bg: #10141D;
-      --canvas-grid: #1A212E;
-      --radius-sm: 6px;
-      --radius-md: 12px;
-      --radius-lg: 16px;
-      --font-stack: 'Manrope', sans-serif;
-      --theme-name: '3. Oxford Indigo';
-    }
-
-    /* ТЕМА 4: Monochrome Studio & Pearl (Строгая монохромная ахроматическая палитра) */
-    body.theme-4 {
-      --bg-base: #121212;
-      --surface-1: #1C1C1C;
-      --surface-2: #262626;
-      --border-subtle: #333333;
-      --border-focus: #555555;
-      --accent: #E5E5E5;
-      --accent-muted: #737373;
-      --secondary: #A3A3A3;
-      --status-active: #E5E5E5;
-      --text-primary: #FFFFFF;
-      --text-secondary: #A3A3A3;
-      --text-tertiary: #666666;
-      --canvas-line-rx: #E5E5E5;
-      --canvas-line-tx: #737373;
-      --canvas-bg: #161616;
-      --canvas-grid: #242424;
-      --radius-sm: 4px;
-      --radius-md: 10px;
-      --radius-lg: 14px;
-      --font-stack: 'Outfit', sans-serif;
-      --theme-name: '4. Monochrome Studio';
-    }
-
-    /* ТЕМА 5: Roasted Mocha & Copper Amber (Тёплая природная триадическая палитра) */
-    body.theme-5 {
-      --bg-base: #141110;
-      --surface-1: #1D1816;
-      --surface-2: #29221F;
-      --border-subtle: #3B312D;
-      --border-focus: #5A4B45;
-      --accent: #C27D53;
-      --accent-muted: #7F4E31;
-      --secondary: #7A9382;
-      --status-active: #C27D53;
-      --text-primary: #F5EFEB;
-      --text-secondary: #A89B93;
-      --text-tertiary: #6E635C;
-      --canvas-line-rx: #C27D53;
-      --canvas-line-tx: #7A9382;
-      --canvas-bg: #181413;
-      --canvas-grid: #241D1A;
-      --radius-sm: 8px;
-      --radius-md: 14px;
-      --radius-lg: 18px;
-      --font-stack: 'Syne', sans-serif;
-      --theme-name: '5. Roasted Mocha';
-    }
-
-    /* ==========================================================================
-       TOP THEME SELECTOR DOCK
-       ========================================================================== */
-    .theme-selector-dock {
+    /* TOP ARCHITECTURE SWITCHER DOCK */
+    .top-dock {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       justify-content: center;
-      margin-bottom: 28px;
-      background: var(--surface-1);
-      padding: 6px 10px;
-      border-radius: 30px;
-      border: 1px solid var(--border-subtle);
-      max-width: 820px;
+      margin-bottom: 24px;
+      background: #14171F;
+      padding: 6px 8px;
+      border-radius: 40px;
+      border: 1px solid #232836;
+      max-width: 980px;
       width: 100%;
     }
 
-    .theme-chip {
-      padding: 7px 14px;
+    .dock-btn {
+      padding: 8px 14px;
       border-radius: 20px;
       border: 1px solid transparent;
       background: transparent;
-      color: var(--text-secondary);
+      color: #8E99A8;
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
@@ -195,839 +62,1381 @@
       align-items: center;
       gap: 7px;
       transition: all 0.2s ease;
-      font-family: var(--font-stack);
-    }
-
-    .theme-chip:hover {
-      color: var(--text-primary);
-      background: var(--surface-2);
-    }
-
-    .theme-chip.active {
-      background: var(--surface-2);
-      color: var(--text-primary);
-      border-color: var(--border-focus);
-    }
-
-    .swatch {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-    }
-
-    /* ==========================================================================
-       APPLICATION UTILITY FRAME
-       ========================================================================== */
-    .app-card {
-      width: 100%;
-      max-width: 430px;
-      min-height: 600px;
-      background: var(--surface-1);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      overflow: hidden;
-      transition: all 0.3s ease;
-    }
-
-    /* App Header */
-    .app-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 20px 14px;
-      border-bottom: 1px solid var(--border-subtle);
-    }
-
-    .brand-group {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .brand-svg-icon {
-      width: 20px;
-      height: 20px;
-      stroke: var(--accent);
-      fill: none;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    .brand-title {
-      font-weight: 700;
-      font-size: 15px;
-      letter-spacing: -0.01em;
-      color: var(--text-primary);
-    }
-
-    .brand-title span {
-      color: var(--accent);
-    }
-
-    .brand-badge {
-      font-size: 10px;
-      font-weight: 600;
-      padding: 2px 6px;
-      border-radius: var(--radius-sm);
-      background: var(--surface-2);
-      color: var(--text-secondary);
-      border: 1px solid var(--border-subtle);
-    }
-
-    .btn-icon-text {
-      background: var(--surface-2);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-primary);
-      padding: 6px 12px;
-      border-radius: var(--radius-sm);
-      font-size: 11px;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s ease;
       font-family: inherit;
     }
 
-    .btn-icon-text:hover {
-      border-color: var(--border-focus);
-      background: var(--border-subtle);
+    .dock-btn:hover {
+      color: #FFFFFF;
+      background: #1E2330;
     }
 
-    .svg-ui {
-      width: 14px;
-      height: 14px;
+    .dock-btn.active {
+      background: #252C3D;
+      color: #FFFFFF;
+      border-color: #3B455E;
+    }
+
+    .badge-num {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #323A4E;
+      color: #CBD5E1;
+      font-size: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+    }
+
+    .dock-btn.active .badge-num {
+      background: #3B82F6;
+      color: #FFFFFF;
+    }
+
+    /* CONTAINER THAT HOSTS THE ACTIVE PROTOTYPE */
+    .viewport-container {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .prototype-screen {
+      display: none;
+      width: 100%;
+    }
+
+    .prototype-screen.active {
+      display: flex;
+      justify-content: center;
+      animation: fadeIn 0.25s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Common SVG Icon Utility */
+    .icon-svg {
+      width: 16px;
+      height: 16px;
       stroke: currentColor;
       fill: none;
       stroke-width: 2;
       stroke-linecap: round;
       stroke-linejoin: round;
+      display: inline-block;
+      vertical-align: middle;
     }
 
-    /* Main Content Container */
-    .view-container {
-      flex: 1;
-      padding: 22px 20px;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .page-view {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      transition: opacity 0.25s ease;
-    }
-
-    .page-view.hidden {
-      display: none;
-      opacity: 0;
-    }
 
     /* ==========================================================================
-       DASHBOARD VIEW (DECLUTTERED & CALM)
+       STYLE 1: MINIMALIST FLOATING ISLAND (Apple / Squircle / Slide-to-Connect)
+       Font: Inter | Palette: Nordic Slate & Sage (#3D7D68, #182026, #F1F5F9)
        ========================================================================== */
-    .dashboard-center {
-      flex: 1;
+    .island-card {
+      width: 100%;
+      max-width: 410px;
+      min-height: 580px;
+      background: #161D24;
+      border-radius: 28px;
+      border: 1px solid #26333D;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45);
+      padding: 24px;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 10px 0 24px;
+      position: relative;
+      overflow: hidden;
+      font-family: 'Inter', sans-serif;
     }
 
-    /* Shield Action Circle */
-    .shield-btn {
-      width: 120px;
-      height: 120px;
-      border-radius: 50%;
-      background: var(--surface-2);
-      border: 1px solid var(--border-subtle);
+    .island-header {
       display: flex;
-      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .island-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .island-brand-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: #202C36;
+      display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      cursor: pointer;
-      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-      margin-bottom: 22px;
+      color: #5BAA91;
     }
 
-    .shield-btn:hover {
-      border-color: var(--border-focus);
-      transform: translateY(-2px);
-    }
-
-    .shield-btn.active {
-      background: var(--surface-2);
-      border-color: var(--status-active);
-      border-width: 2px;
-    }
-
-    .shield-svg-large {
-      width: 44px;
-      height: 44px;
-      stroke: var(--text-secondary);
-      fill: none;
-      stroke-width: 1.8;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      transition: stroke 0.3s ease;
-    }
-
-    .shield-btn.active .shield-svg-large {
-      stroke: var(--status-active);
-    }
-
-    .shield-btn-label {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-    }
-
-    .shield-btn.active .shield-btn-label {
-      color: var(--status-active);
-    }
-
-    .status-title {
+    .island-brand-text {
       font-size: 16px;
       font-weight: 700;
-      margin-bottom: 4px;
-      letter-spacing: -0.01em;
+      letter-spacing: -0.02em;
     }
 
-    .status-subtitle {
-      font-size: 11px;
-      color: var(--text-secondary);
-      margin-bottom: 8px;
-    }
-
-    .session-badge {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--accent);
-      background: var(--surface-2);
-      padding: 4px 12px;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border-subtle);
-    }
-
-    /* Minimalist Canvas Wave Card */
-    .graph-card {
-      background: var(--canvas-bg);
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border-subtle);
-      padding: 10px;
-      margin-bottom: 16px;
-      overflow: hidden;
-    }
-
-    canvas#waveCanvas {
-      width: 100%;
-      height: 64px;
-      display: block;
-    }
-
-    /* Telemetry Minimalist Pill Bar */
-    .telemetry-row {
-      display: grid;
-      grid-template-columns: 1fr 1px 1fr 1px 1fr;
-      align-items: center;
-      background: var(--surface-2);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      padding: 10px 6px;
-    }
-
-    .stat-item {
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2px;
-    }
-
-    .stat-head {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 10px;
-      color: var(--text-secondary);
-      font-weight: 500;
-    }
-
-    .stat-head svg {
-      width: 11px;
-      height: 11px;
-      stroke: var(--text-tertiary);
-    }
-
-    .stat-value {
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
-
-    .stat-sep {
-      height: 20px;
-      background: var(--border-subtle);
-    }
-
-    /* ==========================================================================
-       SETTINGS VIEW (CLEAN PROGRESSIVE DISCLOSURE)
-       ========================================================================== */
-    .settings-nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 18px;
-    }
-
-    .settings-heading {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
-
-    .settings-group {
-      margin-bottom: 16px;
-    }
-
-    .group-label {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      color: var(--text-tertiary);
-      margin-bottom: 6px;
-      text-transform: uppercase;
-    }
-
-    .settings-box {
-      background: var(--surface-2);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      padding: 12px 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .setting-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .setting-text {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      max-width: 260px;
-    }
-
-    .setting-name {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .setting-detail {
-      font-size: 10px;
-      color: var(--text-secondary);
-    }
-
-    /* Pure Matte Modern Switch */
-    .switch-ui {
-      position: relative;
-      display: inline-block;
-      width: 40px;
-      height: 22px;
-      cursor: pointer;
-    }
-
-    .switch-ui input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-
-    .switch-track {
-      position: absolute;
-      inset: 0;
-      background-color: var(--border-subtle);
-      transition: 0.25s ease;
-      border-radius: 20px;
-      border: 1px solid var(--border-focus);
-    }
-
-    .switch-track:before {
-      position: absolute;
-      content: "";
-      height: 14px;
-      width: 14px;
-      left: 3px;
-      bottom: 3px;
-      background-color: var(--text-secondary);
-      transition: 0.25s ease;
+    .btn-island-settings {
+      background: #202C36;
+      border: none;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
-    }
-
-    input:checked + .switch-track {
-      background-color: var(--accent);
-      border-color: var(--accent);
-    }
-
-    input:checked + .switch-track:before {
-      transform: translateX(18px);
-      background-color: #FFFFFF;
-    }
-
-    /* Select Dropdown */
-    .field-select {
-      width: 100%;
-      background: var(--bg-base);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-primary);
-      padding: 8px 10px;
-      border-radius: var(--radius-sm);
-      font-size: 11px;
-      font-family: inherit;
-      outline: none;
+      color: #94A3B8;
       cursor: pointer;
-    }
-
-    .field-select:focus {
-      border-color: var(--border-focus);
-    }
-
-    /* Token Box */
-    .field-input {
-      width: 100%;
-      background: var(--bg-base);
-      border: 1px solid var(--border-subtle);
-      color: var(--accent);
-      padding: 8px 10px;
-      border-radius: var(--radius-sm);
-      font-size: 11px;
-      font-family: 'DM Mono', monospace;
-      outline: none;
-    }
-
-    /* Footer */
-    .app-footer {
-      padding: 10px 18px;
-      background: var(--surface-2);
-      border-top: 1px solid var(--border-subtle);
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      font-size: 10px;
+      justify-content: center;
+      transition: background 0.2s;
     }
 
-    .footer-left {
+    .btn-island-settings:hover {
+      background: #2A3A47;
+      color: #FFFFFF;
+    }
+
+    .island-center {
+      flex: 1;
       display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .island-status-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 20px;
+      background: #202C36;
+      color: #8CA0AF;
+      margin-bottom: 16px;
+      display: inline-flex;
       align-items: center;
       gap: 6px;
-      color: var(--text-secondary);
     }
 
-    .dot-indicator {
+    .island-status-pill .dot {
       width: 6px;
       height: 6px;
       border-radius: 50%;
-      background: var(--text-tertiary);
-      transition: background 0.3s ease;
+      background: #64748B;
     }
 
-    .dot-indicator.active {
-      background: var(--status-active);
+    .island-status-pill.active .dot {
+      background: #5BAA91;
+    }
+
+    .island-big-title {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 6px;
+    }
+
+    .island-sub {
+      font-size: 12px;
+      color: #7A8E9E;
+      margin-bottom: 32px;
+    }
+
+    /* Slide to Connect Bar */
+    .slider-track {
+      width: 100%;
+      max-width: 320px;
+      height: 56px;
+      background: #10161B;
+      border-radius: 28px;
+      border: 1px solid #23313C;
+      position: relative;
+      display: flex;
+      align-items: center;
+      padding: 4px;
+      cursor: pointer;
+      overflow: hidden;
+    }
+
+    .slider-thumb {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #5BAA91;
+      color: #0E1418;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      left: 4px;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .slider-text {
+      width: 100%;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: #6C8191;
+      letter-spacing: 0.02em;
+    }
+
+    .slider-track.connected .slider-thumb {
+      transform: translateX(264px);
+      background: #E2E8F0;
+    }
+
+    .slider-track.connected {
+      background: #1B2B26;
+      border-color: #315247;
+    }
+
+    .island-stats-dock {
+      margin-top: auto;
+      background: #10161B;
+      border-radius: 18px;
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      border: 1px solid #202B33;
+    }
+
+    .island-stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .island-stat-label {
+      font-size: 10px;
+      color: #6C8191;
+      font-weight: 500;
+    }
+
+    .island-stat-val {
+      font-size: 13px;
+      font-weight: 700;
+      color: #EDF2F7;
+    }
+
+    /* Slide-in Bottom Sheet Modal for Settings */
+    .island-modal {
+      position: absolute;
+      inset: 0;
+      background: #141B22;
+      border-radius: 28px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      transform: translateY(100%);
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 10;
+    }
+
+    .island-modal.open {
+      transform: translateY(0);
+    }
+
+    .modal-bar-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .modal-title {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .btn-modal-close {
+      background: #202C36;
+      border: none;
+      color: #94A3B8;
+      padding: 6px 12px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+
+    /* ==========================================================================
+       STYLE 2: BENTO BOX GRID (Linear / Raycast / Modular Bento)
+       Font: Plus Jakarta Sans | Palette: Carbon (#16181D), Terracotta (#D95D39)
+       ========================================================================== */
+    .bento-frame {
+      width: 100%;
+      max-width: 480px;
+      min-height: 580px;
+      background: #0E1013;
+      border-radius: 16px;
+      border: 1px solid #21252D;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .bento-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 6px;
+    }
+
+    .bento-logo {
+      font-size: 14px;
+      font-weight: 800;
+      color: #F3F4F6;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .bento-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .bento-tile {
+      background: #16181D;
+      border: 1px solid #262B35;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Hero Tile spanning 2 columns */
+    .tile-hero {
+      grid-column: span 2;
+      background: linear-gradient(180deg, #1A1D24 0%, #15171C 100%);
+      cursor: pointer;
+      border-color: #2F3542;
+      transition: border-color 0.2s ease;
+    }
+
+    .tile-hero:hover {
+      border-color: #D95D39;
+    }
+
+    .tile-hero.connected {
+      border-color: #D95D39;
+      background: linear-gradient(180deg, #221D1D 0%, #171618 100%);
+    }
+
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .node-route {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: #9CA3AF;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .node-pill {
+      background: #252A34;
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: #E5E7EB;
+    }
+
+    .hero-switch-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: #252A34;
+      border: 1px solid #363D4B;
+      color: #D1D5DB;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .tile-hero.connected .hero-switch-btn {
+      background: #D95D39;
+      color: #FFFFFF;
+      border-color: #D95D39;
+    }
+
+    .hero-big-status {
+      font-size: 18px;
+      font-weight: 700;
+      color: #F9FAFB;
+      margin-bottom: 4px;
+    }
+
+    .hero-meta {
+      font-size: 11px;
+      color: #6B7280;
+    }
+
+    /* Small Bento Tiles */
+    .tile-metric-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #6B7280;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tile-metric-val {
+      font-size: 20px;
+      font-weight: 800;
+      color: #F3F4F6;
+      margin-bottom: 6px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .mini-sparkline {
+      height: 24px;
+      width: 100%;
+      background: #111317;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .sparkline-fill {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      top: 0;
+      width: 0%;
+      background: #D95D39;
+      opacity: 0.25;
+      transition: width 0.4s ease;
+    }
+
+    /* Full Width Settings Tile */
+    .tile-settings-row {
+      grid-column: span 2;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      cursor: pointer;
+    }
+
+    .bento-accordion {
+      display: none;
+      grid-column: span 2;
+      background: #13151A;
+      border-radius: 12px;
+      border: 1px solid #232731;
+      padding: 14px;
+      gap: 10px;
+    }
+
+    .bento-accordion.open {
+      display: flex;
+      flex-direction: column;
+    }
+
+
+    /* ==========================================================================
+       STYLE 3: ANALOG PRECISION INSTRUMENT (Dieter Rams / Circular Gauge)
+       Font: Space Grotesk | Palette: Technical Slate (#1A1E24) & Gold/Amber (#E5A93C)
+       ========================================================================== */
+    .gauge-console {
+      width: 100%;
+      max-width: 420px;
+      min-height: 580px;
+      background: #13161A;
+      border-radius: 10px;
+      border: 1px solid #252B33;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .console-header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #1E232B;
+      padding-bottom: 12px;
+    }
+
+    .console-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #9BA4B5;
+    }
+
+    .gauge-wrap {
+      position: relative;
+      width: 220px;
+      height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 10px 0 24px;
+    }
+
+    .gauge-svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .gauge-bg {
+      fill: none;
+      stroke: #1E242C;
+      stroke-width: 10;
+    }
+
+    .gauge-meter {
+      fill: none;
+      stroke: #E5A93C;
+      stroke-width: 10;
+      stroke-dasharray: 565;
+      stroke-dashoffset: 565;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .gauge-inner-center {
+      position: absolute;
+      inset: 24px;
+      background: #171A1F;
+      border-radius: 50%;
+      border: 1px solid #2B323D;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .gauge-inner-center:hover {
+      border-color: #E5A93C;
+    }
+
+    .gauge-speed-val {
+      font-size: 28px;
+      font-weight: 700;
+      color: #F1F4F9;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .gauge-speed-unit {
+      font-size: 10px;
+      color: #8C96A6;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+
+    /* Physical Toggle Switch Bar */
+    .instrument-switch-bar {
+      width: 100%;
+      background: #181C22;
+      border: 1px solid #28303C;
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .inst-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #CAD2DE;
+    }
+
+    .inst-state-tag {
+      font-size: 10px;
+      font-family: 'DM Mono', monospace;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: #242B36;
+      color: #8E99A8;
+    }
+
+    .inst-state-tag.on {
+      background: #3B2E15;
+      color: #E5A93C;
+      border: 1px solid #6E531D;
+    }
+
+
+    /* ==========================================================================
+       STYLE 4: SIDEBAR RAIL WORKSTATION (Discord/VS Code Pro Column Rail)
+       Font: Manrope | Palette: Oxford Navy & Royal Blue (#4B6BFB, #111726)
+       ========================================================================== */
+    .rail-workstation {
+      width: 100%;
+      max-width: 520px;
+      min-height: 580px;
+      background: #0E131F;
+      border-radius: 14px;
+      border: 1px solid #1E293B;
+      display: flex;
+      overflow: hidden;
+      font-family: 'Manrope', sans-serif;
+    }
+
+    /* Left Icon Rail */
+    .left-rail {
+      width: 54px;
+      background: #090D15;
+      border-right: 1px solid #192233;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 0;
+      gap: 16px;
+    }
+
+    .rail-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: transparent;
+      border: none;
+      color: #64748B;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .rail-btn:hover {
+      color: #CBD5E1;
+      background: #141C2B;
+    }
+
+    .rail-btn.active {
+      color: #4B6BFB;
+      background: #182238;
+    }
+
+    /* Right Main Canvas Area */
+    .rail-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+    }
+
+    .rail-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .rail-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: #F8FAFC;
+    }
+
+    .rail-status-card {
+      background: #141C2B;
+      border: 1px solid #233047;
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .btn-rail-connect {
+      padding: 8px 18px;
+      border-radius: 6px;
+      background: #4B6BFB;
+      color: #FFFFFF;
+      border: none;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.2s;
+    }
+
+    .btn-rail-connect.disconnect {
+      background: #252F42;
+      color: #EF4444;
+      border: 1px solid #3E4B66;
+    }
+
+    .dual-pane-metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .metric-pane {
+      background: #121824;
+      border: 1px solid #1F2A3D;
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+
+    /* ==========================================================================
+       STYLE 5: COMPACT TRAY WIDGET (macOS Menu Bar / Windows System Popover)
+       Font: Outfit | Palette: Slate & Silver Ivory (#181A20, #E2E8F0)
+       ========================================================================== */
+    .tray-popover {
+      width: 100%;
+      max-width: 350px;
+      min-height: 520px;
+      background: #181A20;
+      border-radius: 14px;
+      border: 1px solid #2B2F3B;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .tray-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #262A34;
+    }
+
+    .tray-brand {
+      font-size: 13px;
+      font-weight: 700;
+      color: #E2E8F0;
+    }
+
+    .tray-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #21242C;
+      border: 1px solid #2F3442;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+
+    .tray-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #F1F5F9;
+    }
+
+    /* Minimal Pill Switch */
+    .tray-switch {
+      width: 42px;
+      height: 22px;
+      background: #323745;
+      border-radius: 12px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.25s;
+    }
+
+    .tray-switch::after {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      top: 3px;
+      left: 3px;
+      transition: transform 0.25s;
+    }
+
+    .tray-switch.active {
+      background: #10B981;
+    }
+
+    .tray-switch.active::after {
+      transform: translateX(20px);
+    }
+
+    .tray-server-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+
+    .server-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #1D2027;
+      font-size: 11px;
+      color: #CBD5E1;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .server-item.selected {
+      background: #232732;
+      border-color: #3C4354;
+      color: #FFFFFF;
+    }
+
+    .server-ping {
+      color: #10B981;
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+    }
+
+    .tray-log-card {
+      margin-top: auto;
+      background: #14161B;
+      border-radius: 8px;
+      padding: 10px;
+      border: 1px solid #232731;
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: #64748B;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
   </style>
 </head>
-<body class="theme-1">
+<body>
 
-  <!-- THEME DOCK (Switch between 5 Harmonious Palettes) -->
-  <nav class="theme-selector-dock" aria-label="Палитра тем">
-    <button class="theme-chip active" onclick="setPalette(1)">
-      <span class="swatch" style="background: #5E9382;"></span> 1. Nordic Sage (Аналоговая)
+  <!-- TOP PARADIGM SWITCHER DOCK -->
+  <nav class="top-dock" aria-label="Выбор концепции дизайна">
+    <button class="dock-btn active" onclick="activateParadigm(1)">
+      <span class="badge-num">1</span> Minimal Island (Slide-Track)
     </button>
-    <button class="theme-chip" onclick="setPalette(2)">
-      <span class="swatch" style="background: #D95D39;"></span> 2. Swiss Terracotta (Контраст)
+    <button class="dock-btn" onclick="activateParadigm(2)">
+      <span class="badge-num">2</span> Bento Grid (Модульная сетка)
     </button>
-    <button class="theme-chip" onclick="setPalette(3)">
-      <span class="swatch" style="background: #4B6BFB;"></span> 3. Oxford Indigo (Сплит)
+    <button class="dock-btn" onclick="activateParadigm(3)">
+      <span class="badge-num">3</span> Precision Gauge (Приборная дуга)
     </button>
-    <button class="theme-chip" onclick="setPalette(4)">
-      <span class="swatch" style="background: #E5E5E5;"></span> 4. Monochrome Studio
+    <button class="dock-btn" onclick="activateParadigm(4)">
+      <span class="badge-num">4</span> Workstation Rail (Сайдбар)
     </button>
-    <button class="theme-chip" onclick="setPalette(5)">
-      <span class="swatch" style="background: #C27D53;"></span> 5. Roasted Mocha (Тёплая)
+    <button class="dock-btn" onclick="activateParadigm(5)">
+      <span class="badge-num">5</span> System Tray (Компактный поп-овер)
     </button>
   </nav>
 
-  <!-- APP WINDOW FRAME -->
-  <div class="app-card">
+  <!-- VIEWPORT CONTAINER -->
+  <div class="viewport-container">
 
-    <!-- Header with SVG vector icon and discrete settings toggle -->
-    <header class="app-header">
-      <div class="brand-group">
-        <!-- SVG Shield Logo -->
-        <svg class="brand-svg-icon" viewBox="0 0 24 24">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-        </svg>
-        <span class="brand-title">AEGS <span>TITAN</span></span>
-        <span class="brand-badge">v6.5</span>
-      </div>
-
-      <!-- Settings Navigation Button with SVG Gear -->
-      <button class="btn-icon-text" id="btnNavToggle" onclick="toggleView()">
-        <svg class="svg-ui" id="navSvgIcon" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-        </svg>
-        <span id="navText">Настройки</span>
-      </button>
-    </header>
-
-    <!-- Content Area -->
-    <main class="view-container">
-
-      <!-- ================= 1. CLEAN UNCLUTTERED DASHBOARD ================= -->
-      <section class="page-view" id="viewDashboard">
+    <!-- ==========================================================================
+         ПАРАДИГМА 1: MINIMAL ISLAND (Слайдер вместо кнопки, Bottom-Sheet)
+         ========================================================================== -->
+    <section class="prototype-screen active" id="screen1">
+      <div class="island-card">
         
-        <!-- Central Shield Action Button -->
-        <div class="dashboard-center">
-          <button class="shield-btn" id="shieldButton" onclick="toggleTunnelState()" aria-label="Переключить защиту">
-            <svg class="shield-svg-large" viewBox="0 0 24 24">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
-            <span class="shield-btn-label" id="shieldActionText">Старт</span>
+        <div class="island-header">
+          <div class="island-brand">
+            <div class="island-brand-icon">
+              <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <span class="island-brand-text">AEGS Island</span>
+          </div>
+          <button class="btn-island-settings" onclick="toggleIslandModal(true)" aria-label="Открыть настройки">
+            <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
-
-          <div class="status-title" id="statusTitle">Служба готова к запуску</div>
-          <div class="status-subtitle" id="statusSubtitle">TLS 1.3 Reality ECH • 0-RTT • Порт 443</div>
-          <div class="session-badge" id="sessionBadge">Нажмите для подключения</div>
         </div>
 
-        <!-- Real-Time Minimalist Line Waveform Canvas -->
-        <div class="graph-card">
-          <canvas id="waveCanvas"></canvas>
-        </div>
-
-        <!-- Telemetry Metrics Bar with SVG Icons -->
-        <div class="telemetry-row">
-          
-          <!-- RX Download -->
-          <div class="stat-item">
-            <div class="stat-head">
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <polyline points="19 12 12 19 5 12"></polyline>
-              </svg>
-              <span>Входящий</span>
-            </div>
-            <div class="stat-value" id="valRx">0.0 КБ/с</div>
+        <div class="island-center">
+          <div class="island-status-pill" id="islandStatusPill">
+            <span class="dot"></span> <span id="islandPillText">Туннель отключён</span>
           </div>
 
-          <div class="stat-sep"></div>
+          <div class="island-big-title" id="islandTitle">Защита отключена</div>
+          <div class="island-sub">Reality ECH • 0-RTT • 443</div>
 
-          <!-- TX Upload -->
-          <div class="stat-item">
-            <div class="stat-head">
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
-                <line x1="12" y1="19" x2="12" y2="5"></line>
-                <polyline points="5 12 12 5 19 12"></polyline>
-              </svg>
-              <span>Исходящий</span>
+          <!-- Slide to Connect Track -->
+          <div class="slider-track" id="islandSlider" onclick="toggleIslandConnection()">
+            <div class="slider-thumb">
+              <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
             </div>
-            <div class="stat-value" id="valTx">0.0 КБ/с</div>
-          </div>
-
-          <div class="stat-sep"></div>
-
-          <!-- Latency RTT -->
-          <div class="stat-item">
-            <div class="stat-head">
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-              </svg>
-              <span>Задержка</span>
-            </div>
-            <div class="stat-value" id="valPing">-- мс</div>
-          </div>
-
-        </div>
-
-      </section>
-
-      <!-- ================= 2. DEDICATED SETTINGS VIEW ================= -->
-      <section class="page-view hidden" id="viewSettings">
-        
-        <div class="settings-nav">
-          <span class="settings-heading">Параметры безопасности</span>
-        </div>
-
-        <!-- Group 1: Protection -->
-        <div class="settings-group">
-          <div class="group-label">Защита туннеля</div>
-          <div class="settings-box">
-            
-            <div class="setting-row">
-              <div class="setting-text">
-                <span class="setting-name">Stealth Obfuscation</span>
-                <span class="setting-detail">Маскировка сетевого протокола под TLS 1.3 Reality</span>
-              </div>
-              <label class="switch-ui">
-                <input type="checkbox" checked>
-                <span class="switch-track"></span>
-              </label>
-            </div>
-
-            <div class="setting-row">
-              <div class="setting-text">
-                <span class="setting-name">Kill Switch</span>
-                <span class="setting-detail">Аварийное прерывание интернет-трафика при обрыве</span>
-              </div>
-              <label class="switch-ui">
-                <input type="checkbox" checked>
-                <span class="switch-track"></span>
-              </label>
-            </div>
-
-            <div class="setting-row">
-              <div class="setting-text">
-                <span class="setting-name">Умный Split-Routing</span>
-                <span class="setting-detail">Банки, Госуслуги и Ozon направляются напрямую</span>
-              </div>
-              <label class="switch-ui">
-                <input type="checkbox" checked>
-                <span class="switch-track"></span>
-              </label>
-            </div>
-
+            <div class="slider-text" id="islandSliderText">Сдвиньте для защиты</div>
           </div>
         </div>
 
-        <!-- Group 2: Protocol & DNS -->
-        <div class="settings-group">
-          <div class="group-label">Протокол и резолвер</div>
-          <div class="settings-box">
-            
-            <div>
-              <div class="setting-name" style="margin-bottom: 5px;">Профиль транспорта</div>
-              <select class="field-select">
-                <option>Стелс-режим (TLS 1.3 Reality ECH • 443)</option>
-                <option>Fast Emergency (0-RTT + IAT Shaper)</option>
-                <option>Turbo PQC (Direct Quantum UDP)</option>
-              </select>
-            </div>
-
-            <div>
-              <div class="setting-name" style="margin-bottom: 5px;">Защищённый DNS Resolver</div>
-              <select class="field-select">
-                <option>Cloudflare DoH (1.1.1.1 Anti-DPI)</option>
-                <option>AdGuard DNS (Анти-трекинг)</option>
-                <option>Системный DNS по умолчанию</option>
-              </select>
-            </div>
-
+        <div class="island-stats-dock">
+          <div class="island-stat-item">
+            <span class="island-stat-label">Входящий</span>
+            <span class="island-stat-val" id="islandRx">0.0 МБ/с</span>
+          </div>
+          <div class="island-stat-item">
+            <span class="island-stat-label">Исходящий</span>
+            <span class="island-stat-val" id="islandTx">0.0 МБ/с</span>
+          </div>
+          <div class="island-stat-item">
+            <span class="island-stat-label">Задержка</span>
+            <span class="island-stat-val" id="islandPing">-- мс</span>
           </div>
         </div>
 
-        <!-- Group 3: Token -->
-        <div class="settings-group">
-          <div class="group-label">Ключ авторизации</div>
-          <div class="settings-box">
-            <input type="text" class="field-input" value="aegs_secure_token_titan_v6" spellcheck="false">
+        <!-- Slide-in Bottom Sheet Modal -->
+        <div class="island-modal" id="islandModal">
+          <div class="modal-bar-top">
+            <span class="modal-title">Параметры соединения</span>
+            <button class="btn-modal-close" onclick="toggleIslandModal(false)">Закрыть</button>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 14px; font-size: 13px;">
+            <label style="display: flex; justify-content: space-between; align-items: center;">
+              <span>Kill Switch</span>
+              <input type="checkbox" checked style="accent-color: #5BAA91;">
+            </label>
+            <label style="display: flex; justify-content: space-between; align-items: center;">
+              <span>Stealth Reality</span>
+              <input type="checkbox" checked style="accent-color: #5BAA91;">
+            </label>
+            <label style="display: flex; justify-content: space-between; align-items: center;">
+              <span>Split Routing</span>
+              <input type="checkbox" checked style="accent-color: #5BAA91;">
+            </label>
           </div>
         </div>
 
-      </section>
-
-    </main>
-
-    <!-- Footer -->
-    <footer class="app-footer">
-      <div class="footer-left">
-        <span class="dot-indicator" id="footerDot"></span>
-        <span id="footerText">Ядро готово к работе</span>
       </div>
-      <span style="color: var(--text-tertiary); font-family: 'DM Mono', monospace;">31.76.9.86:443</span>
-    </footer>
+    </section>
+
+
+    <!-- ==========================================================================
+         ПАРАДИГМА 2: BENTO BOX GRID (Модульная сетка асимметричных плиток)
+         ========================================================================== -->
+    <section class="prototype-screen" id="screen2">
+      <div class="bento-frame">
+        
+        <div class="bento-header">
+          <div class="bento-logo">
+            <svg class="icon-svg" viewBox="0 0 24 24" style="color: #D95D39;"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <span>AEGS BENTO</span>
+          </div>
+          <span style="font-size: 10px; font-family: 'DM Mono', monospace; color: #6B7280;">GRID 2x2</span>
+        </div>
+
+        <div class="bento-grid">
+          
+          <!-- Hero Tile (Top Span 2) -->
+          <div class="bento-tile tile-hero" id="bentoHeroTile" onclick="toggleBentoConnection()">
+            <div class="hero-top">
+              <div class="node-route">
+                <span class="node-pill">YOU</span>
+                <span>⟶</span>
+                <span class="node-pill">FRANKFURT</span>
+              </div>
+              <div class="hero-switch-btn">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+              </div>
+            </div>
+            <div class="hero-big-status" id="bentoStatus">ОТКЛЮЧЕНО</div>
+            <div class="hero-meta" id="bentoMeta">Кликните плитку для включения туннеля</div>
+          </div>
+
+          <!-- Download Speed Tile -->
+          <div class="bento-tile">
+            <div class="tile-metric-title">
+              <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+              <span>Download</span>
+            </div>
+            <div class="tile-metric-val" id="bentoRx">0.0</div>
+            <div class="mini-sparkline"><div class="sparkline-fill" id="bentoRxBar"></div></div>
+          </div>
+
+          <!-- Upload Speed Tile -->
+          <div class="bento-tile">
+            <div class="tile-metric-title">
+              <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+              <span>Upload</span>
+            </div>
+            <div class="tile-metric-val" id="bentoTx">0.0</div>
+            <div class="mini-sparkline"><div class="sparkline-fill" id="bentoTxBar"></div></div>
+          </div>
+
+          <!-- Settings Accordion Row -->
+          <div class="bento-tile tile-settings-row" onclick="toggleBentoAccordion()">
+            <span style="font-size: 12px; font-weight: 600; color: #E5E7EB;">Быстрые настройки узла</span>
+            <span style="font-size: 11px; color: #9CA3AF;">▾</span>
+          </div>
+
+          <!-- Expandable Options -->
+          <div class="bento-accordion" id="bentoAccordion">
+            <div style="display: flex; justify-content: space-between; font-size: 11px;">
+              <span>Anti-DPI Shaper</span>
+              <span style="color: #10B981; font-weight: 600;">ACTIVE</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px;">
+              <span>MTU Clamping</span>
+              <span style="font-family: 'DM Mono', monospace;">1400</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ==========================================================================
+         ПАРАДИГМА 3: PRECISION INSTRUMENT (Аналоговая круговая дуга-спидометр)
+         ========================================================================== -->
+    <section class="prototype-screen" id="screen3">
+      <div class="gauge-console">
+        
+        <div class="console-header">
+          <span class="console-title">INSTRUMENT DECK</span>
+          <span style="font-size: 10px; font-family: 'DM Mono', monospace; color: #E5A93C;">TITAN 6.5</span>
+        </div>
+
+        <!-- Circular Arc Gauge -->
+        <div class="gauge-wrap">
+          <svg class="gauge-svg" viewBox="0 0 200 200">
+            <circle class="gauge-bg" cx="100" cy="100" r="85"/>
+            <circle class="gauge-meter" id="gaugeArc" cx="100" cy="100" r="85"/>
+          </svg>
+          <div class="gauge-inner-center" onclick="toggleGaugeConnection()">
+            <span class="gauge-speed-val" id="gaugeVal">0.0</span>
+            <span class="gauge-speed-unit">MB/S FLUX</span>
+          </div>
+        </div>
+
+        <!-- Physical Bar Switches -->
+        <div class="instrument-switch-bar">
+          <span class="inst-label">REACTOR TUNNEL</span>
+          <span class="inst-state-tag" id="gaugeStateTag">STANDBY</span>
+        </div>
+
+        <div class="instrument-switch-bar">
+          <span class="inst-label">CIPHER SUITE</span>
+          <span class="inst-state-tag on">CHACHA20-P1305</span>
+        </div>
+
+        <div class="instrument-switch-bar">
+          <span class="inst-label">PACKET LATENCY</span>
+          <span style="font-size: 12px; font-family: 'DM Mono', monospace; color: #E5A93C;" id="gaugePing">-- MS</span>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ==========================================================================
+         ПАРАДИГМА 4: WORKSTATION SIDEBAR RAIL (Вертикальный левый док)
+         ========================================================================== -->
+    <section class="prototype-screen" id="screen4">
+      <div class="rail-workstation">
+        
+        <!-- Left Icon Rail -->
+        <aside class="left-rail">
+          <button class="rail-btn active" title="Защита">
+            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </button>
+          <button class="rail-btn" title="Аналитика">
+            <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </button>
+          <button class="rail-btn" title="Узлы">
+            <svg class="icon-svg" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+          </button>
+        </aside>
+
+        <!-- Right Main Dashboard -->
+        <main class="rail-main">
+          
+          <div class="rail-topbar">
+            <span class="rail-title">Overview</span>
+            <span style="font-size: 11px; color: #64748B;">Node 31.76.9.86</span>
+          </div>
+
+          <div class="rail-status-card">
+            <div>
+              <div style="font-size: 14px; font-weight: 700; color: #F8FAFC;" id="railStatusText">Idle Standby</div>
+              <div style="font-size: 11px; color: #64748B;">No tunnel active</div>
+            </div>
+            <button class="btn-rail-connect" id="btnRailConnect" onclick="toggleRailConnection()">Connect</button>
+          </div>
+
+          <div class="dual-pane-metrics">
+            <div class="metric-pane">
+              <div style="font-size: 10px; color: #64748B; margin-bottom: 4px;">Inbound Stream</div>
+              <div style="font-size: 16px; font-weight: 700; color: #4B6BFB;" id="railRx">0.0 MB/s</div>
+            </div>
+            <div class="metric-pane">
+              <div style="font-size: 10px; color: #64748B; margin-bottom: 4px;">RTT Latency</div>
+              <div style="font-size: 16px; font-weight: 700; color: #F8FAFC;" id="railPing">-- ms</div>
+            </div>
+          </div>
+
+        </main>
+
+      </div>
+    </section>
+
+
+    <!-- ==========================================================================
+         ПАРАДИГМА 5: SYSTEM TRAY POPOVER (Компактный микро-виджет трея)
+         ========================================================================== -->
+    <section class="prototype-screen" id="screen5">
+      <div class="tray-popover">
+        
+        <div class="tray-top">
+          <span class="tray-brand">AEGS System Menu</span>
+          <span style="font-size: 10px; color: #64748B;">⌘K</span>
+        </div>
+
+        <div class="tray-toggle-row">
+          <span class="tray-label" id="trayLabel">Туннель выключен</span>
+          <div class="tray-switch" id="traySwitch" onclick="toggleTrayConnection()"></div>
+        </div>
+
+        <div style="font-size: 10px; font-weight: 600; text-transform: uppercase; color: #64748B; margin-bottom: 8px;">Выбор сервера</div>
+        
+        <div class="tray-server-list">
+          <div class="server-item selected">
+            <span>● Франкфурт (Reality 443)</span>
+            <span class="server-ping">24ms</span>
+          </div>
+          <div class="server-item">
+            <span>○ Амстердам (Emergency)</span>
+            <span class="server-ping" style="color: #64748B;">31ms</span>
+          </div>
+          <div class="server-item">
+            <span>○ Стокгольм (PQC UDP)</span>
+            <span class="server-ping" style="color: #64748B;">42ms</span>
+          </div>
+        </div>
+
+        <div class="tray-log-card">
+          <div>[16:42:01] DNS: Cloudflare DoH verified</div>
+          <div>[16:42:05] Socket: MTU Clamp 1400 OK</div>
+          <div id="trayLogLine">[16:42:10] Standby state</div>
+        </div>
+
+      </div>
+    </section>
 
   </div>
 
-  <!-- JAVASCRIPT CONTROLLER -->
+  <!-- UNIFIED INTERACTION ENGINE -->
   <script>
-    let isConnected = false;
-    let isSettingsOpen = false;
-    let sessionSeconds = 0;
-    let sessionInterval = null;
+    let globalActive = false;
+    let simInterval = null;
 
-    // Set Palette
-    function setPalette(num) {
-      document.body.className = `theme-${num}`;
-      
-      const chips = document.querySelectorAll('.theme-chip');
-      chips.forEach((chip, i) => {
-        chip.classList.toggle('active', i === num - 1);
+    // Switch Architecture Paradigm (1 to 5)
+    function activateParadigm(num) {
+      document.querySelectorAll('.dock-btn').forEach((btn, idx) => {
+        btn.classList.toggle('active', idx === num - 1);
+      });
+
+      document.querySelectorAll('.prototype-screen').forEach((scr, idx) => {
+        scr.classList.toggle('active', idx === num - 1);
       });
     }
 
-    // Toggle Dashboard / Settings (Progressive Disclosure)
-    function toggleView() {
-      isSettingsOpen = !isSettingsOpen;
-      const dashboard = document.getElementById('viewDashboard');
-      const settings = document.getElementById('viewSettings');
-      const navText = document.getElementById('navText');
-      const navSvg = document.getElementById('navSvgIcon');
+    // Paradigm 1: Island Toggle
+    function toggleIslandConnection() {
+      globalActive = !globalActive;
+      syncAllStates();
+    }
 
-      if (isSettingsOpen) {
-        dashboard.classList.add('hidden');
-        settings.classList.remove('hidden');
-        navText.innerText = 'К щиту';
-        navSvg.innerHTML = '<line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>';
+    function toggleIslandModal(open) {
+      document.getElementById('islandModal').classList.toggle('open', open);
+    }
+
+    // Paradigm 2: Bento Toggle
+    function toggleBentoConnection() {
+      globalActive = !globalActive;
+      syncAllStates();
+    }
+
+    function toggleBentoAccordion() {
+      document.getElementById('bentoAccordion').classList.toggle('open');
+    }
+
+    // Paradigm 3: Gauge Toggle
+    function toggleGaugeConnection() {
+      globalActive = !globalActive;
+      syncAllStates();
+    }
+
+    // Paradigm 4: Rail Toggle
+    function toggleRailConnection() {
+      globalActive = !globalActive;
+      syncAllStates();
+    }
+
+    // Paradigm 5: Tray Toggle
+    function toggleTrayConnection() {
+      globalActive = !globalActive;
+      syncAllStates();
+    }
+
+    // State Synchronizer across all paradigms
+    function syncAllStates() {
+      // 1. Island
+      const islandSlider = document.getElementById('islandSlider');
+      const islandTitle = document.getElementById('islandTitle');
+      const islandSliderText = document.getElementById('islandSliderText');
+      const islandStatusPill = document.getElementById('islandStatusPill');
+      const islandPillText = document.getElementById('islandPillText');
+
+      if (globalActive) {
+        islandSlider.classList.add('connected');
+        islandTitle.innerText = 'Защита включена';
+        islandSliderText.innerText = 'Туннель активен';
+        islandStatusPill.classList.add('active');
+        islandPillText.innerText = 'Защищено';
       } else {
-        settings.classList.add('hidden');
-        dashboard.classList.remove('hidden');
-        navText.innerText = 'Настройки';
-        navSvg.innerHTML = '<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>';
+        islandSlider.classList.remove('connected');
+        islandTitle.innerText = 'Защита отключена';
+        islandSliderText.innerText = 'Сдвиньте для защиты';
+        islandStatusPill.classList.remove('active');
+        islandPillText.innerText = 'Туннель отключён';
       }
-    }
 
-    // Toggle Connection State
-    function toggleTunnelState() {
-      isConnected = !isConnected;
-      const btn = document.getElementById('shieldButton');
-      const actionText = document.getElementById('shieldActionText');
-      const statusTitle = document.getElementById('statusTitle');
-      const statusSubtitle = document.getElementById('statusSubtitle');
-      const sessionBadge = document.getElementById('sessionBadge');
-      const footerDot = document.getElementById('footerDot');
-      const footerText = document.getElementById('footerText');
-
-      if (isConnected) {
-        btn.classList.add('active');
-        actionText.innerText = 'Стоп';
-        statusTitle.innerText = 'Защита активна';
-        statusSubtitle.innerText = 'IP: 10.8.0.2 • Reality ECH 443 • Зашифровано';
-        footerText.innerText = 'Туннель активен. Пакеты защищены.';
-        footerDot.classList.add('active');
-
-        sessionSeconds = 0;
-        clearInterval(sessionInterval);
-        sessionInterval = setInterval(() => {
-          sessionSeconds++;
-          const mins = String(Math.floor(sessionSeconds / 60)).padStart(2, '0');
-          const secs = String(sessionSeconds % 60).padStart(2, '0');
-          sessionBadge.innerText = `Сессия: 00:${mins}:${secs}`;
-        }, 1000);
-
+      // 2. Bento
+      const bentoHero = document.getElementById('bentoHeroTile');
+      const bentoStatus = document.getElementById('bentoStatus');
+      const bentoMeta = document.getElementById('bentoMeta');
+      if (globalActive) {
+        bentoHero.classList.add('connected');
+        bentoStatus.innerText = 'АКТИВЕН';
+        bentoMeta.innerText = 'Шифрование ChaCha20-Poly1305 активно';
       } else {
-        btn.classList.remove('active');
-        actionText.innerText = 'Старт';
-        statusTitle.innerText = 'Служба готова к запуску';
-        statusSubtitle.innerText = 'TLS 1.3 Reality ECH • 0-RTT • Порт 443';
-        sessionBadge.innerText = 'Нажмите для подключения';
-        footerText.innerText = 'Ядро готово к работе';
-        footerDot.classList.remove('active');
-
-        clearInterval(sessionInterval);
-        document.getElementById('valRx').innerText = '0.0 КБ/с';
-        document.getElementById('valTx').innerText = '0.0 КБ/с';
-        document.getElementById('valPing').innerText = '-- мс';
+        bentoHero.classList.remove('connected');
+        bentoStatus.innerText = 'ОТКЛЮЧЕНО';
+        bentoMeta.innerText = 'Кликните плитку для включения туннеля';
       }
-    }
 
-    // Canvas Telemetry Wave Renderer
-    const canvas = document.getElementById('waveCanvas');
-    const ctx = canvas.getContext('2d');
-    let rxPoints = new Array(36).fill(0);
-    let txPoints = new Array(36).fill(0);
-
-    function handleResize() {
-      canvas.width = canvas.parentElement.clientWidth;
-      canvas.height = 64;
-    }
-    window.addEventListener('resize', handleResize);
-    handleResize();
-
-    // Metric Simulator
-    setInterval(() => {
-      if (isConnected) {
-        const rx = 3.2 + Math.random() * 4.6;
-        const tx = 0.9 + Math.random() * 1.8;
-        const ping = Math.floor(21 + Math.random() * 5);
-
-        document.getElementById('valRx').innerText = `${rx.toFixed(1)} МБ/с`;
-        document.getElementById('valTx').innerText = `${tx.toFixed(1)} МБ/с`;
-        document.getElementById('valPing').innerText = `${ping} мс`;
-
-        rxPoints.push(rx * 6);
-        rxPoints.shift();
-
-        txPoints.push(tx * 6);
-        txPoints.shift();
+      // 3. Gauge
+      const gaugeState = document.getElementById('gaugeStateTag');
+      if (globalActive) {
+        gaugeState.innerText = 'ACTIVE (100%)';
+        gaugeState.classList.add('on');
       } else {
-        rxPoints.push(0);
-        rxPoints.shift();
-        txPoints.push(0);
-        txPoints.shift();
+        gaugeState.innerText = 'STANDBY';
+        gaugeState.classList.remove('on');
       }
-    }, 400);
 
-    function renderCanvas() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const step = canvas.width / (rxPoints.length - 1);
-
-      // Subtle Grid Lines
-      const style = getComputedStyle(document.body);
-      ctx.strokeStyle = style.getPropertyValue('--canvas-grid').trim() || '#1F242C';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([2, 2]);
-      [16, 32, 48].forEach(y => {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
-      });
-      ctx.setLineDash([]);
-
-      // Draw RX Line
-      ctx.beginPath();
-      ctx.strokeStyle = style.getPropertyValue('--canvas-line-rx').trim() || '#5E9382';
-      ctx.lineWidth = 1.8;
-      for (let i = 0; i < rxPoints.length; i++) {
-        const x = i * step;
-        const y = canvas.height - 8 - Math.min(rxPoints[i], 46);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+      // 4. Rail
+      const railStatus = document.getElementById('railStatusText');
+      const btnRail = document.getElementById('btnRailConnect');
+      if (globalActive) {
+        railStatus.innerText = 'Protected';
+        btnRail.innerText = 'Disconnect';
+        btnRail.classList.add('disconnect');
+      } else {
+        railStatus.innerText = 'Idle Standby';
+        btnRail.innerText = 'Connect';
+        btnRail.classList.remove('disconnect');
       }
-      ctx.stroke();
 
-      // Draw TX Line
-      ctx.beginPath();
-      ctx.strokeStyle = style.getPropertyValue('--canvas-line-tx').trim() || '#C49768';
-      ctx.lineWidth = 1.2;
-      for (let i = 0; i < txPoints.length; i++) {
-        const x = i * step;
-        const y = canvas.height - 8 - Math.min(txPoints[i], 46);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+      // 5. Tray
+      const traySwitch = document.getElementById('traySwitch');
+      const trayLabel = document.getElementById('trayLabel');
+      const trayLogLine = document.getElementById('trayLogLine');
+      if (globalActive) {
+        traySwitch.classList.add('active');
+        trayLabel.innerText = 'Туннель подключён';
+        trayLogLine.innerText = '[16:42:15] Tunnel established';
+      } else {
+        traySwitch.classList.remove('active');
+        trayLabel.innerText = 'Туннель выключен';
+        trayLogLine.innerText = '[16:42:10] Standby state';
       }
-      ctx.stroke();
 
-      requestAnimationFrame(renderCanvas);
+      // Start/Stop Live Simulation
+      if (globalActive) {
+        startSimulation();
+      } else {
+        stopSimulation();
+      }
     }
-    requestAnimationFrame(renderCanvas);
+
+    function startSimulation() {
+      clearInterval(simInterval);
+      simInterval = setInterval(() => {
+        const rx = (3.5 + Math.random() * 4.2).toFixed(1);
+        const tx = (0.8 + Math.random() * 1.4).toFixed(1);
+        const ping = Math.floor(22 + Math.random() * 5);
+
+        // 1. Island
+        document.getElementById('islandRx').innerText = `${rx} МБ/с`;
+        document.getElementById('islandTx').innerText = `${tx} МБ/с`;
+        document.getElementById('islandPing').innerText = `${ping} мс`;
+
+        // 2. Bento
+        document.getElementById('bentoRx').innerText = rx;
+        document.getElementById('bentoTx').innerText = tx;
+        document.getElementById('bentoRxBar').style.width = `${Math.min(rx * 12, 100)}%`;
+        document.getElementById('bentoTxBar').style.width = `${Math.min(tx * 25, 100)}%`;
+
+        // 3. Gauge
+        document.getElementById('gaugeVal').innerText = rx;
+        document.getElementById('gaugePing').innerText = `${ping} MS`;
+        const offset = 565 - (Math.min(rx / 10, 1) * 400);
+        document.getElementById('gaugeArc').style.strokeDashoffset = offset;
+
+        // 4. Rail
+        document.getElementById('railRx').innerText = `${rx} MB/s`;
+        document.getElementById('railPing').innerText = `${ping} ms`;
+      }, 500);
+    }
+
+    function stopSimulation() {
+      clearInterval(simInterval);
+      document.getElementById('islandRx').innerText = '0.0 МБ/с';
+      document.getElementById('islandTx').innerText = '0.0 МБ/с';
+      document.getElementById('islandPing').innerText = '-- мс';
+
+      document.getElementById('bentoRx').innerText = '0.0';
+      document.getElementById('bentoTx').innerText = '0.0';
+      document.getElementById('bentoRxBar').style.width = '0%';
+      document.getElementById('bentoTxBar').style.width = '0%';
+
+      document.getElementById('gaugeVal').innerText = '0.0';
+      document.getElementById('gaugePing').innerText = '-- MS';
+      document.getElementById('gaugeArc').style.strokeDashoffset = 565;
+
+      document.getElementById('railRx').innerText = '0.0 MB/s';
+      document.getElementById('railPing').innerText = '-- ms';
+    }
   </script>
 </body>
 </html>
