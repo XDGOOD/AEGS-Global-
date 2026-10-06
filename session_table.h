@@ -85,6 +85,37 @@ public:
         shards_[shard].by_key_id[kid] = s;
     }
 
+    void remove_session(uint64_t key_id) {
+        size_t shard = shard_idx(key_id);
+        Session* to_delete = nullptr;
+        {
+            std::unique_lock<std::shared_mutex> lk(shards_[shard].mu);
+            auto it = shards_[shard].by_key_id.find(key_id);
+            if (it != shards_[shard].by_key_id.end()) {
+                to_delete = it->second;
+                shards_[shard].by_key_id.erase(it);
+            }
+        }
+        if (to_delete) {
+            uint32_t ip = to_delete->assigned_ip.load(std::memory_order_relaxed);
+            if (ip) {
+                unmap_ip(ip);
+            }
+            for (size_t s = 0; s < NUM_SHARDS; ++s) {
+                std::unique_lock<std::shared_mutex> lk(ep_shards_[s].mu);
+                for (auto it = ep_shards_[s].by_endpoint.begin(); it != ep_shards_[s].by_endpoint.end(); ) {
+                    if (it->second == to_delete) {
+                        it = ep_shards_[s].by_endpoint.erase(it);
+                    } else {
+                        ++it;
+                    }
+                }
+            }
+            to_delete->recycle();
+            delete to_delete;
+        }
+    }
+
     // Control-plane updates: Copy-on-Write pointer swap
     void map_ip(uint32_t ip, Session* s) {
         if (!ip || !s) return;

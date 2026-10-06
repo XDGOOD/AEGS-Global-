@@ -1135,10 +1135,13 @@ void worker_loop(int worker_id, int num_workers, const AegsConfig& cfg,
 
 // Dynamic Zero-Downtime Hot-Reload State
 static std::mutex g_db_sync_mu;
-static std::unordered_map<std::string, uint64_t> g_active_tokens; // token -> base_kid_raw
-static time_t g_last_db_mtime = 0;
+static std::unordered_map<std::string, uint64_t> g_active_tokens; // token -> kid_raw
+static std::unordered_map<uint64_t, std::vector<uint64_t>> g_user_slots; // base_kid_raw -> [slot_kid_raw...]
+static sqlite3* g_sync_db = nullptr;
+static int64_t g_last_db_data_version = -1;
+static std::string g_last_db_path;
 
-static uint64_t register_device_session_helper(const std::string& token, const std::string& custom_kid_hex = "") {
+static uint64_t register_device_session_helper(const std::string& token, HandshakeServer& hs_server, const std::string& custom_kid_hex = "") {
     std::string kid_hex;
     uint64_t kid_raw = 0;
     if (!custom_kid_hex.empty()) {
@@ -1182,29 +1185,54 @@ static uint64_t register_device_session_helper(const std::string& token, const s
     init_sc.v3_handshake_done = false;
     s->set_crypto(init_sc);
     s->counters.last_activity.store(std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count(), std::memory_order_relaxed);
+
+    hs_server.add_user(kid_raw, s->identity.key_id_hex, std::vector<uint8_t>(mkey, mkey + 32));
     g_sessions.insert_session(s);
     return kid_raw;
 }
 
 static void sync_users_from_db(const std::string& db_path, HandshakeServer& hs_server, IpPool& ip_pool) {
     std::lock_guard<std::mutex> lock(g_db_sync_mu);
-    struct stat st;
-    if (stat(db_path.c_str(), &st) != 0) {
-        return; // DB file does not exist yet or cannot be read
-    }
-    if (st.st_mtime == g_last_db_mtime && g_last_db_mtime != 0) {
-        return; // File unmodified since last sync
+    if (db_path.empty()) return;
+
+    if (g_sync_db && g_last_db_path != db_path) {
+        sqlite3_close(g_sync_db);
+        g_sync_db = nullptr;
+        g_last_db_data_version = -1;
     }
 
-    sqlite3* db = nullptr;
-    if (sqlite3_open_v2(db_path.c_str(), &db, SQLITE_OPEN_READONLY, nullptr) != SQLITE_OK) {
-        if (db) sqlite3_close(db);
+    if (!g_sync_db) {
+        if (sqlite3_open_v2(db_path.c_str(), &g_sync_db, SQLITE_OPEN_READONLY, nullptr) != SQLITE_OK) {
+            if (g_sync_db) {
+                sqlite3_close(g_sync_db);
+                g_sync_db = nullptr;
+            }
+            return;
+        }
+        g_last_db_path = db_path;
+        g_last_db_data_version = -1;
+    }
+
+    // Atomic PRAGMA data_version check (tracks commits across WAL and rollback modes)
+    sqlite3_stmt* vstmt = nullptr;
+    int64_t current_version = -1;
+    if (sqlite3_prepare_v2(g_sync_db, "PRAGMA data_version;", -1, &vstmt, nullptr) == SQLITE_OK) {
+        if (sqlite3_step(vstmt) == SQLITE_ROW) {
+            current_version = sqlite3_column_int64(vstmt, 0);
+        }
+        sqlite3_finalize(vstmt);
+    } else {
+        sqlite3_close(g_sync_db);
+        g_sync_db = nullptr;
         return;
     }
 
+    if (current_version != -1 && current_version == g_last_db_data_version) {
+        return; // Zero changes committed to DB, completely skip query and session updates
+    }
+
     sqlite3_stmt* stmt = nullptr;
-    if (sqlite3_prepare_v2(db, "SELECT aegis_key_id, aegis_token FROM users", -1, &stmt, nullptr) != SQLITE_OK) {
-        sqlite3_close(db);
+    if (sqlite3_prepare_v2(g_sync_db, "SELECT aegis_key_id, aegis_token FROM users", -1, &stmt, nullptr) != SQLITE_OK) {
         return;
     }
 
@@ -1217,49 +1245,31 @@ static void sync_users_from_db(const std::string& db_path, HandshakeServer& hs_s
         }
     }
     sqlite3_finalize(stmt);
-    sqlite3_close(db);
 
-    g_last_db_mtime = st.st_mtime;
+    g_last_db_data_version = current_version;
 
     // 1. Detect and register new users
     int added_count = 0;
     for (const auto& [token, base_kid_hex] : current_db_users) {
         if (g_active_tokens.find(token) == g_active_tokens.end()) {
             std::vector<uint64_t> slots;
-            uint64_t k1 = register_device_session_helper(token, base_kid_hex);
+            uint64_t k1 = register_device_session_helper(token, hs_server, base_kid_hex);
             if (k1) {
                 slots.push_back(k1);
-                Session* s = g_sessions.find_by_key_id(k1);
-                if (s) {
-                    auto sc = s->get_crypto();
-                    if (sc) {
-                        hs_server.add_user(k1, s->identity.key_id_hex, std::vector<uint8_t>(sc->master_key, sc->master_key + 32));
-                    }
-                }
             }
 
-            uint64_t k_slot1 = register_device_session_helper(token + "#1");
-            if (k_slot1 && k_slot1 != k1) {
-                slots.push_back(k_slot1);
-                Session* s = g_sessions.find_by_key_id(k_slot1);
-                if (s) {
-                    auto sc = s->get_crypto();
-                    if (sc) {
-                        hs_server.add_user(k_slot1, s->identity.key_id_hex, std::vector<uint8_t>(sc->master_key, sc->master_key + 32));
-                    }
+            // If token is a base token (does not contain explicit slot suffix like #2 or #2_r1)
+            // also register the default 4 multi-device slots
+            if (token.find('#') == std::string::npos) {
+                uint64_t k_slot1 = register_device_session_helper(token + "#1", hs_server);
+                if (k_slot1 && k_slot1 != k1) {
+                    slots.push_back(k_slot1);
                 }
-            }
 
-            for (int slot = 2; slot <= 4; ++slot) {
-                uint64_t ks = register_device_session_helper(token + "#" + std::to_string(slot));
-                if (ks) {
-                    slots.push_back(ks);
-                    Session* s = g_sessions.find_by_key_id(ks);
-                    if (s) {
-                        auto sc = s->get_crypto();
-                        if (sc) {
-                            hs_server.add_user(ks, s->identity.key_id_hex, std::vector<uint8_t>(sc->master_key, sc->master_key + 32));
-                        }
+                for (int slot = 2; slot <= 4; ++slot) {
+                    uint64_t ks = register_device_session_helper(token + "#" + std::to_string(slot), hs_server);
+                    if (ks) {
+                        slots.push_back(ks);
                     }
                 }
             }
@@ -1287,23 +1297,41 @@ static void sync_users_from_db(const std::string& db_path, HandshakeServer& hs_s
         if (slot_it != g_user_slots.end()) {
             for (uint64_t kid : slot_it->second) {
                 hs_server.remove_user(kid);
-                Session* s = g_sessions.find_by_key_id(kid);
-                if (s) {
-                    uint32_t assigned_ip = s->assigned_ip.load(std::memory_order_relaxed);
-                    if (assigned_ip != 0) {
-                        ip_pool.release(assigned_ip);
+                uint32_t assigned_ip = 0;
+                {
+                    SessionHandle s = g_sessions.find_by_key_id(kid);
+                    if (s) {
+                        assigned_ip = s->assigned_ip.load(std::memory_order_relaxed);
                     }
-                    g_sessions.remove_session(kid);
+                } // s exits scope and decrements active_readers_ before remove_session quiesces
+                if (assigned_ip != 0) {
+                    ip_pool.release(assigned_ip);
                 }
+                g_sessions.remove_session(kid);
             }
             g_user_slots.erase(slot_it);
+        } else {
+            // Standalone slot token removal
+            hs_server.remove_user(base_kid);
+            uint32_t assigned_ip = 0;
+            {
+                SessionHandle s = g_sessions.find_by_key_id(base_kid);
+                if (s) {
+                    assigned_ip = s->assigned_ip.load(std::memory_order_relaxed);
+                }
+            }
+            if (assigned_ip != 0) {
+                ip_pool.release(assigned_ip);
+            }
+            g_sessions.remove_session(base_kid);
         }
         g_active_tokens.erase(tok);
         removed_count++;
     }
 
     if (added_count > 0 || removed_count > 0) {
-        std::cout << "[AEGS Hot-Reload] Synchronized database: +" << added_count << " active user(s), -" << removed_count << " revoked user(s).\n";
+        std::cout << "[AEGS Hot-Reload] Synchronized database (data_version=" << current_version
+                  << "): +" << added_count << " active user(s), -" << removed_count << " revoked user(s).\n";
     }
 }
 
@@ -1408,6 +1436,10 @@ int main() {
     tun.close();
 
     g_sessions.clear();
+    if (g_sync_db) {
+        sqlite3_close(g_sync_db);
+        g_sync_db = nullptr;
+    }
 
     std::cout << "[AEGS v6 Titan Server] Clean shutdown complete.\n";
     return 0;

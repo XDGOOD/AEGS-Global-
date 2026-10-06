@@ -224,7 +224,7 @@ namespace AegsTitan.Network
                             catch { }
                         }
 
-                        if (ping < 0) ping = 35; // Default fallback if ping blocked by firewall
+                        // If ICMP and TCP probes failed or blocked by network, keep ping as -1 to display real status
                         OnMetricsUpdated?.Invoke(rxDelta, txDelta, ping);
                     }
                     catch (OperationCanceledException) { break; }

@@ -202,7 +202,7 @@ namespace AegsTitan
             {
                 TxtRxSpeed.Text = FormatSpeed(rxBytesSec);
                 TxtTxSpeed.Text = FormatSpeed(txBytesSec);
-                TxtPing.Text = $"{pingMs} мс";
+                TxtPing.Text = pingMs >= 0 ? $"{pingMs} мс" : "-- мс";
             });
         }
 
