@@ -120,12 +120,17 @@ public:
     std::vector<uint8_t> build_resp(uint64_t key_id, uint32_t assigned_ip, uint16_t mtu, SessionKeys& out);
     std::vector<uint8_t> get_pubkey() const;
 
+    // Dynamic Zero-Downtime Hot-Reload:
+    void add_user(uint64_t key_id, const std::string& key_id_hex, const std::vector<uint8_t>& master_key);
+    void remove_user(uint64_t key_id);
+    bool has_user(uint64_t key_id) const;
+
 private:
     std::unordered_map<uint64_t, std::string> m_user_map;
     std::unordered_map<uint64_t, std::vector<uint8_t>> m_master_keys; // FIX CRIT-1
     EVP_PKEY* m_static_pkey;
 
-    std::mutex m_mutex;
+    mutable std::mutex m_mutex;
     // FIX Audit: Map timestamp -> received_time_ms.
     // Previously, prune_timestamps() called m_seen_timestamps.clear() every 60s,
     // which created a vulnerability window where replayed HANDSHAKE_INIT packets

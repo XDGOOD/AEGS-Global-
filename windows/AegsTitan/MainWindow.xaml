@@ -228,7 +228,7 @@
                         <TextBlock Text="КЛЮЧ ДОСТУПА" Style="{StaticResource SectionTitle}"/>
                         <Border Style="{StaticResource CleanCard}">
                             <TextBox x:Name="TxtToken" Background="#0D1117" Foreground="#58A6FF" BorderBrush="#30363D" 
-                                     Padding="8,6" FontSize="11" Text="aegs_secure_token_titan_v6" FontFamily="Consolas"/>
+                                     Padding="8,6" FontSize="11" Text="" FontFamily="Consolas"/>
                         </Border>
                     </StackPanel>
                 </ScrollViewer>
@@ -242,7 +242,7 @@
                 <Ellipse Width="6" Height="6" Fill="#3FB950" Margin="0,0,8,0" VerticalAlignment="Center"/>
                 <TextBlock x:Name="TxtLogTicker" Text="AEGS Ready. Нажмите щит для старта." 
                            Foreground="#8B949E" FontSize="11" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                <TextBlock Text="31.76.9.86" Foreground="#484F58" FontSize="10" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                <TextBlock x:Name="TxtFooterServer" Text="AEGS v6 Titan" Foreground="#484F58" FontSize="10" HorizontalAlignment="Right" VerticalAlignment="Center"/>
             </DockPanel>
         </Border>
     </Grid>

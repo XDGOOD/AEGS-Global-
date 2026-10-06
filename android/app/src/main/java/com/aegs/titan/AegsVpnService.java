@@ -58,9 +58,10 @@ public class AegsVpnService extends VpnService implements Runnable {
     private final Object mTunnelLock = new Object();
     private final AtomicBoolean mRunning = new AtomicBoolean(false);
 
-    private String mServerIp = "31.76.9.86";
+    private String mServerIp = "";
     private int mServerPort = 443;
-    private String mToken = "aegs_secure_token_titan_v6";
+    private String mToken = "";
+    private byte[] mPrecomputedMasterKey = null;
     private boolean mSplitTunnel = true;
     private boolean mAdaptiveChaff = true;
     private boolean mKillSwitch = true;
@@ -119,6 +120,7 @@ public class AegsVpnService extends VpnService implements Runnable {
             if (intent.hasExtra("SERVER_IP")) mServerIp = intent.getStringExtra("SERVER_IP");
             if (intent.hasExtra("SERVER_PORT")) mServerPort = intent.getIntExtra("SERVER_PORT", 443);
             if (intent.hasExtra("TOKEN")) mToken = intent.getStringExtra("TOKEN");
+            if (intent.hasExtra("MASTER_KEY")) mPrecomputedMasterKey = intent.getByteArrayExtra("MASTER_KEY");
             if (intent.hasExtra("SPLIT_TUNNEL")) mSplitTunnel = intent.getBooleanExtra("SPLIT_TUNNEL", true);
             if (intent.hasExtra("ADAPTIVE_CHAFF")) mAdaptiveChaff = intent.getBooleanExtra("ADAPTIVE_CHAFF", true);
             if (intent.hasExtra("KILL_SWITCH")) mKillSwitch = intent.getBooleanExtra("KILL_SWITCH", true);
@@ -243,7 +245,10 @@ public class AegsVpnService extends VpnService implements Runnable {
 
             // Phase 1: Cryptographic Handshake Generation
             byte[] keyId = AegsProtocol.deriveKeyId(mToken);
-            byte[] masterKey = AegsProtocol.deriveMasterKey(mToken, keyId);
+            byte[] masterKey = mPrecomputedMasterKey;
+            if (masterKey == null) {
+                masterKey = AegsProtocol.deriveMasterKey(mToken, keyId);
+            }
             AegsProtocol.X25519KeyPair ephKeyPair = AegsProtocol.generateX25519KeyPair();
 
             byte[] initPkt = AegsProtocol.buildHandshakeInit(keyId, masterKey, ephKeyPair.publicKey);
@@ -350,8 +355,8 @@ public class AegsVpnService extends VpnService implements Runnable {
             builder.setSession("AEGS Titan (" + mSession.assignedIp + ")");
             builder.addAddress(mSession.assignedIp, 24);
             builder.addDnsServer("10.8.0.1"); // Enforce tunnel DNS to prevent leaks
+            builder.addDnsServer("1.1.1.1");
             builder.addDnsServer("8.8.8.8");
-            builder.addDnsServer("77.88.8.8");
             builder.addRoute("0.0.0.0", 0);
             builder.setMtu(Math.min(mSession.mtu, 1280));
 
@@ -578,6 +583,9 @@ public class AegsVpnService extends VpnService implements Runnable {
         mSpeedTickerThread = new Thread(() -> {
             long lastRx = mRxBytes.get();
             long lastTx = mTxBytes.get();
+            long lastNotifTime = 0;
+            long lastNotifRx = 0;
+            long lastNotifTx = 0;
             while (mRunning.get()) {
                 try {
                     Thread.sleep(1000);
@@ -590,7 +598,16 @@ public class AegsVpnService extends VpnService implements Runnable {
                     lastRx = curRx;
                     lastTx = curTx;
 
-                    if (!mIsPaused) {
+                    long now = System.currentTimeMillis();
+                    // Throttle notification updates: notify every 3 seconds or on significant throughput jump (>250KB/s)
+                    boolean shouldNotify = (now - lastNotifTime >= 3000)
+                            || (Math.abs(rxDelta - lastNotifRx) > 250 * 1024)
+                            || (Math.abs(txDelta - lastNotifTx) > 250 * 1024);
+
+                    if (!mIsPaused && shouldNotify) {
+                        lastNotifTime = now;
+                        lastNotifRx = rxDelta;
+                        lastNotifTx = txDelta;
                         String rxStr = formatBytesSpeed(rxDelta);
                         String txStr = formatBytesSpeed(txDelta);
                         String ipStr = (mSession != null && mSession.assignedIp != null) ? " • " + mSession.assignedIp : "";

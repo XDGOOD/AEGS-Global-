@@ -71,19 +71,42 @@ public final class AegsProtocol {
         }
     }
 
+    private static final java.util.concurrent.ConcurrentHashMap<String, byte[]> MASTER_KEY_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public static void setCachedMasterKey(String token, byte[] masterKey) {
+        if (token != null && masterKey != null) {
+            MASTER_KEY_CACHE.put(token, masterKey.clone());
+        }
+    }
+
+    public static byte[] getCachedMasterKey(String token) {
+        if (token != null && MASTER_KEY_CACHE.containsKey(token)) {
+            return MASTER_KEY_CACHE.get(token).clone();
+        }
+        return null;
+    }
+
     public static byte[] deriveMasterKey(String token, byte[] keyId) {
+        if (token != null && MASTER_KEY_CACHE.containsKey(token)) {
+            return MASTER_KEY_CACHE.get(token).clone();
+        }
         // C++ & Python servers use 16-character hex representation of KeyID as salt
         byte[] salt = (keyId != null && keyId.length == 8)
                 ? bytesToHex(keyId).getBytes(StandardCharsets.UTF_8)
                 : keyId;
+        byte[] derived;
         try {
             SecretKeyFactory skf = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
             PBEKeySpec spec = new PBEKeySpec(token.toCharArray(), salt, 200000, 256);
-            return skf.generateSecret(spec).getEncoded();
+            derived = skf.generateSecret(spec).getEncoded();
         } catch (Exception e) {
             // Pure Java fallback: guaranteed execution on any Android / JVM runtime
-            return manualPbkdf2HmacSha256(token.getBytes(StandardCharsets.UTF_8), salt, 200000, 32);
+            derived = manualPbkdf2HmacSha256(token.getBytes(StandardCharsets.UTF_8), salt, 200000, 32);
         }
+        if (token != null && derived != null) {
+            MASTER_KEY_CACHE.put(token, derived.clone());
+        }
+        return derived;
     }
 
     public static byte[] hkdfExpand(byte[] prk, byte[] info, int length) {
@@ -329,65 +352,176 @@ public final class AegsProtocol {
         rBytes[3] &= 15; rBytes[7] &= 15; rBytes[11] &= 15; rBytes[15] &= 15;
         rBytes[4] &= (byte) 252; rBytes[8] &= (byte) 252; rBytes[12] &= (byte) 252;
 
-        BigInteger r = leToBigInt(rBytes);
-        BigInteger s = leToBigInt(Arrays.copyOfRange(key32, 16, 32));
-        BigInteger a = BigInteger.ZERO;
+        long r0 = getLE32(rBytes, 0) & 0x3ffffffL;
+        long r1 = (getLE32(rBytes, 3) >>> 2) & 0x3ffff03L;
+        long r2 = (getLE32(rBytes, 6) >>> 4) & 0x3ffc0ffL;
+        long r3 = (getLE32(rBytes, 9) >>> 6) & 0x3f03fffL;
+        long r4 = (getLE32(rBytes, 12) >>> 8) & 0x00fffffL;
 
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try {
-            if (aad != null && aad.length > 0) {
-                baos.write(aad);
-                int padAad = (16 - (aad.length % 16)) % 16;
-                if (padAad > 0) baos.write(new byte[padAad]);
-            }
-            if (ct != null && ct.length > 0) {
-                baos.write(ct);
-                int padCt = (16 - (ct.length % 16)) % 16;
-                if (padCt > 0) baos.write(new byte[padCt]);
-            }
-            byte[] lenBlock = new byte[16];
-            long aadLen = (aad != null) ? aad.length : 0;
-            long ctLen = (ct != null) ? ct.length : 0;
-            for (int i = 0; i < 8; i++) {
-                lenBlock[i] = (byte) ((aadLen >>> (i * 8)) & 0xFF);
-                lenBlock[8 + i] = (byte) ((ctLen >>> (i * 8)) & 0xFF);
-            }
-            baos.write(lenBlock);
-        } catch (Exception ignored) {}
+        long s1 = r1 * 5;
+        long s2 = r2 * 5;
+        long s3 = r3 * 5;
+        long s4 = r4 * 5;
 
-        byte[] macData = baos.toByteArray();
-        int offset = 0;
-        while (offset < macData.length) {
-            int blen = Math.min(16, macData.length - offset);
-            byte[] rev = new byte[blen + 2];
-            rev[1] = 0x01;
-            for (int i = 0; i < blen; i++) {
-                rev[rev.length - 1 - i] = macData[offset + i];
-            }
-            BigInteger n = new BigInteger(rev);
-            a = a.add(n).multiply(r).mod(P1305);
-            offset += 16;
+        long h0 = 0, h1 = 0, h2 = 0, h3 = 0, h4 = 0;
+        byte[] block16 = new byte[16];
+
+        // 1. Process AAD blocks
+        int aadLen = (aad != null) ? aad.length : 0;
+        int aadOffset = 0;
+        while (aadOffset < aadLen) {
+            int chunk = Math.min(16, aadLen - aadOffset);
+            Arrays.fill(block16, (byte) 0);
+            System.arraycopy(aad, aadOffset, block16, 0, chunk);
+
+            long w0 = getLE32(block16, 0) & 0x3ffffffL;
+            long w1 = (getLE32(block16, 3) >>> 2) & 0x3ffffffL;
+            long w2 = (getLE32(block16, 6) >>> 4) & 0x3ffffffL;
+            long w3 = (getLE32(block16, 9) >>> 6) & 0x3ffffffL;
+            long w4 = ((getLE32(block16, 12) >>> 8) & 0x00ffffffL) | (1L << 24);
+
+            h0 += w0; h1 += w1; h2 += w2; h3 += w3; h4 += w4;
+
+            long d0 = h0 * r0 + h1 * s4 + h2 * s3 + h3 * s2 + h4 * s1;
+            long d1 = h0 * r1 + h1 * r0 + h2 * s4 + h3 * s3 + h4 * s2;
+            long d2 = h0 * r2 + h1 * r1 + h2 * r0 + h3 * s4 + h4 * s3;
+            long d3 = h0 * r3 + h1 * r2 + h2 * r1 + h3 * r0 + h4 * s4;
+            long d4 = h0 * r4 + h1 * r3 + h2 * r2 + h3 * r1 + h4 * r0;
+
+            long c;
+            c = d0 >>> 26; h0 = d0 & 0x3ffffffL; d1 += c;
+            c = d1 >>> 26; h1 = d1 & 0x3ffffffL; d2 += c;
+            c = d2 >>> 26; h2 = d2 & 0x3ffffffL; d3 += c;
+            c = d3 >>> 26; h3 = d3 & 0x3ffffffL; d4 += c;
+            c = d4 >>> 26; h4 = d4 & 0x3ffffffL; h0 += c * 5;
+            c = h0 >>> 26; h0 &= 0x3ffffffL; h1 += c;
+
+            aadOffset += chunk;
         }
 
-        BigInteger tagInt = a.add(s).mod(MOD128);
-        return bigIntToLe16(tagInt);
-    }
+        // 2. Process Ciphertext blocks
+        int ctLen = (ct != null) ? ct.length : 0;
+        int ctOffset = 0;
+        while (ctOffset < ctLen) {
+            int chunk = Math.min(16, ctLen - ctOffset);
+            Arrays.fill(block16, (byte) 0);
+            System.arraycopy(ct, ctOffset, block16, 0, chunk);
 
-    private static BigInteger leToBigInt(byte[] b) {
-        byte[] rev = new byte[b.length + 1];
-        for (int i = 0; i < b.length; i++) rev[b.length - i] = b[i];
-        return new BigInteger(rev);
-    }
+            long w0 = getLE32(block16, 0) & 0x3ffffffL;
+            long w1 = (getLE32(block16, 3) >>> 2) & 0x3ffffffL;
+            long w2 = (getLE32(block16, 6) >>> 4) & 0x3ffffffL;
+            long w3 = (getLE32(block16, 9) >>> 6) & 0x3ffffffL;
+            long w4 = ((getLE32(block16, 12) >>> 8) & 0x00ffffffL) | (1L << 24);
 
-    private static byte[] bigIntToLe16(BigInteger val) {
-        byte[] b = val.toByteArray();
-        byte[] res = new byte[16];
-        int len = b.length;
-        for (int i = 0; i < 16; i++) {
-            int srcIdx = len - 1 - i;
-            if (srcIdx >= 0) res[i] = b[srcIdx];
+            h0 += w0; h1 += w1; h2 += w2; h3 += w3; h4 += w4;
+
+            long d0 = h0 * r0 + h1 * s4 + h2 * s3 + h3 * s2 + h4 * s1;
+            long d1 = h0 * r1 + h1 * r0 + h2 * s4 + h3 * s3 + h4 * s2;
+            long d2 = h0 * r2 + h1 * r1 + h2 * r0 + h3 * s4 + h4 * s3;
+            long d3 = h0 * r3 + h1 * r2 + h2 * r1 + h3 * r0 + h4 * s4;
+            long d4 = h0 * r4 + h1 * r3 + h2 * r2 + h3 * r1 + h4 * r0;
+
+            long c;
+            c = d0 >>> 26; h0 = d0 & 0x3ffffffL; d1 += c;
+            c = d1 >>> 26; h1 = d1 & 0x3ffffffL; d2 += c;
+            c = d2 >>> 26; h2 = d2 & 0x3ffffffL; d3 += c;
+            c = d3 >>> 26; h3 = d3 & 0x3ffffffL; d4 += c;
+            c = d4 >>> 26; h4 = d4 & 0x3ffffffL; h0 += c * 5;
+            c = h0 >>> 26; h0 &= 0x3ffffffL; h1 += c;
+
+            ctOffset += chunk;
         }
-        return res;
+
+        // 3. Process length block: aadLen (8 bytes LE) || ctLen (8 bytes LE)
+        Arrays.fill(block16, (byte) 0);
+        long aLen = aadLen;
+        long cLen = ctLen;
+        for (int i = 0; i < 8; i++) {
+            block16[i] = (byte) ((aLen >>> (i * 8)) & 0xFF);
+            block16[8 + i] = (byte) ((cLen >>> (i * 8)) & 0xFF);
+        }
+        {
+            long w0 = getLE32(block16, 0) & 0x3ffffffL;
+            long w1 = (getLE32(block16, 3) >>> 2) & 0x3ffffffL;
+            long w2 = (getLE32(block16, 6) >>> 4) & 0x3ffffffL;
+            long w3 = (getLE32(block16, 9) >>> 6) & 0x3ffffffL;
+            long w4 = ((getLE32(block16, 12) >>> 8) & 0x00ffffffL) | (1L << 24);
+
+            h0 += w0; h1 += w1; h2 += w2; h3 += w3; h4 += w4;
+
+            long d0 = h0 * r0 + h1 * s4 + h2 * s3 + h3 * s2 + h4 * s1;
+            long d1 = h0 * r1 + h1 * r0 + h2 * s4 + h3 * s3 + h4 * s2;
+            long d2 = h0 * r2 + h1 * r1 + h2 * r0 + h3 * s4 + h4 * s3;
+            long d3 = h0 * r3 + h1 * r2 + h2 * r1 + h3 * r0 + h4 * s4;
+            long d4 = h0 * r4 + h1 * r3 + h2 * r2 + h3 * r1 + h4 * r0;
+
+            long c;
+            c = d0 >>> 26; h0 = d0 & 0x3ffffffL; d1 += c;
+            c = d1 >>> 26; h1 = d1 & 0x3ffffffL; d2 += c;
+            c = d2 >>> 26; h2 = d2 & 0x3ffffffL; d3 += c;
+            c = d3 >>> 26; h3 = d3 & 0x3ffffffL; d4 += c;
+            c = d4 >>> 26; h4 = d4 & 0x3ffffffL; h0 += c * 5;
+            c = h0 >>> 26; h0 &= 0x3ffffffL; h1 += c;
+        }
+
+        // Final reduction modulo 2^130 - 5
+        long c;
+        c = h0 >>> 26; h0 &= 0x3ffffffL; h1 += c;
+        c = h1 >>> 26; h1 &= 0x3ffffffL; h2 += c;
+        c = h2 >>> 26; h2 &= 0x3ffffffL; h3 += c;
+        c = h3 >>> 26; h3 &= 0x3ffffffL; h4 += c;
+        c = h4 >>> 26; h4 &= 0x3ffffffL; h0 += c * 5;
+        c = h0 >>> 26; h0 &= 0x3ffffffL; h1 += c;
+
+        // Compute h + 5
+        long g0 = h0 + 5; c = g0 >>> 26; g0 &= 0x3ffffffL;
+        long g1 = h1 + c; c = g1 >>> 26; g1 &= 0x3ffffffL;
+        long g2 = h2 + c; c = g2 >>> 26; g2 &= 0x3ffffffL;
+        long g3 = h3 + c; c = g3 >>> 26; g3 &= 0x3ffffffL;
+        long g4 = h4 + c - (1L << 26);
+
+        long mask = (g4 >> 63); // 0 if g4 >= 0, -1 if g4 < 0
+        h0 = (h0 & mask) | (g0 & ~mask);
+        h1 = (h1 & mask) | (g1 & ~mask);
+        h2 = (h2 & mask) | (g2 & ~mask);
+        h3 = (h3 & mask) | (g3 & ~mask);
+        h4 = (h4 & mask) | ((g4 + (1L << 26)) & ~mask);
+
+        long f0 = (h0) | (h1 << 26) | (h2 << 52);
+        long f1 = (h2 >>> 12) | (h3 << 14) | (h4 << 40);
+
+        long s_low = getLE64(key32, 16);
+        long s_high = getLE64(key32, 24);
+
+        f0 += s_low;
+        if (Long.compareUnsigned(f0, s_low) < 0) {
+            f1++;
+        }
+        f1 += s_high;
+
+        byte[] tag = new byte[16];
+        putLE64(tag, 0, f0);
+        putLE64(tag, 8, f1);
+        return tag;
+    }
+
+    private static long getLE32(byte[] b, int offset) {
+        return (b[offset] & 0xFFL) |
+                ((b[offset + 1] & 0xFFL) << 8) |
+                ((b[offset + 2] & 0xFFL) << 16) |
+                ((b[offset + 3] & 0xFFL) << 24);
+    }
+
+    private static long getLE64(byte[] b, int offset) {
+        long low = getLE32(b, offset);
+        long high = getLE32(b, offset + 4);
+        return (low & 0xFFFFFFFFL) | (high << 32);
+    }
+
+    private static void putLE64(byte[] b, int offset, long val) {
+        for (int i = 0; i < 8; i++) {
+            b[offset + i] = (byte) ((val >>> (i * 8)) & 0xFF);
+        }
     }
 
     private static int[] chacha20Init(byte[] key, int counter, byte[] nonce12) {

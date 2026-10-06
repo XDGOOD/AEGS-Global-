@@ -230,34 +230,63 @@ compile_binaries() {
         mkdir -p "${ROOT_DIR}/build"
         cmake -B "${ROOT_DIR}/build" -S "${ROOT_DIR}" -DCMAKE_BUILD_TYPE=Release
         cmake --build "${ROOT_DIR}/build" -j"$(nproc 2>/dev/null || echo 2)"
-        cp "${ROOT_DIR}/build/aegis_server" "${SERVER_BIN}"
-        if [[ -f "${ROOT_DIR}/build/aegis_client" ]]; then
+        if [[ -f "${ROOT_DIR}/build/aegs_server" ]]; then
+            cp "${ROOT_DIR}/build/aegs_server" "${SERVER_BIN}"
+        elif [[ -f "${ROOT_DIR}/build/aegis_server" ]]; then
+            cp "${ROOT_DIR}/build/aegis_server" "${SERVER_BIN}"
+        fi
+        if [[ -f "${ROOT_DIR}/build/aegs_client" ]]; then
+            cp "${ROOT_DIR}/build/aegs_client" "${CLIENT_BIN}"
+        elif [[ -f "${ROOT_DIR}/build/aegis_client" ]]; then
             cp "${ROOT_DIR}/build/aegis_client" "${CLIENT_BIN}"
         fi
     else
-        local core_sources=(
-            "${ROOT_DIR}/tun_interface.cpp"
-            "${ROOT_DIR}/ip_router.cpp"
-            "${ROOT_DIR}/handshake.cpp"
-            "${ROOT_DIR}/ip_pool.cpp"
-            "${ROOT_DIR}/nat_manager.cpp"
-            "${ROOT_DIR}/port_hopper.cpp"
-            "${ROOT_DIR}/protocol_mimicry.cpp"
-            "${ROOT_DIR}/traffic_shaper.cpp"
-            "${ROOT_DIR}/chaff_engine.cpp"
-            "${ROOT_DIR}/illusion_prebypass.cpp"
-            "${ROOT_DIR}/blackhole_responder.cpp"
-            "${ROOT_DIR}/network_security.cpp"
-        )
-        g++ -O3 -std=c++17 -Wall -Wextra \
+        local core_sources=()
+        local server_src="${ROOT_DIR}/server.cpp"
+        local client_src="${ROOT_DIR}/client.cpp"
+        local inc_dir="${ROOT_DIR}"
+        if [[ -f "${ROOT_DIR}/src/server.cpp" ]]; then
+            server_src="${ROOT_DIR}/src/server.cpp"
+            client_src="${ROOT_DIR}/src/client.cpp"
+            inc_dir="${ROOT_DIR}/src"
+            core_sources=(
+                "${ROOT_DIR}/src/stealth/port_hopper.cpp"
+                "${ROOT_DIR}/src/stealth/protocol_mimicry.cpp"
+                "${ROOT_DIR}/src/stealth/traffic_shaper.cpp"
+                "${ROOT_DIR}/src/stealth/chaff_engine.cpp"
+                "${ROOT_DIR}/src/stealth/illusion_prebypass.cpp"
+                "${ROOT_DIR}/src/stealth/blackhole_responder.cpp"
+                "${ROOT_DIR}/src/net/network_security.cpp"
+                "${ROOT_DIR}/src/net/tun_interface.cpp"
+                "${ROOT_DIR}/src/net/ip_pool.cpp"
+                "${ROOT_DIR}/src/net/nat_manager.cpp"
+                "${ROOT_DIR}/src/crypto/handshake.cpp"
+            )
+        else
+            core_sources=(
+                "${ROOT_DIR}/tun_interface.cpp"
+                "${ROOT_DIR}/ip_router.cpp"
+                "${ROOT_DIR}/handshake.cpp"
+                "${ROOT_DIR}/ip_pool.cpp"
+                "${ROOT_DIR}/nat_manager.cpp"
+                "${ROOT_DIR}/port_hopper.cpp"
+                "${ROOT_DIR}/protocol_mimicry.cpp"
+                "${ROOT_DIR}/traffic_shaper.cpp"
+                "${ROOT_DIR}/chaff_engine.cpp"
+                "${ROOT_DIR}/illusion_prebypass.cpp"
+                "${ROOT_DIR}/blackhole_responder.cpp"
+                "${ROOT_DIR}/network_security.cpp"
+            )
+        fi
+        g++ -O3 -std=c++17 -Wall -Wextra -I"${ROOT_DIR}" -I"${inc_dir}" \
             -fstack-protector-strong -D_FORTIFY_SOURCE=2 -pie -Wl,-z,relro,-z,now \
-            "${ROOT_DIR}/server.cpp" "${core_sources[@]}" -o "${SERVER_BIN}" \
+            "${server_src}" "${core_sources[@]}" -o "${SERVER_BIN}" \
             -lssl -lcrypto -lsqlite3 -lpthread
 
-        if [[ -f "${ROOT_DIR}/client.cpp" ]]; then
-            g++ -O3 -std=c++17 -Wall -Wextra \
+        if [[ -f "${client_src}" ]]; then
+            g++ -O3 -std=c++17 -Wall -Wextra -I"${ROOT_DIR}" -I"${inc_dir}" \
                 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -pie -Wl,-z,relro,-z,now \
-                "${ROOT_DIR}/client.cpp" "${core_sources[@]}" -o "${CLIENT_BIN}" \
+                "${client_src}" "${core_sources[@]}" -o "${CLIENT_BIN}" \
                 -lssl -lcrypto -lpthread
         fi
     fi
@@ -460,12 +489,11 @@ VALUES ('${username}', '${key_id}', '${token}');
 EOF
 
     log_success "User '${username}' registered in SQLite database!"
-
-    # Refresh server in-memory sessions
-    restart_server
+    log_info "Hot-reload active: server automatically syncs new credentials without restarting or dropping active connections."
 
     local server_ip
     server_ip=$(get_public_ip)
+    local aegs_uri="aegs://${server_ip}:${DEFAULT_UDP_PORT}/${token}?name=${username}"
 
     echo ""
     echo -e "${C_CYAN}${C_BOLD}========================================================================${C_RESET}"
@@ -475,7 +503,13 @@ EOF
     echo -e "  ${C_BOLD}Key ID (Hex):${C_RESET}   ${C_CYAN}${key_id}${C_RESET}"
     echo -e "  ${C_BOLD}Secret Token:${C_RESET}   ${C_GREEN}${token}${C_RESET}"
     echo -e "  ${C_BOLD}Server Address:${C_RESET} ${C_WHITE}${server_ip}:${DEFAULT_UDP_PORT}${C_RESET}"
+    echo -e "  ${C_BOLD}AEGS URI Link:${C_RESET}  ${C_GREEN}${aegs_uri}${C_RESET}"
+    echo -e "  ${C_BOLD}Device Slots:${C_RESET}   ${C_WHITE}4 devices simultaneously (#1 .. #4)${C_RESET}"
     echo -e "  ${C_BOLD}Local WG Port:${C_RESET}  ${C_WHITE}51821${C_RESET} (Client listens locally for WireGuard)"
+    if command -v qrencode >/dev/null 2>&1; then
+        echo -e "\n  ${C_YELLOW}Scan QR Code in Android / iOS app:${C_RESET}"
+        qrencode -t ANSI256 "${aegs_uri}"
+    fi
     echo -e "${C_CYAN}------------------------------------------------------------------------${C_RESET}"
     echo -e "${C_YELLOW}${C_BOLD}🚀 Option 1: Fast Launch on Client (Automated Scripts)${C_RESET}"
     echo -e "  ${C_BOLD}Linux/macOS:${C_RESET}"
@@ -553,6 +587,7 @@ cmd_show_user() {
 
     local server_ip
     server_ip=$(get_public_ip)
+    local aegs_uri="aegs://${server_ip}:${DEFAULT_UDP_PORT}/${token}?name=${username}"
 
     echo ""
     echo -e "${C_CYAN}${C_BOLD}========================================================================${C_RESET}"
@@ -562,10 +597,16 @@ cmd_show_user() {
     echo -e "  ${C_BOLD}Key ID (Hex):${C_RESET}   ${C_CYAN}${key_id}${C_RESET}"
     echo -e "  ${C_BOLD}Secret Token:${C_RESET}   ${C_GREEN}${token}${C_RESET}"
     echo -e "  ${C_BOLD}Server:${C_RESET}         ${C_WHITE}${server_ip}:${DEFAULT_UDP_PORT}${C_RESET}"
+    echo -e "  ${C_BOLD}AEGS URI Link:${C_RESET}  ${C_GREEN}${aegs_uri}${C_RESET}"
+    echo -e "  ${C_BOLD}Device Slots:${C_RESET}   ${C_WHITE}4 devices simultaneously (#1 .. #4)${C_RESET}"
     echo -e "  ${C_BOLD}Created At:${C_RESET}     ${C_DIM}${created_at}${C_RESET}"
+    if command -v qrencode >/dev/null 2>&1; then
+        echo -e "\n  ${C_YELLOW}Scan QR Code in Android / iOS app:${C_RESET}"
+        qrencode -t ANSI256 "${aegs_uri}"
+    fi
     echo -e "${C_CYAN}------------------------------------------------------------------------${C_RESET}"
     echo -e "${C_YELLOW}${C_BOLD}Client Launch Command:${C_RESET}"
-    echo -e "  ${C_WHITE}./aegs-client --server ${server_ip} --token ${token} --port 51821${C_RESET}"
+    echo -e "  ${C_WHITE}./aegs-client ${server_ip} ${DEFAULT_UDP_PORT} ${token}${C_RESET}"
     echo -e "${C_CYAN}========================================================================${C_RESET}"
     echo ""
 }
@@ -601,9 +642,7 @@ cmd_remove_user() {
 
     sqlite3 "${DB_PATH}" "DELETE FROM users WHERE username = '${username}';"
     log_success "User '${username}' removed from SQLite database."
-
-    # Refresh server in-memory sessions
-    restart_server
+    log_info "Hot-reload active: user session will be revoked dynamically without restarting the server."
 }
 
 # --- CLI Action: Status ---

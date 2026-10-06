@@ -101,8 +101,12 @@ public class MainActivity extends AppCompatActivity {
                     boolean probeOk = false;
                     try {
                         java.net.Socket sock = new java.net.Socket();
-                        sock.connect(new java.net.InetSocketAddress(targetIp, 22), 1200);
+                        int probePort = (mServerPort > 0) ? mServerPort : 443;
+                        sock.connect(new java.net.InetSocketAddress(targetIp, probePort), 1500);
                         sock.close();
+                        probeOk = true;
+                    } catch (java.net.ConnectException ce) {
+                        // Remote host responded with TCP RST -> host is alive and round-trip time is accurate!
                         probeOk = true;
                     } catch (Exception e) {
                         try {
@@ -331,6 +335,30 @@ public class MainActivity extends AppCompatActivity {
             mKeyId = computeKeyId(mToken);
             mPrefs.edit().putString(KEY_KEY_ID, mKeyId).apply();
         }
+
+        // Asynchronously warm up PBKDF2 MasterKey cache to eliminate 200,000 iterations on connect
+        if (!mToken.isEmpty()) {
+            final String tok = mToken;
+            java.util.concurrent.ForkJoinPool.commonPool().execute(() -> {
+                try {
+                    String hex = mPrefs.getString("master_key_hex_" + tok, null);
+                    if (hex != null && hex.length() == 64) {
+                        byte[] mk = new byte[32];
+                        for (int i = 0; i < 32; i++) {
+                            mk[i] = (byte) Integer.parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+                        }
+                        AegsProtocol.setCachedMasterKey(tok, mk);
+                    } else {
+                        byte[] keyIdBytes = AegsProtocol.deriveKeyId(tok);
+                        byte[] mk = AegsProtocol.deriveMasterKey(tok, keyIdBytes);
+                        AegsProtocol.setCachedMasterKey(tok, mk);
+                        StringBuilder sb = new StringBuilder();
+                        for (byte b : mk) sb.append(String.format("%02x", b));
+                        mPrefs.edit().putString("master_key_hex_" + tok, sb.toString()).apply();
+                    }
+                } catch (Exception ignored) {}
+            });
+        }
     }
 
     private boolean hasActiveKey() {
@@ -470,7 +498,13 @@ public class MainActivity extends AppCompatActivity {
                 }
                 String frag = uri.getFragment();
                 if (frag != null && !frag.isEmpty() && token != null && !token.contains("#")) {
-                    token = token + "#" + frag;
+                    if (frag.contains("?")) {
+                        frag = frag.substring(0, frag.indexOf("?"));
+                    }
+                    frag = frag.trim();
+                    if (!frag.isEmpty()) {
+                        token = token + "#" + frag;
+                    }
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Error parsing URI", e);
@@ -489,7 +523,13 @@ public class MainActivity extends AppCompatActivity {
                     if (path != null && !path.isEmpty()) token = path;
                     String frag = uri.getFragment();
                     if (frag != null && !frag.isEmpty() && token != null && !token.contains("#")) {
-                        token = token + "#" + frag;
+                        if (frag.contains("?")) {
+                            frag = frag.substring(0, frag.indexOf("?"));
+                        }
+                        frag = frag.trim();
+                        if (!frag.isEmpty()) {
+                            token = token + "#" + frag;
+                        }
                     }
                 } catch (Exception ignored) {}
             }
@@ -517,6 +557,19 @@ public class MainActivity extends AppCompatActivity {
         mServerIp = ip;
         mServerPort = port;
         mKeyId = keyId;
+
+        // Asynchronously compute and cache MasterKey so connect is instantaneous
+        final String finalTok = token;
+        java.util.concurrent.ForkJoinPool.commonPool().execute(() -> {
+            try {
+                byte[] keyIdBytes = AegsProtocol.deriveKeyId(finalTok);
+                byte[] mk = AegsProtocol.deriveMasterKey(finalTok, keyIdBytes);
+                AegsProtocol.setCachedMasterKey(finalTok, mk);
+                StringBuilder sb = new StringBuilder();
+                for (byte b : mk) sb.append(String.format("%02x", b));
+                mPrefs.edit().putString("master_key_hex_" + finalTok, sb.toString()).apply();
+            } catch (Exception ignored) {}
+        });
 
         updateKeyViews();
         Toast.makeText(this, "Ключ AEGS успешно активирован!", Toast.LENGTH_SHORT).show();
@@ -651,10 +704,25 @@ public class MainActivity extends AppCompatActivity {
         boolean chaff = mPrefs.getBoolean(SettingsActivity.KEY_ADAPTIVE_CHAFF, true);
         boolean killSwitch = mPrefs.getBoolean(SettingsActivity.KEY_KILL_SWITCH, true);
 
+        byte[] cachedMk = AegsProtocol.getCachedMasterKey(mToken);
+        if (cachedMk == null) {
+            String hex = mPrefs.getString("master_key_hex_" + mToken, null);
+            if (hex != null && hex.length() == 64) {
+                cachedMk = new byte[32];
+                for (int i = 0; i < 32; i++) {
+                    cachedMk[i] = (byte) Integer.parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+                }
+                AegsProtocol.setCachedMasterKey(mToken, cachedMk);
+            }
+        }
+
         Intent intent = new Intent(this, AegsVpnService.class);
         intent.putExtra("SERVER_IP", mServerIp);
         intent.putExtra("SERVER_PORT", mServerPort);
         intent.putExtra("TOKEN", mToken);
+        if (cachedMk != null) {
+            intent.putExtra("MASTER_KEY", cachedMk);
+        }
         intent.putExtra("SPLIT_TUNNEL", split);
         intent.putExtra("PROTOCOL_MODE", proto);
         intent.putExtra("ADAPTIVE_CHAFF", chaff);

@@ -10,8 +10,8 @@ namespace AegsTitan
     public partial class MainWindow : FluentWindow
     {
         private readonly TunnelEngine _engine;
-        private readonly string _serverHost = "31.76.9.86";
-        private readonly int _serverPort = 443;
+        private string _serverHost = "127.0.0.1";
+        private int _serverPort = 443;
 
         private readonly DispatcherTimer _sessionTimer;
         private DateTime _connectedTime;
@@ -52,13 +52,91 @@ namespace AegsTitan
             }
             else
             {
+                string rawInput = TxtToken.Text.Trim();
+                string serverHost = _serverHost;
+                int serverPort = _serverPort;
+                string token = rawInput;
+
+                if (rawInput.StartsWith("aegs://", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        var uri = new Uri(rawInput);
+                        if (!string.IsNullOrEmpty(uri.Host)) serverHost = uri.Host;
+                        if (uri.Port > 0) serverPort = uri.Port;
+                        string path = uri.AbsolutePath.TrimStart('/');
+                        string queryToken = "";
+                        if (!string.IsNullOrEmpty(uri.Query))
+                        {
+                            var q = uri.Query.TrimStart('?').Split('&');
+                            foreach (var p in q)
+                            {
+                                var kv = p.Split('=');
+                                if (kv.Length == 2 && kv[0].Equals("token", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    queryToken = Uri.UnescapeDataString(kv[1]);
+                                    break;
+                                }
+                            }
+                        }
+                        token = !string.IsNullOrEmpty(queryToken) ? queryToken : path;
+                        if (!string.IsNullOrEmpty(uri.Fragment))
+                        {
+                            string frag = uri.Fragment.TrimStart('#');
+                            if (frag.Contains('?')) frag = frag.Substring(0, frag.IndexOf('?'));
+                            frag = frag.Trim();
+                            if (!string.IsNullOrEmpty(frag) && !token.Contains("#"))
+                            {
+                                token = token + "#" + frag;
+                            }
+                        }
+                    }
+                    catch { }
+                }
+                else if (rawInput.Contains(':') && rawInput.Contains('/'))
+                {
+                    try
+                    {
+                        var uri = new Uri("aegs://" + rawInput);
+                        if (!string.IsNullOrEmpty(uri.Host)) serverHost = uri.Host;
+                        if (uri.Port > 0) serverPort = uri.Port;
+                        string path = uri.AbsolutePath.TrimStart('/');
+                        token = path;
+                        if (!string.IsNullOrEmpty(uri.Fragment))
+                        {
+                            string frag = uri.Fragment.TrimStart('#');
+                            if (frag.Contains('?')) frag = frag.Substring(0, frag.IndexOf('?'));
+                            frag = frag.Trim();
+                            if (!string.IsNullOrEmpty(frag) && !token.Contains("#"))
+                            {
+                                token = token + "#" + frag;
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                if (string.IsNullOrEmpty(token) || token.Length < 16)
+                {
+                    TxtStatus.Text = "Требуется ключ доступа";
+                    TxtStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F85149"));
+                    TxtSessionTimer.Text = "Вставьте ссылку aegs:// или токен в настройках";
+                    return;
+                }
+
+                _serverHost = serverHost;
+                _serverPort = serverPort;
+
+                if (TxtFooterServer != null)
+                {
+                    TxtFooterServer.Text = $"{_serverHost}:{_serverPort}";
+                }
+
                 BtnConnect.IsEnabled = false;
                 TxtStatus.Text = "Подключение...";
                 TxtStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E3B341"));
                 TxtSessionTimer.Text = "Установка защищённого соединения...";
 
-                string token = TxtToken.Text.Trim();
-                if (string.IsNullOrEmpty(token)) token = "aegs_secure_token_titan_v6";
                 int profile = CmbProfile.SelectedIndex;
 
                 bool success = await _engine.ConnectAsync(_serverHost, _serverPort, token, profile);
@@ -84,7 +162,7 @@ namespace AegsTitan
 
                     TxtStatus.Text = "Защита активна";
                     TxtStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3FB950"));
-                    TxtSubStatus.Text = $"IP: {_engine.Session?.AssignedIp ?? "10.8.0.2"} • Reality ECH 443";
+                    TxtSubStatus.Text = $"IP: {_engine.Session?.AssignedIp ?? "10.8.0.2"} • {_serverHost}:{_serverPort}";
 
                     ShieldCircle.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0D2818"));
                     ShieldCircle.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3FB950"));

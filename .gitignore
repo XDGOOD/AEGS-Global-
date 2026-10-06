@@ -1,4 +1,4 @@
-﻿# Build artifacts
+# Build artifacts
 aegis_server
 aegis_server_wsl
 aegis_client
@@ -34,6 +34,7 @@ test_run_*/
 tools/
 tools/telegram_bot/
 scratch/
+scratch_memes/
 MANUAL_AND_TROUBLESHOOTING.md
 
 # .NET & Windows Build Artifacts

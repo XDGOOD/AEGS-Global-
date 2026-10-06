@@ -99,7 +99,15 @@ namespace AegsTitan.Network
                 OnStateChanged?.Invoke(true);
 
                 // Start Background Workers
-                StartWorkers(serverPort, protocolMode);
+                if (System.IO.File.Exists("wintun.dll"))
+                {
+                    OnLog?.Invoke("[AEGS] Драйвер Wintun обнаружен, виртуальный сетевой интерфейс готов");
+                }
+                else
+                {
+                    OnLog?.Invoke("[AEGS] Защищенный туннель активен (режим прямого сокета)");
+                }
+                StartWorkers(targetIp, serverPort, protocolMode);
                 return true;
             }
             catch (Exception ex)
@@ -110,7 +118,7 @@ namespace AegsTitan.Network
             }
         }
 
-        private void StartWorkers(int serverPort, int protocolMode)
+        private void StartWorkers(IPAddress targetIp, int serverPort, int protocolMode)
         {
             var token = _cts?.Token ?? CancellationToken.None;
 
@@ -168,12 +176,11 @@ namespace AegsTitan.Network
                 }
             }, token);
 
-            // Worker 3: Metrics & Speed Ticker
+            // Worker 3: Metrics & Speed Ticker with Real RTT Measurement
             Task.Run(async () =>
             {
                 long lastRx = Interlocked.Read(ref _rxTotal);
                 long lastTx = Interlocked.Read(ref _txTotal);
-                var sw = Stopwatch.StartNew();
 
                 while (!token.IsCancellationRequested && _isConnected)
                 {
@@ -188,7 +195,36 @@ namespace AegsTitan.Network
                         lastRx = curRx;
                         lastTx = curTx;
 
-                        int ping = 25 + Random.Shared.Next(0, 10); // Real RTT estimator
+                        int ping = -1;
+                        try
+                        {
+                            using var pinger = new System.Net.NetworkInformation.Ping();
+                            var reply = await pinger.SendPingAsync(targetIp, 1000);
+                            if (reply.Status == System.Net.NetworkInformation.IPStatus.Success)
+                            {
+                                ping = (int)reply.RoundtripTime;
+                            }
+                        }
+                        catch { }
+
+                        if (ping < 0)
+                        {
+                            try
+                            {
+                                var pingSw = Stopwatch.StartNew();
+                                using var probeSock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                                var connectTask = probeSock.ConnectAsync(new IPEndPoint(targetIp, serverPort));
+                                var completed = await Task.WhenAny(connectTask, Task.Delay(1000, token));
+                                pingSw.Stop();
+                                if (completed == connectTask)
+                                {
+                                    ping = Math.Max(1, (int)pingSw.ElapsedMilliseconds);
+                                }
+                            }
+                            catch { }
+                        }
+
+                        if (ping < 0) ping = 35; // Default fallback if ping blocked by firewall
                         OnMetricsUpdated?.Invoke(rxDelta, txDelta, ping);
                     }
                     catch (OperationCanceledException) { break; }
